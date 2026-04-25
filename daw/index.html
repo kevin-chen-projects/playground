@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bare DAW — make music in your browser</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Bare DAW</h1>
+      <span class="tagline">a tiny browser DAW</span>
+    </div>
+
+    <div class="transport" role="toolbar" aria-label="Transport">
+      <button id="playBtn" class="primary" aria-label="Play">
+        <span class="icon" aria-hidden="true">▶</span><span class="label">Play</span>
+      </button>
+      <button id="stopBtn" aria-label="Stop">
+        <span class="icon" aria-hidden="true">■</span><span class="label">Stop</span>
+      </button>
+      <button id="playModeBtn" class="mode-loop" title="Toggle Loop / Song">Loop</button>
+      <label class="field">
+        <span>BPM</span>
+        <input type="number" id="bpm" min="40" max="240" value="110" step="1">
+      </label>
+      <label class="field">
+        <span>Steps</span>
+        <select id="steps">
+          <option value="8">8</option>
+          <option value="16" selected>16</option>
+          <option value="32">32</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="export">
+      <button id="midiBtn" title="Connect a MIDI keyboard (Web MIDI API)">MIDI: off</button>
+      <button id="exportWavBtn">Export WAV</button>
+      <button id="exportMidiBtn">Export MIDI</button>
+    </div>
+  </header>
+
+  <main class="app">
+    <aside class="palette" aria-label="Instrument palette">
+      <h2>Instruments</h2>
+      <p class="hint">Drag an instrument into the timeline to add a track.</p>
+      <div id="paletteList" class="palette-list"></div>
+
+      <section class="help">
+        <h3>Sections (song structure)</h3>
+        <ol>
+          <li><strong>+ New</strong> adds another section (verse, chorus…).</li>
+          <li><strong>Duplicate</strong> copies the current section.</li>
+          <li>Toggle <strong>Loop</strong> → <strong>Song</strong> to chain sections.</li>
+        </ol>
+
+        <h3>Drum tracks</h3>
+        <ol><li>Click cells to toggle hits.</li></ol>
+
+        <h3>Piano roll</h3>
+        <ol>
+          <li>Click a cell to place a note; drag right to lengthen.</li>
+          <li>Click a note to remove it.</li>
+          <li>Click a piano key to audition.</li>
+        </ol>
+
+        <h3>Typing notes</h3>
+        <ol>
+          <li>Click a melodic track to select it.</li>
+          <li>Whites: <strong>A S D F G H J K</strong></li>
+          <li>Blacks: <strong>W E T Y U</strong></li>
+          <li><strong>[ ]</strong> octave · <strong>← →</strong> cursor · <strong>1–8</strong> length · <strong>⌫</strong> undo</li>
+        </ol>
+
+        <h3>MIDI keyboard</h3>
+        <ol>
+          <li>Click <strong>MIDI: off</strong> in the toolbar to connect.</li>
+          <li>Notes within 150&thinsp;ms stack as a chord.</li>
+        </ol>
+      </section>
+    </aside>
+
+    <section class="timeline-wrap">
+      <div class="sections-bar">
+        <div id="sectionTabs" class="section-tabs" role="tablist"></div>
+        <div class="section-actions">
+          <button id="addSectionBtn" class="icon-btn" title="Add a new empty section">+ New</button>
+          <button id="dupSectionBtn" class="icon-btn" title="Duplicate the current section">Duplicate</button>
+        </div>
+      </div>
+
+      <section id="timeline" class="timeline" aria-label="Track timeline">
+        <div class="ruler-row">
+          <div class="gutter"></div>
+          <div id="stepRuler" class="step-ruler"></div>
+        </div>
+        <div id="timelineEmpty" class="empty">
+          <div class="empty-inner">
+            <span class="empty-icon" aria-hidden="true">🎛️</span>
+            <p>Drop an instrument here to start a track.</p>
+          </div>
+        </div>
+        <div id="tracks" class="tracks"></div>
+      </section>
+
+      <section class="notation-panel">
+        <header class="notation-header">
+          <span class="notation-label" id="notationLabel">Notation</span>
+          <button id="notationToggle" class="icon-btn" title="Hide/show notation">Hide</button>
+        </header>
+        <div id="notation" class="notation" aria-label="Staff notation of the selected track">
+          <div class="notation-empty">Select a melodic track to see notation.</div>
+        </div>
+      </section>
+
+      <footer class="statusbar">
+        <span id="status">Ready.</span>
+        <span id="octaveInfo" class="octave-info"></span>
+      </footer>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+  <script src="https://unpkg.com/vexflow@3.0.9/releases/vexflow-min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

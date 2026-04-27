@@ -7,31 +7,32 @@
   Deps: none. Uses MediaRecorder for export.
 
   FILE INDEX (post-comment line numbers; +37 from original)
-    44    <style>
-    78    Landing / upload view (video icon)
-    176   Editor view (2-col grid)
-    242   Canvas / player area + processing overlay
-    373   Player bar (scrubber, time, volume, play/pause)
-    480   Options panel (presets, sliders, toggles)
-    666   </style>
-    668   <body>
-    670   Landing HTML
-    697   Editor HTML (header, canvas, player, options)
-    822   <script> — main IIFE
-    827     State (incl. Web Audio fallback slots for iOS export)
-    873     DOM refs
-    911     Toast
-    922     File upload — iOS-safe blob load (DOM-attached, no crossOrigin)
-    982     Editor init
-    1023    Render loop (real-time preview)
-    1051    Frame processing — CORE PIPELINE
-    1091    Skin mask + frequency-separation smoothing (YCbCr)
-    1213    Color adjustments (tone-preserving — no whitening)
-    1267    Player controls (play/pause/scrub/volume)
-    1360    Slider bindings (strength/detail/sensitivity/blur/etc.)
-    1497    Keyboard shortcuts
-    1508    Process & download via MediaRecorder (WebM/MP4 + Web Audio iOS fallback)
-    1643  </script>
+    45    <style>
+    80    Landing / upload view (video icon)
+    179   Editor view (2-col grid)
+    246   Canvas / player area + processing overlay
+    377   Player bar (scrubber, time, volume, play/pause)
+    484   Options panel (presets, sliders, toggles)
+    661   Mobile media queries (<900px and <520px)
+    733   </style>
+    735   <body>
+    737   Landing HTML
+    764   Editor HTML (header, canvas, player, options)
+    889   <script> — main IIFE
+    896     State (incl. Web Audio fallback slots for iOS export)
+    942     DOM refs
+    980     Toast
+    991     File upload — iOS-safe blob load (DOM-attached, no crossOrigin)
+    1051    Editor init
+    1092    Render loop (real-time preview)
+    1120    Frame processing — CORE PIPELINE
+    1160    Skin mask + frequency-separation smoothing (YCbCr)
+    1282    Color adjustments (tone-preserving — no whitening)
+    1336    Player controls (play/pause/scrub/volume)
+    1429    Slider bindings (strength/detail/sensitivity/blur/etc.)
+    1566    Keyboard shortcuts
+    1577    Process & download via MediaRecorder (WebM/MP4 + Web Audio iOS fallback)
+    1710  </script>
 
   KEY FEATURES: real-time preview, tone-preserving algorithm,
   protect eyes/lips toggle, skin-mask debug overlay, presets.
@@ -71,6 +72,7 @@
     color: var(--ink-900);
     background: linear-gradient(135deg, var(--blush-50) 0%, var(--cream) 60%, #faf4ef 100%);
     min-height: 100vh;
+    min-height: 100dvh;
     overflow: hidden;
   }
   button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -79,6 +81,7 @@
   /* ============ LANDING / UPLOAD VIEW ============ */
   .landing {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -180,6 +183,7 @@
     grid-template-columns: 1fr 320px;
     grid-template-rows: 56px 1fr;
     height: 100vh;
+    height: 100dvh;
     background: var(--cream);
   }
   .editor.active { display: grid; }
@@ -656,13 +660,76 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--blush-300); }
 
   @media (max-width: 900px) {
-    .editor { grid-template-columns: 1fr; grid-template-rows: 56px 1fr auto; }
+    /* Landing view — tighter spacing for small screens */
+    .landing { padding: 28px 16px; }
+    .brand { font-size: 40px; }
+    .tagline { font-size: 15px; margin-bottom: 28px; }
+    .dropzone { padding: 40px 20px; }
+    .dropzone .icon { width: 56px; height: 56px; margin-bottom: 16px; }
+    .dropzone .title { font-size: 17px; }
+    .features { gap: 10px 18px; margin-top: 20px; font-size: 12px; }
+
+    /* Editor layout — single column, smaller header, option panel below */
+    .editor {
+      grid-template-columns: 1fr;
+      grid-template-rows: 52px minmax(0, 1fr) auto;
+    }
+    .editor header { padding: 0 12px; }
+    .editor header .brand-small { font-size: 18px; }
+    .header-actions { gap: 4px; }
+    .header-actions .sep { margin: 0 2px; }
+    .icon-btn { width: 34px; height: 34px; }
+    .btn { padding: 7px 11px; font-size: 13px; }
+
+    /* Give the preview more room: much less canvas padding */
+    .canvas-stage-wrap { padding: 10px; }
+
+    /* Compact player bar */
+    .player-bar { padding: 8px 12px; gap: 10px; }
+    .time-label { min-width: 78px; font-size: 11px; }
+    .volume-slider { width: 56px; }
+
+    /* Options panel — scrollable, sized to ~35% of viewport */
     .options-panel {
       grid-row: 3;
+      grid-column: 1;
       border-left: none;
       border-top: 1px solid var(--blush-100);
-      max-height: 260px;
+      max-height: 35vh;
+      max-height: 35dvh;
+      padding: 16px 16px 20px;
     }
+    .option-group { margin-bottom: 20px; }
+    .option-group h3 { margin-bottom: 12px; }
+    .tone-info { padding: 10px 12px; font-size: 12px; margin-bottom: 14px; }
+
+    /* Touch-friendly sliders — bigger thumbs, thicker track */
+    input[type="range"] { height: 6px; }
+    input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; }
+    input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; }
+    .volume-slider { height: 4px; }
+    .volume-slider::-webkit-slider-thumb { width: 16px; height: 16px; }
+    .volume-slider::-moz-range-thumb { width: 16px; height: 16px; }
+
+    /* Bigger chips and toggles for fingers */
+    .preset-chip { padding: 8px 13px; font-size: 12.5px; }
+    .toggle-row { padding: 10px 0; font-size: 14px; }
+    .toggle { width: 44px; height: 26px; }
+    .toggle::after { width: 22px; height: 22px; }
+    .toggle.on::after { transform: translateX(18px); }
+  }
+
+  @media (max-width: 520px) {
+    /* Tighten further for narrow phones */
+    .editor header .brand-small { display: none; }
+    .editor header { justify-content: flex-end; }
+    #new-btn { padding: 7px 10px; font-size: 12px; }
+    .volume-wrap .volume-slider { display: none; }
+    .volume-wrap { gap: 0; }
+    .player-bar { gap: 8px; padding: 8px 10px; }
+    .time-label { min-width: 72px; }
+    .canvas-stage-wrap { padding: 6px; }
+    .options-panel { padding: 14px 14px 18px; }
   }
 </style>
 </head>

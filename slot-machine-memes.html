@@ -1,5 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  SLOT MACHINE MEMES — Same engine + meme sound test panel
+  Layout: cabinet + reels + bet btns + paytable + sound-test
+  Deps: optional ./sounds/{fahhhh,goteem,wethebest}.mp3
+        (procedural fallback always available)
+
+  FILE INDEX (post-comment line numbers; +51 from original)
+    58    <style>
+    94    Cabinet (brown/gold gradient)
+    144   Marquee (shine animation)
+    180   Credit panel (3-column grid)
+    213   Reels (120px symbol, payline, motion blur)
+    351   Bet controls (5 amounts: 50/100/200/400/800)
+    396   Spin button
+    468   Cabinet flash on win
+    484   Paytable (collapsible)
+    525   Ticket overlay
+    735   Sound test panel (NEW vs slot-machine.html)
+    807   </style>
+    809   <body>
+    892   Sound test buttons in DOM (NEW)
+    915   <script>
+    918     Reel composition (32 stops; identical to slot-machine.html)
+    942     State
+    952     DOM refs
+    964     Audio (procedural)
+    1009    MEME SOUND EFFECTS (NEW; with MP3 + procedural fallback)
+    1014      MEME_FILES paths
+    1022      playMemeOrFallback(key, vol, fn)
+    1036      proceduralFahhhh (sawtooth + LFO vibrato)
+    1072      proceduralFart
+    1109      proceduralLoseSound
+    1114      proceduralGoteem (descending square-wave)
+    1139      proceduralWeTheBest (ascending chords + bass wobble)
+    1193      triggerLoserMeme / triggerGoteemMeme / triggerWetheBestMeme
+    1196    Background music (procedural 8s chiptune loop)
+    1298    Reel helpers
+    1370    Win calculation
+    1418    Display helpers
+    1480    Auto-switch bet if unaffordable
+    1493    Spin handler (calls meme triggers on win/loss)
+    1575    Ticket
+    1666    Reset
+    1682    Event listeners (incl. test-lose/goteem/wethebest buttons)
+    1747    Init
+    1750  </script>
+
+  KEY DIFF vs slot-machine.html: +sound-test panel UI,
+  +meme audio fns with procedural fallbacks, otherwise
+  identical reel/payout/spin logic.
+  ============================================================
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

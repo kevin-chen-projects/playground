@@ -1,5 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  SLOT MACHINE — Birthday-themed 3-reel slot
+  Layout: centered cabinet, marquee, 3 reels, bet btns, paytable
+  Deps: none. All audio is procedural Web Audio synthesis.
+
+  FILE INDEX (post-comment line numbers; +39 from original)
+    46    <style>
+    82    Cabinet (brown/gold gradient)
+    132   Marquee (shine animation)
+    168   Credit panel (3-column grid)
+    201   Reels (120px symbol, payline, motion blur)
+    339   Bet controls (5 amounts: 50/100/200/400/800)
+    384   Spin button
+    456   Cabinet flash on win
+    472   Paytable (collapsible)
+    513   Ticket overlay (slot, lip, ejection animation)
+    754   </style>
+    756   <body>
+    853   <script>
+    856     Reel composition (32 stops: 6c/6l/5p/5b/4bar/3dbl/2tpl/1seven)
+    880     State (credits, bet, gameOver, etc.)
+    890     DOM refs
+    902     Audio (beeps, jingles, jackpot fanfare)
+    947     Background music (procedural 8s chiptune loop)
+    1049    Reel helpers (makeSymbolEl, randomSymbol, initReels, spinReel)
+    1121    Win calculation (paytable matches → amount + lit indices)
+    1169    Display helpers
+    1231    Auto-switch bet if unaffordable
+    1244    Spin handler (full flow)
+    1325    Ticket (render + eject animation)
+    1412    Reset
+    1428    Event listeners (spin/bet/paytable/music)
+    1476    Init
+    1479  </script>
+
+  RTP ~95%, hit frequency ~50%. Ticket auto-ejects on win.
+  ============================================================
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

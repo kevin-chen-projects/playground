@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================
+  GLOW STUDIO VIDEO — Tone-safe video face smoothing
+  Layout: 2-col grid (1fr canvas | 320 panel); stacks <900px
+  Deps: none. Uses MediaRecorder for export.
+
+  FILE INDEX (post-comment line numbers; +37 from original)
+    44    <style>
+    78    Landing / upload view (video icon)
+    176   Editor view (2-col grid)
+    242   Canvas / player area + processing overlay
+    373   Player bar (scrubber, time, volume, play/pause)
+    480   Options panel (presets, sliders, toggles)
+    666   </style>
+    668   <body>
+    670   Landing HTML
+    697   Editor HTML (header, canvas, player, options)
+    822   <script> — main IIFE
+    827     State
+    867     DOM refs
+    905     Toast
+    916     File upload
+    953     Editor init
+    994     Render loop (real-time preview)
+    1022    Frame processing — CORE PIPELINE
+    1062    Skin mask + frequency-separation smoothing (YCbCr)
+    1184    Color adjustments (tone-preserving — no whitening)
+    1238    Player controls (play/pause/scrub/volume)
+    1331    Slider bindings (strength/detail/sensitivity/blur/etc.)
+    1463    Keyboard shortcuts
+    1474    Process & download via MediaRecorder
+    1580  </script>
+
+  KEY FEATURES: real-time preview, tone-preserving algorithm,
+  protect eyes/lips toggle, skin-mask debug overlay, presets.
+  ============================================================
+-->
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Glow Studio Video — Tone-Safe Face Smoothing</title>
+<style>
+  :root {
+    --blush-50:  #fff5f7;
+    --blush-100: #ffe7ec;
+    --blush-200: #ffd0da;
+    --blush-300: #ffb1c1;
+    --blush-400: #ff87a0;
+    --blush-500: #ec5a7c;
+    --blush-600: #c93e61;
+    --ink-900:   #23181d;
+    --ink-700:   #4a3942;
+    --ink-500:   #7b6670;
+    --ink-300:   #b8a7ae;
+    --cream:     #fdfaf7;
+    --paper:     #ffffff;
+    --shadow-sm: 0 1px 2px rgba(50,20,30,0.06);
+    --shadow-md: 0 8px 24px rgba(60,20,35,0.08);
+    --shadow-lg: 0 20px 60px rgba(60,20,35,0.12);
+    --radius:    14px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: var(--ink-900);
+    background: linear-gradient(135deg, var(--blush-50) 0%, var(--cream) 60%, #faf4ef 100%);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+  /* ============ LANDING / UPLOAD VIEW ============ */
+  .landing {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    position: relative;
+  }
+  .landing::before {
+    content: '';
+    position: absolute;
+    top: -10%; left: -10%;
+    width: 60vmin; height: 60vmin;
+    background: radial-gradient(circle, var(--blush-200), transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .landing::after {
+    content: '';
+    position: absolute;
+    bottom: -10%; right: -10%;
+    width: 50vmin; height: 50vmin;
+    background: radial-gradient(circle, #ffe4c4, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .landing-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 580px;
+    text-align: center;
+  }
+  .brand {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 48px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--ink-900);
+    margin-bottom: 4px;
+  }
+  .brand .dot { color: var(--blush-500); }
+  .brand .sub { font-size: 0.5em; vertical-align: 0.6em; color: var(--blush-500); letter-spacing: 0.18em; margin-left: 6px; }
+  .tagline {
+    color: var(--ink-500);
+    font-size: 16px;
+    margin-bottom: 40px;
+  }
+  .dropzone {
+    display: block;
+    border: 2px dashed var(--blush-300);
+    border-radius: var(--radius);
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(10px);
+    padding: 56px 32px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-align: center;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--blush-500);
+    background: rgba(255,255,255,0.9);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .dropzone .icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blush-100), var(--blush-200));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blush-600);
+  }
+  .dropzone .icon svg { width: 28px; height: 28px; }
+  .dropzone .title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink-900);
+    margin-bottom: 6px;
+  }
+  .dropzone .sub { color: var(--ink-500); font-size: 14px; }
+  .dropzone input { display: none; }
+
+  .features {
+    margin-top: 32px;
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    color: var(--ink-500);
+    font-size: 13px;
+  }
+  .features span { display: inline-flex; align-items: center; gap: 6px; }
+  .features .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blush-400); }
+
+  /* ============ EDITOR VIEW ============ */
+  .editor {
+    display: none;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+    background: var(--cream);
+  }
+  .editor.active { display: grid; }
+
+  .editor header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--blush-100);
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+  }
+  .editor header .brand-small {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink-900);
+  }
+  .editor header .brand-small .dot { color: var(--blush-500); }
+  .editor header .brand-small .sub { font-size: 0.55em; vertical-align: 0.5em; color: var(--blush-500); letter-spacing: 0.18em; margin-left: 4px; }
+
+  .header-actions { display: flex; gap: 6px; align-items: center; }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-700);
+    transition: background 0.15s;
+  }
+  .icon-btn:hover { background: var(--blush-50); color: var(--ink-900); }
+  .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .header-actions .sep { width: 1px; height: 20px; background: var(--blush-100); margin: 0 4px; }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--blush-500), var(--blush-600));
+    color: white;
+    box-shadow: 0 2px 8px rgba(236, 90, 124, 0.3);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(236, 90, 124, 0.4); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn-ghost { color: var(--ink-700); }
+  .btn-ghost:hover { background: var(--blush-50); }
+
+  /* ============ CANVAS / PLAYER AREA ============ */
+  .canvas-area {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .canvas-stage-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-height: 0;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255,209,220,0.3), transparent 60%),
+      radial-gradient(circle at 70% 80%, rgba(255,228,196,0.3), transparent 60%),
+      var(--cream);
+    padding: 24px;
+  }
+  .canvas-stage {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: var(--shadow-lg);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1216;
+  }
+  #display-canvas {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+  }
+  .compare-label {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(35,24,29,0.85);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .compare-label.show { opacity: 1; }
+
+  .skin-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(35,24,29,0.85);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: none;
+    pointer-events: none;
+  }
+  .skin-overlay.show { display: block; }
+  .skin-overlay .dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #5dd39e; margin-right: 6px; vertical-align: middle;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .processing-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(35, 24, 29, 0.85);
+    backdrop-filter: blur(6px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 20;
+    border-radius: 8px;
+  }
+  .processing-overlay.show { display: flex; }
+  .processing-overlay .spinner {
+    width: 56px;
+    height: 56px;
+    border: 3px solid rgba(255, 255, 255, 0.18);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin-bottom: 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .processing-overlay .label {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .processing-overlay .progress-track {
+    width: 240px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .processing-overlay .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blush-400), var(--blush-500));
+    width: 0%;
+    transition: width 0.18s linear;
+  }
+  .processing-overlay .progress-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ============ PLAYER BAR ============ */
+  .player-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--blush-100);
+    flex-shrink: 0;
+  }
+  .player-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blush-500), var(--blush-600));
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(236, 90, 124, 0.3);
+    flex-shrink: 0;
+  }
+  .player-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(236, 90, 124, 0.4); }
+  .player-btn svg { width: 16px; height: 16px; }
+  .player-btn.icon-only {
+    background: transparent;
+    color: var(--ink-700);
+    box-shadow: none;
+    width: 32px;
+    height: 32px;
+  }
+  .player-btn.icon-only:hover {
+    background: var(--blush-50);
+    color: var(--ink-900);
+    transform: none;
+    box-shadow: none;
+  }
+  .time-label {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--ink-500);
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+  .scrubber {
+    flex: 1;
+    position: relative;
+    height: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+  .scrubber-track {
+    position: absolute;
+    left: 0; right: 0;
+    height: 4px;
+    background: var(--blush-100);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .scrubber-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blush-400), var(--blush-500));
+    width: 0%;
+    border-radius: 4px;
+  }
+  .scrubber-thumb {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border: 2px solid var(--blush-500);
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    pointer-events: none;
+    left: 0%;
+  }
+  .volume-wrap { display: inline-flex; align-items: center; gap: 6px; }
+  .volume-slider {
+    width: 70px;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--blush-100);
+    outline: none;
+  }
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--blush-500);
+    cursor: pointer;
+  }
+  .volume-slider::-moz-range-thumb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--blush-500);
+    cursor: pointer;
+  }
+
+  /* ============ OPTIONS PANEL ============ */
+  .options-panel {
+    background: var(--paper);
+    border-left: 1px solid var(--blush-100);
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .option-group { margin-bottom: 28px; }
+  .option-group h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-500);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .option-group h3 .badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, var(--blush-100), var(--blush-200));
+    color: var(--blush-600);
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  .preset-strip {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .preset-chip {
+    padding: 6px 12px;
+    border-radius: 100px;
+    background: var(--paper);
+    border: 1px solid var(--blush-100);
+    font-size: 12px;
+    color: var(--ink-700);
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .preset-chip:hover {
+    border-color: var(--blush-300);
+    transform: translateY(-1px);
+  }
+  .preset-chip.active {
+    background: linear-gradient(135deg, var(--blush-500), var(--blush-600));
+    border-color: var(--blush-500);
+    color: white;
+    box-shadow: 0 2px 6px rgba(236, 90, 124, 0.25);
+  }
+
+  .slider-row {
+    margin-bottom: 14px;
+  }
+  .slider-head {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .slider-label { color: var(--ink-700); }
+  .slider-value { color: var(--blush-600); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--blush-100);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--blush-500);
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    transition: transform 0.1s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--blush-500);
+    cursor: pointer;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--ink-700);
+  }
+  .toggle {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    background: var(--blush-100);
+    border-radius: 12px;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    transition: transform 0.15s;
+  }
+  .toggle.on { background: linear-gradient(135deg, var(--blush-500), var(--blush-600)); }
+  .toggle.on::after { transform: translateX(16px); }
+
+  .tone-info {
+    font-size: 12px;
+    color: var(--ink-500);
+    line-height: 1.5;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--blush-50), #fff8f3);
+    border-left: 3px solid var(--blush-400);
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .tone-info strong { color: var(--ink-900); font-weight: 600; display: block; margin-bottom: 4px; font-size: 12px; }
+
+  .reset-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--blush-50);
+    color: var(--ink-700);
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { background: var(--blush-100); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink-900);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s;
+    z-index: 100;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--blush-200); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--blush-300); }
+
+  @media (max-width: 900px) {
+    .editor { grid-template-columns: 1fr; grid-template-rows: 56px 1fr auto; }
+    .options-panel {
+      grid-row: 3;
+      border-left: none;
+      border-top: 1px solid var(--blush-100);
+      max-height: 260px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LANDING / UPLOAD VIEW ============ -->
+<div class="landing" id="landing">
+  <div class="landing-inner">
+    <h1 class="brand">Glow<span class="dot">.</span>Studio<span class="sub">VIDEO</span></h1>
+    <p class="tagline">Tone-safe face smoothing for your videos — preserves your natural skin color.</p>
+
+    <label class="dropzone" id="dropzone">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="23 7 16 12 23 17 23 7"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+      </div>
+      <div class="title">Drop a video here</div>
+      <div class="sub">or click to browse — MP4, MOV, WebM</div>
+      <input type="file" id="file-input" accept="video/*" />
+    </label>
+
+    <div class="features">
+      <span><span class="dot"></span> Smooths blemishes &amp; wrinkles</span>
+      <span><span class="dot"></span> Preserves your natural tone</span>
+      <span><span class="dot"></span> Works on every skin color</span>
+      <span><span class="dot"></span> Stays on your device</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDITOR VIEW ============ -->
+<div class="editor" id="editor">
+  <header>
+    <div class="brand-small">Glow<span class="dot">.</span>Studio<span class="sub">VIDEO</span></div>
+    <div class="header-actions">
+      <button class="icon-btn" id="compare-btn" title="Hold to compare original">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20"/></svg>
+      </button>
+      <button class="icon-btn" id="reset-btn" title="Reset all settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <div class="sep"></div>
+      <button class="btn btn-ghost" id="new-btn">New Video</button>
+      <button class="btn btn-primary" id="download-btn">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Process &amp; Save
+      </button>
+    </div>
+  </header>
+
+  <div class="canvas-area" id="canvas-area">
+    <div class="canvas-stage-wrap">
+      <div class="canvas-stage" id="canvas-stage">
+        <canvas id="display-canvas"></canvas>
+        <div class="compare-label" id="compare-label">Original</div>
+        <div class="skin-overlay" id="skin-overlay"><span class="dot"></span>Smoothing active</div>
+        <div class="processing-overlay" id="processing-overlay">
+          <div class="spinner"></div>
+          <div class="label">Rendering processed video</div>
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="progress-text" id="progress-text">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="player-bar">
+      <button class="player-btn" id="play-btn" title="Play / Pause (Space)">
+        <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        <svg id="pause-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <span class="time-label" id="time-label">0:00 / 0:00</span>
+      <div class="scrubber" id="scrubber">
+        <div class="scrubber-track"><div class="scrubber-fill" id="scrubber-fill"></div></div>
+        <div class="scrubber-thumb" id="scrubber-thumb"></div>
+      </div>
+      <div class="volume-wrap">
+        <button class="player-btn icon-only" id="mute-btn" title="Mute">
+          <svg id="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
+        </button>
+        <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="80" />
+      </div>
+    </div>
+  </div>
+
+  <aside class="options-panel">
+    <div class="tone-info">
+      <strong>How it works</strong>
+      Smoothing blends the high-frequency texture (blemishes, wrinkles) of skin pixels into a softer version, while preserving the underlying low-frequency color. Your natural skin tone — light, medium, or deep — stays intact.
+    </div>
+
+    <div class="option-group">
+      <h3>Skin Smoothing <span class="badge">TONE-SAFE</span></h3>
+      <div class="preset-strip">
+        <button class="preset-chip" data-strength="0">Off</button>
+        <button class="preset-chip" data-strength="35">Subtle</button>
+        <button class="preset-chip active" data-strength="65">Natural</button>
+        <button class="preset-chip" data-strength="85">Polished</button>
+        <button class="preset-chip" data-strength="100">Maximum</button>
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Strength</span><span class="slider-value" id="strength-val">65</span></div>
+        <input type="range" id="strength" min="0" max="100" value="65" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Detail Preserve</span><span class="slider-value" id="detail-val">30</span></div>
+        <input type="range" id="detail" min="0" max="100" value="30" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Skin Sensitivity</span><span class="slider-value" id="sensitivity-val">50</span></div>
+        <input type="range" id="sensitivity" min="0" max="100" value="50" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Blur Radius</span><span class="slider-value" id="blur-val">8</span></div>
+        <input type="range" id="blur" min="2" max="20" value="8" />
+      </div>
+
+      <div class="toggle-row">
+        <span>Show skin mask preview</span>
+        <button class="toggle" id="mask-toggle"></button>
+      </div>
+      <div class="toggle-row">
+        <span>Protect eyes &amp; lips</span>
+        <button class="toggle on" id="protect-toggle"></button>
+      </div>
+    </div>
+
+    <div class="option-group">
+      <h3>Tone &amp; Color</h3>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Brightness</span><span class="slider-value" id="brightness-val">0</span></div>
+        <input type="range" id="brightness" min="-30" max="30" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Contrast</span><span class="slider-value" id="contrast-val">0</span></div>
+        <input type="range" id="contrast" min="-30" max="30" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Warmth</span><span class="slider-value" id="warmth-val">0</span></div>
+        <input type="range" id="warmth" min="-30" max="30" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span class="slider-label">Vibrance</span><span class="slider-value" id="vibrance-val">0</span></div>
+        <input type="range" id="vibrance" min="-30" max="30" value="0" />
+      </div>
+      <button class="reset-btn" id="reset-tone-btn">Reset color</button>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  const state = {
+    video: null,                 // HTMLVideoElement (offscreen)
+    objectUrl: null,
+    duration: 0,
+    isPlaying: false,
+    isScrubbing: false,
+    compareMode: false,
+    showSkinMask: false,
+    protectFeatures: true,
+    isRecording: false,
+
+    // Source dimensions (capped for performance)
+    procWidth: 0,
+    procHeight: 0,
+
+    // Smoothing parameters
+    strength: 0.65,           // 0..1
+    detailPreserve: 0.30,     // 0..1 (kept fraction of high-freq detail)
+    skinSensitivity: 0.50,    // 0..1 (wider mask if higher)
+    blurRadius: 8,            // px
+
+    // Color adjustments
+    adj: { brightness: 0, contrast: 0, warmth: 0, vibrance: 0 },
+
+    // Working canvases
+    procCanvas: null, procCtx: null,
+    blurCanvas: null, blurCtx: null,
+    displayCanvas: null, displayCtx: null,
+
+    // Render loop
+    rafId: null,
+    lastFrameTime: 0,
+  };
+
+  // Maximum processing dimension — anything larger is downsampled for real-time
+  const MAX_PROC_DIM = 720;
+
+  // ============================================================
+  // DOM
+  // ============================================================
+  const landing = document.getElementById('landing');
+  const editor = document.getElementById('editor');
+  const fileInput = document.getElementById('file-input');
+  const dropzone = document.getElementById('dropzone');
+  const canvasStage = document.getElementById('canvas-stage');
+  const displayCanvas = document.getElementById('display-canvas');
+  const compareLabel = document.getElementById('compare-label');
+  const skinOverlay = document.getElementById('skin-overlay');
+  const processingOverlay = document.getElementById('processing-overlay');
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  const playBtn = document.getElementById('play-btn');
+  const playIcon = document.getElementById('play-icon');
+  const pauseIcon = document.getElementById('pause-icon');
+  const timeLabel = document.getElementById('time-label');
+  const scrubber = document.getElementById('scrubber');
+  const scrubberFill = document.getElementById('scrubber-fill');
+  const scrubberThumb = document.getElementById('scrubber-thumb');
+  const muteBtn = document.getElementById('mute-btn');
+  const volumeSlider = document.getElementById('volume-slider');
+  const compareBtn = document.getElementById('compare-btn');
+  const downloadBtn = document.getElementById('download-btn');
+  const toastEl = document.getElementById('toast');
+  const maskToggle = document.getElementById('mask-toggle');
+  const protectToggle = document.getElementById('protect-toggle');
+
+  state.displayCanvas = displayCanvas;
+  state.displayCtx = displayCanvas.getContext('2d', { willReadFrequently: true });
+
+  // Hidden working canvases
+  state.procCanvas = document.createElement('canvas');
+  state.procCtx = state.procCanvas.getContext('2d', { willReadFrequently: true });
+  state.blurCanvas = document.createElement('canvas');
+  state.blurCtx = state.blurCanvas.getContext('2d', { willReadFrequently: true });
+
+  // ============================================================
+  // TOAST
+  // ============================================================
+  let toastTimer = null;
+  function showToast(msg, ms = 1800) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+  }
+
+  // ============================================================
+  // FILE UPLOAD
+  // ============================================================
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) loadVideoFile(e.target.files[0]);
+  });
+  ['dragenter', 'dragover'].forEach(ev => {
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag-over'); });
+  });
+  dropzone.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('video/')) loadVideoFile(f);
+    else showToast('Please drop a video file');
+  });
+
+  function loadVideoFile(file) {
+    if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+    state.objectUrl = URL.createObjectURL(file);
+
+    const video = document.createElement('video');
+    video.src = state.objectUrl;
+    video.preload = 'auto';
+    video.playsInline = true;
+    video.muted = false;
+    video.crossOrigin = 'anonymous';
+
+    video.addEventListener('loadeddata', () => {
+      initEditor(video);
+    }, { once: true });
+    video.addEventListener('error', () => {
+      showToast('Could not load that video');
+    }, { once: true });
+  }
+
+  // ============================================================
+  // EDITOR INIT
+  // ============================================================
+  function initEditor(video) {
+    state.video = video;
+    state.duration = video.duration;
+
+    // Compute processing dimensions (cap to MAX_PROC_DIM)
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const scale = Math.min(1, MAX_PROC_DIM / Math.max(vw, vh));
+    state.procWidth = Math.round(vw * scale);
+    state.procHeight = Math.round(vh * scale);
+
+    [state.procCanvas, state.blurCanvas, state.displayCanvas].forEach(c => {
+      c.width = state.procWidth;
+      c.height = state.procHeight;
+    });
+
+    // Set initial volume from slider
+    video.volume = parseInt(volumeSlider.value, 10) / 100;
+
+    // Listen for video events
+    video.addEventListener('timeupdate', updateTimeUI);
+    video.addEventListener('play', () => { state.isPlaying = true; updatePlayIcon(); });
+    video.addEventListener('pause', () => { state.isPlaying = false; updatePlayIcon(); });
+    video.addEventListener('ended', () => { state.isPlaying = false; updatePlayIcon(); });
+    video.addEventListener('seeked', () => { renderOnce(); });
+
+    landing.style.display = 'none';
+    editor.classList.add('active');
+
+    // Render first frame
+    video.currentTime = 0;
+    setTimeout(() => {
+      renderOnce();
+      updateTimeUI();
+      startRenderLoop();
+      showToast('Ready — press play to preview');
+    }, 100);
+  }
+
+  // ============================================================
+  // RENDER LOOP
+  // ============================================================
+  function startRenderLoop() {
+    cancelAnimationFrame(state.rafId);
+    const loop = () => {
+      if (state.video && !state.video.paused && !state.video.ended && !state.isRecording) {
+        renderOnce();
+      }
+      state.rafId = requestAnimationFrame(loop);
+    };
+    state.rafId = requestAnimationFrame(loop);
+  }
+
+  function renderOnce() {
+    if (!state.video) return;
+    if (state.compareMode) {
+      drawOriginalFrame();
+      return;
+    }
+    processFrame();
+  }
+
+  function drawOriginalFrame() {
+    const w = state.procWidth, h = state.procHeight;
+    state.displayCtx.drawImage(state.video, 0, 0, w, h);
+  }
+
+  // ============================================================
+  // FRAME PROCESSING — CORE PIPELINE
+  // ============================================================
+  // Pipeline:
+  //   1. Source frame → procCanvas at processing resolution.
+  //   2. Native canvas blur of procCanvas → blurCanvas (GPU-accelerated).
+  //   3. Per-pixel: compute YCbCr-based skin mask (tone-invariant).
+  //   4. Blend original ↔ blurred using mask + strength + detail preserve.
+  //      Frequency-separation form: out = blur + (orig - blur) * (1 - strength * mask)
+  //   5. Apply tone/color adjustments.
+  //   6. Put result on displayCanvas.
+  function processFrame() {
+    const w = state.procWidth, h = state.procHeight;
+    if (!w || !h) return;
+
+    // 1. Capture frame
+    state.procCtx.filter = 'none';
+    state.procCtx.drawImage(state.video, 0, 0, w, h);
+
+    // 2. Blurred version via native filter (much faster than software gaussian)
+    state.blurCtx.filter = `blur(${state.blurRadius}px)`;
+    state.blurCtx.drawImage(state.procCanvas, 0, 0);
+    state.blurCtx.filter = 'none';
+
+    // 3. Read pixel buffers
+    const orig = state.procCtx.getImageData(0, 0, w, h);
+    const blur = state.blurCtx.getImageData(0, 0, w, h);
+
+    // 4. Build mask + blend
+    const out = blendSkinSmoothing(orig, blur);
+
+    // 5. Tone adjustments (cheap, only if non-zero)
+    if (state.adj.brightness || state.adj.contrast || state.adj.warmth || state.adj.vibrance) {
+      applyAdjustments(out);
+    }
+
+    // 6. Display
+    state.displayCtx.putImageData(out, 0, 0);
+  }
+
+  // ============================================================
+  // SKIN MASK + FREQUENCY-SEPARATION SMOOTHING
+  // ============================================================
+  // YCbCr is ideal for skin detection because chrominance (Cb, Cr) is
+  // independent of luminance (Y). The same skin-color region in Cb/Cr space
+  // covers light through deep skin tones — only the Y channel changes.
+  //
+  // Reference Cb/Cr range for skin (well-established in computer vision):
+  //   Cb ≈ [77, 127], Cr ≈ [133, 173]
+  // We use a soft falloff toward the edges of this range, modulated by the
+  // user's "Skin Sensitivity" slider.
+  //
+  // The Y check is intentionally lenient: Y > 30 lets very dark skin pass
+  // (excluding only true shadow / deep-black hair pixels), and Y < 250
+  // excludes pure highlights / white teeth.
+  //
+  // For each pixel:
+  //   skinScore ∈ [0, 1] = soft membership in skin range
+  //   blend = strength × skinScore
+  //   smoothed = orig + (blur - orig) × blend
+  //   detail-preserved variant brings back a fraction of high-frequency:
+  //     final = smoothed + (orig - blur) × detailPreserve × blend
+  //
+  // Crucially, we never apply a brightness or saturation shift to the
+  // smoothed pixel — the blurred version IS the local average skin color.
+  // Replacing texture with the local average preserves tone exactly.
+  function blendSkinSmoothing(orig, blur) {
+    const w = orig.width, h = orig.height;
+    const sd = orig.data;
+    const bd = blur.data;
+    const out = new Uint8ClampedArray(sd.length);
+
+    const strength = state.strength;
+    const detailKeep = state.detailPreserve;
+    const sens = state.skinSensitivity;
+    const showMask = state.showSkinMask;
+    const protectFeatures = state.protectFeatures;
+
+    // Sensitivity expands the acceptance window in Cb/Cr space.
+    // At sens=0 we use the strict range; at sens=1 we widen by ~50%.
+    const cbCenter = 102;
+    const crCenter = 153;
+    const cbHalf = 25 * (1 + sens * 0.6);   // half-width
+    const crHalf = 20 * (1 + sens * 0.6);
+
+    for (let i = 0; i < sd.length; i += 4) {
+      const r = sd[i], g = sd[i + 1], b = sd[i + 2];
+      const br = bd[i], bg = bd[i + 1], bb = bd[i + 2];
+
+      // YCbCr conversion (ITU-R BT.601)
+      const y  =  0.299 * r + 0.587 * g + 0.114 * b;
+
+      // Fast reject: pixels far outside any plausible skin luminance, or with
+      // strong green dominance (foliage, screen UI), can't be skin. Copying
+      // them straight through skips ~20 ops per pixel for the common case.
+      if (y < 30 || y > 245 || (g > r + 8 && g > b + 8)) {
+        out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = 255;
+        continue;
+      }
+
+      const cb = -0.169 * r - 0.331 * g + 0.500 * b + 128;
+      const cr =  0.500 * r - 0.419 * g - 0.081 * b + 128;
+
+      // Soft luminance falloff at the dark/bright edges (hard cuts already done above)
+      let lumGate = 1;
+      if (y < 50) lumGate = (y - 30) / 20;
+      else if (y > 230) lumGate = (245 - y) / 15;
+
+      // Chrominance distance from skin centre (normalized 0..1)
+      const cbDist = Math.abs(cb - cbCenter) / cbHalf;
+      const crDist = Math.abs(cr - crCenter) / crHalf;
+      const chromaDist = Math.max(cbDist, crDist);
+
+      let chromaScore = 0;
+      if (chromaDist < 1) {
+        // Smooth cosine falloff: 1 at center, 0 at edge
+        chromaScore = 0.5 * (1 + Math.cos(Math.PI * chromaDist));
+      }
+
+      let mask = chromaScore * lumGate;
+
+      // Optional: protect eyes / lips by suppressing mask where local detail
+      // is very strong (high contrast between original and its blur). Eyes,
+      // lashes, lip seam, and pupils all show large texture deltas.
+      // Compare squared magnitude to avoid sqrt in the common case.
+      if (protectFeatures && mask > 0) {
+        const dr = r - br, dg = g - bg, db = b - bb;
+        const detailSq = dr * dr + dg * dg + db * db;
+        if (detailSq > 2500) {  // 50^2
+          const detailMag = Math.sqrt(detailSq);
+          const fade = Math.max(0, 1 - (detailMag - 50) / 60);
+          mask *= fade;
+        }
+      }
+
+      if (showMask) {
+        // Diagnostic: visualize the mask as a magenta tint over a desaturated original
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        out[i]     = lum * (1 - mask) + 240 * mask;
+        out[i + 1] = lum * (1 - mask) +  90 * mask;
+        out[i + 2] = lum * (1 - mask) + 130 * mask;
+        out[i + 3] = 255;
+        continue;
+      }
+
+      // Frequency-separation blend.
+      //   blur component = local average skin color (preserves tone)
+      //   detail component = (orig - blur)
+      //   smoothed pixel = blur + detail * (1 - blend) + detail * blend * detailKeep
+      //                  = blur + detail * (1 - blend * (1 - detailKeep))
+      const blend = strength * mask;
+      const detailFactor = 1 - blend * (1 - detailKeep);
+
+      out[i]     = br + (r - br) * detailFactor;
+      out[i + 1] = bg + (g - bg) * detailFactor;
+      out[i + 2] = bb + (b - bb) * detailFactor;
+      out[i + 3] = 255;
+    }
+
+    return new ImageData(out, w, h);
+  }
+
+  // ============================================================
+  // COLOR ADJUSTMENTS (tone-preserving — no whitening)
+  // ============================================================
+  // Brightness here is a small multiplicative gain on Y only (not a fixed add)
+  // so dark pixels don't get pushed toward white. Warmth shifts R+/B-.
+  // Vibrance boosts low-saturation pixels more than high-saturation ones,
+  // protecting already-vivid hues (lips, clothes).
+  function applyAdjustments(imageData) {
+    const d = imageData.data;
+    const b = state.adj.brightness / 100;       // -0.3..0.3 multiplier delta
+    const c = 1 + state.adj.contrast / 100;     // 0.7..1.3
+    const warm = state.adj.warmth / 100;        // -0.3..0.3
+    const vib = state.adj.vibrance / 100;       // -0.3..0.3
+
+    for (let i = 0; i < d.length; i += 4) {
+      let r = d[i], g = d[i + 1], bl = d[i + 2];
+
+      // Brightness as proportional gain (preserves relative tone)
+      if (b) {
+        const gain = 1 + b * 0.6;
+        r *= gain; g *= gain; bl *= gain;
+      }
+
+      // Contrast pivot at 128
+      if (c !== 1) {
+        r = (r - 128) * c + 128;
+        g = (g - 128) * c + 128;
+        bl = (bl - 128) * c + 128;
+      }
+
+      // Warmth: positive = warmer (R+, B-), negative = cooler
+      if (warm) {
+        r += warm * 22;
+        bl -= warm * 22;
+      }
+
+      // Vibrance — boost lower-saturation pixels more
+      if (vib) {
+        const mx = Math.max(r, g, bl);
+        const mn = Math.min(r, g, bl);
+        const sat = (mx - mn) / 255;          // 0..1
+        const amt = vib * (1 - sat);          // less effect on saturated pixels
+        const avg = (r + g + bl) / 3;
+        r += (r - avg) * amt;
+        g += (g - avg) * amt;
+        bl += (bl - avg) * amt;
+      }
+
+      d[i]     = r < 0 ? 0 : r > 255 ? 255 : r;
+      d[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+      d[i + 2] = bl < 0 ? 0 : bl > 255 ? 255 : bl;
+    }
+  }
+
+  // ============================================================
+  // PLAYER CONTROLS
+  // ============================================================
+  playBtn.addEventListener('click', togglePlay);
+  function togglePlay() {
+    if (!state.video) return;
+    if (state.video.paused || state.video.ended) {
+      if (state.video.ended) state.video.currentTime = 0;
+      state.video.play().catch(() => {});
+    } else {
+      state.video.pause();
+    }
+  }
+  function updatePlayIcon() {
+    if (state.isPlaying) {
+      playIcon.style.display = 'none';
+      pauseIcon.style.display = 'block';
+      skinOverlay.classList.add('show');
+    } else {
+      playIcon.style.display = 'block';
+      pauseIcon.style.display = 'none';
+      skinOverlay.classList.remove('show');
+    }
+  }
+
+  function fmtTime(sec) {
+    if (!isFinite(sec)) return '0:00';
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+  function updateTimeUI() {
+    if (!state.video) return;
+    const cur = state.video.currentTime || 0;
+    const dur = state.video.duration || 0;
+    timeLabel.textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
+    const pct = dur ? (cur / dur) * 100 : 0;
+    scrubberFill.style.width = pct + '%';
+    scrubberThumb.style.left = pct + '%';
+  }
+
+  // Scrubber drag
+  function scrubFromEvent(e) {
+    if (!state.video) return;
+    const rect = scrubber.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+    const t = Math.max(0, Math.min(1, (cx - rect.left) / rect.width));
+    state.video.currentTime = t * state.video.duration;
+    updateTimeUI();
+  }
+  scrubber.addEventListener('mousedown', e => {
+    state.isScrubbing = true;
+    scrubFromEvent(e);
+  });
+  window.addEventListener('mousemove', e => {
+    if (state.isScrubbing) scrubFromEvent(e);
+  });
+  window.addEventListener('mouseup', () => { state.isScrubbing = false; });
+  scrubber.addEventListener('touchstart', e => {
+    state.isScrubbing = true;
+    scrubFromEvent(e);
+  }, { passive: true });
+  scrubber.addEventListener('touchmove', e => {
+    if (state.isScrubbing) scrubFromEvent(e);
+  }, { passive: true });
+  scrubber.addEventListener('touchend', () => { state.isScrubbing = false; });
+
+  // Volume / mute
+  volumeSlider.addEventListener('input', () => {
+    if (!state.video) return;
+    const v = parseInt(volumeSlider.value, 10) / 100;
+    state.video.volume = v;
+    state.video.muted = v === 0;
+    updateMuteIcon();
+  });
+  muteBtn.addEventListener('click', () => {
+    if (!state.video) return;
+    state.video.muted = !state.video.muted;
+    if (!state.video.muted && state.video.volume === 0) {
+      state.video.volume = 0.5;
+      volumeSlider.value = 50;
+    }
+    updateMuteIcon();
+  });
+  function updateMuteIcon() {
+    const ic = document.getElementById('vol-icon');
+    if (!state.video) return;
+    ic.innerHTML = state.video.muted || state.video.volume === 0
+      ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>'
+      : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>';
+  }
+
+  // ============================================================
+  // SLIDER BINDINGS
+  // ============================================================
+  function bindSlider(id, transform, onChange) {
+    const inp = document.getElementById(id);
+    const val = document.getElementById(id + '-val');
+    inp.addEventListener('input', () => {
+      const raw = parseInt(inp.value, 10);
+      val.textContent = raw;
+      onChange(transform ? transform(raw) : raw);
+      renderOnce();
+    });
+  }
+  bindSlider('strength',    v => v / 100, v => { state.strength = v; updatePresetChip(); });
+  bindSlider('detail',      v => v / 100, v => state.detailPreserve = v);
+  bindSlider('sensitivity', v => v / 100, v => state.skinSensitivity = v);
+  bindSlider('blur',        null,         v => state.blurRadius = v);
+  bindSlider('brightness',  null,         v => state.adj.brightness = v);
+  bindSlider('contrast',    null,         v => state.adj.contrast = v);
+  bindSlider('warmth',      null,         v => state.adj.warmth = v);
+  bindSlider('vibrance',    null,         v => state.adj.vibrance = v);
+
+  // Preset chips for strength
+  document.querySelectorAll('.preset-chip[data-strength]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const s = parseInt(chip.dataset.strength, 10);
+      const slider = document.getElementById('strength');
+      slider.value = s;
+      slider.dispatchEvent(new Event('input'));
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.toggle('active', c === chip));
+    });
+  });
+  function updatePresetChip() {
+    const s = Math.round(state.strength * 100);
+    let matched = false;
+    document.querySelectorAll('.preset-chip[data-strength]').forEach(c => {
+      const cs = parseInt(c.dataset.strength, 10);
+      const isMatch = cs === s;
+      c.classList.toggle('active', isMatch);
+      if (isMatch) matched = true;
+    });
+    if (!matched) {
+      document.querySelectorAll('.preset-chip[data-strength]').forEach(c => c.classList.remove('active'));
+    }
+  }
+
+  // Toggles
+  maskToggle.addEventListener('click', () => {
+    state.showSkinMask = !state.showSkinMask;
+    maskToggle.classList.toggle('on', state.showSkinMask);
+    renderOnce();
+  });
+  protectToggle.addEventListener('click', () => {
+    state.protectFeatures = !state.protectFeatures;
+    protectToggle.classList.toggle('on', state.protectFeatures);
+    renderOnce();
+  });
+
+  // Reset color
+  document.getElementById('reset-tone-btn').addEventListener('click', () => {
+    state.adj = { brightness: 0, contrast: 0, warmth: 0, vibrance: 0 };
+    ['brightness', 'contrast', 'warmth', 'vibrance'].forEach(id => {
+      document.getElementById(id).value = 0;
+      document.getElementById(id + '-val').textContent = 0;
+    });
+    renderOnce();
+    showToast('Color reset');
+  });
+
+  // Reset all
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    state.strength = 0.65;
+    state.detailPreserve = 0.30;
+    state.skinSensitivity = 0.50;
+    state.blurRadius = 8;
+    state.adj = { brightness: 0, contrast: 0, warmth: 0, vibrance: 0 };
+    state.showSkinMask = false;
+    state.protectFeatures = true;
+
+    document.getElementById('strength').value = 65;
+    document.getElementById('strength-val').textContent = 65;
+    document.getElementById('detail').value = 30;
+    document.getElementById('detail-val').textContent = 30;
+    document.getElementById('sensitivity').value = 50;
+    document.getElementById('sensitivity-val').textContent = 50;
+    document.getElementById('blur').value = 8;
+    document.getElementById('blur-val').textContent = 8;
+    ['brightness', 'contrast', 'warmth', 'vibrance'].forEach(id => {
+      document.getElementById(id).value = 0;
+      document.getElementById(id + '-val').textContent = 0;
+    });
+    maskToggle.classList.remove('on');
+    protectToggle.classList.add('on');
+    updatePresetChip();
+    renderOnce();
+    showToast('All settings reset');
+  });
+
+  // Compare (hold to show original)
+  function showOriginal() {
+    state.compareMode = true;
+    compareLabel.classList.add('show');
+    renderOnce();
+  }
+  function hideOriginal() {
+    if (!state.compareMode) return;
+    state.compareMode = false;
+    compareLabel.classList.remove('show');
+    renderOnce();
+  }
+  compareBtn.addEventListener('mousedown', showOriginal);
+  compareBtn.addEventListener('mouseup', hideOriginal);
+  compareBtn.addEventListener('mouseleave', hideOriginal);
+  compareBtn.addEventListener('touchstart', e => { e.preventDefault(); showOriginal(); });
+  compareBtn.addEventListener('touchend', hideOriginal);
+
+  // New video
+  document.getElementById('new-btn').addEventListener('click', () => {
+    if (!confirm('Start over with a new video? Current settings will be lost.')) return;
+    if (state.video) {
+      state.video.pause();
+      state.video.removeAttribute('src');
+      state.video.load();
+    }
+    if (state.objectUrl) { URL.revokeObjectURL(state.objectUrl); state.objectUrl = null; }
+    cancelAnimationFrame(state.rafId);
+    state.video = null;
+    editor.classList.remove('active');
+    landing.style.display = 'flex';
+    fileInput.value = '';
+  });
+
+  // ============================================================
+  // KEYBOARD SHORTCUTS
+  // ============================================================
+  window.addEventListener('keydown', e => {
+    if (!state.video) return;
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowLeft') { state.video.currentTime = Math.max(0, state.video.currentTime - 5); }
+    else if (e.key === 'ArrowRight') { state.video.currentTime = Math.min(state.duration, state.video.currentTime + 5); }
+  });
+
+  // ============================================================
+  // PROCESS & DOWNLOAD VIA MEDIARECORDER
+  // ============================================================
+  // We re-play the video from start, render each frame through the same
+  // processing pipeline, and capture the displayCanvas as a video stream.
+  // The video element's audio stream is added so the output keeps its sound.
+  downloadBtn.addEventListener('click', async () => {
+    if (!state.video || state.isRecording) return;
+
+    if (!window.MediaRecorder) {
+      showToast('MediaRecorder is not supported in this browser');
+      return;
+    }
+
+    const mimeCandidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ];
+    let mimeType = '';
+    for (const m of mimeCandidates) {
+      if (MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+    }
+    if (!mimeType) {
+      showToast('No supported video encoder found');
+      return;
+    }
+
+    state.isRecording = true;
+    downloadBtn.disabled = true;
+    state.video.pause();
+    state.video.currentTime = 0;
+    await new Promise(r => state.video.addEventListener('seeked', r, { once: true }));
+
+    // Build combined MediaStream: canvas video + original audio
+    const canvasStream = state.displayCanvas.captureStream(30);
+    const tracks = [...canvasStream.getVideoTracks()];
+    try {
+      const vidStream = state.video.captureStream
+        ? state.video.captureStream()
+        : (state.video.mozCaptureStream && state.video.mozCaptureStream());
+      if (vidStream) {
+        for (const t of vidStream.getAudioTracks()) tracks.push(t);
+      }
+    } catch (err) {
+      // Audio capture failed — proceed without it
+    }
+    const combined = new MediaStream(tracks);
+
+    const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 8_000_000 });
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+
+    processingOverlay.classList.add('show');
+    progressFill.style.width = '0%';
+    progressText.textContent = '0%';
+
+    let renderRafId = null;
+    function recordingRenderLoop() {
+      if (state.video && !state.video.paused && !state.video.ended) {
+        processFrame();
+        const pct = Math.min(100, Math.round((state.video.currentTime / state.duration) * 100));
+        progressFill.style.width = pct + '%';
+        progressText.textContent = pct + '%';
+      }
+      renderRafId = requestAnimationFrame(recordingRenderLoop);
+    }
+
+    recorder.onstop = () => {
+      cancelAnimationFrame(renderRafId);
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:T.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = `glow-video-${ts}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      processingOverlay.classList.remove('show');
+      state.isRecording = false;
+      downloadBtn.disabled = false;
+      showToast('Saved! Check your downloads.');
+    };
+
+    state.video.addEventListener('ended', () => {
+      if (recorder.state === 'recording') recorder.stop();
+    }, { once: true });
+
+    recorder.start(250);
+    recordingRenderLoop();
+    try {
+      await state.video.play();
+    } catch (err) {
+      recorder.stop();
+      showToast('Could not start playback');
+    }
+  });
+
+  // Initial mute icon
+  updateMuteIcon();
+
+})();
+</script>
+</body>
+</html>

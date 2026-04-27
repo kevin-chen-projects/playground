@@ -1,5 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  GLOW STUDIO MOBILE — Batch photo editor (1–5 photos)
+  Layout: flex column, mobile-tuned (100dvh, safe-area)
+  Deps: none. See PLAYGROUND_NOTES.md for full reference.
+  Diff vs desktop glow-studio.html: no painting, single
+  strength slider, batch (5 max), thumbnails, no presets.
+
+  FILE INDEX (line numbers reflect post-comment positions)
+    60    <style>
+    61    CSS variables (blush + ink palette)
+    103   Landing (mobile, fixed, safe-area)
+    219   Editor flex column
+    228   Header (back, brand, apply-all, download)
+    278   Photo strip (56x56 thumbnails)
+    348   Canvas area + radial bg
+    392   Auto face badge
+    395   Context panel (sliders)
+    449   Tool strip
+    501   Bottom actions (compare/auto-glow/clear/reset)
+    526   Bottom sheets
+    666   Toast
+    688   </style>
+    690   <body>
+    693   Landing HTML (One-Tap pill, brand, upload)
+    725   Editor header
+    778   Photo strip + canvas + strength + tools + actions
+    893   <script> — main IIFE
+    897     State (photos[], activePhoto, edits per photo)
+    935     DOM refs
+    954     Toasts
+    971     File handling (multi-file)
+    1053    History (per-photo)
+    1093    Render (retouch + adjustments)
+    1102    Adjustments
+    1170    Gaussian blur
+    1218    Brush application (auto-detected regions)
+    1384    Coordinate conversion
+    1396    Stage transform (zoom/pan)
+    1441    Touch handling
+    1620    Tool selection
+    1638    Sliders (single strength)
+    1690    Header buttons
+    1716    Bottom actions (compare/clear/reset)
+    1781    Auto Glow (one-tap enhancement)
+    1803    Presets
+    1847    Sample portrait
+    2397  </script>
+  ============================================================
+-->
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />

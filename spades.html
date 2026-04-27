@@ -1,5 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  SPADES — 4-player card game vs 3 AI bots
+  Layout: full-viewport elliptical felt (min 1100x720)
+  Deps: none. Procedural Web Audio SFX.
+
+  FILE INDEX (post-comment line numbers; +36 from original)
+    43    <style>
+    782   </style>
+    784   <body>
+    Sections in body: table, 4 player divs (S/N/W/E),
+    trick center, status banner, scoreboard, modals, sim ctrls
+    945   <script>
+    948     CONSTANTS & UTILITIES (suits, ranks, seats, teams)
+    972     AUDIO — tiny WebAudio SFX (flick/deal/sweep/tick/chime)
+    1088    DECK / DEAL (makeDeck, shuffle, sortHand)
+    1124    GAME STATE
+    1154    CARD COMPARISON / TRICK WINNING
+    1183    LEGAL PLAYS (follow suit, spade trump, Nil any)
+    1206    BIDDING — BOT LOGIC (Novice/Inter/Advanced)
+    1282    PLAYING — BOT LOGIC
+    1325      NIL: SELF (try to take 0 tricks)
+    1357      NIL: PARTNER (cover them)
+    1382      NORMAL PLAY
+    1535    SCORING (+100/-100 Nil; 10*bid + bags; -100 at 10 bags)
+    1601    UI RENDERING (cardEl, renderHands, scoreboard)
+    1777    USER INPUT (card click, bid buttons)
+    1862    GAME FLOW (deal, bid, play, end hand, next hand)
+    2030    HAND / GAME RESULT UI (modals)
+    2114    SETUP / INIT (difficulty, target score)
+    2187  </script>
+
+  KEY: bots are configurable per-seat; Nil bid is special;
+  10-bag rule applies; sim-your-seat option available.
+  ============================================================
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

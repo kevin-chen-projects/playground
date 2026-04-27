@@ -1,5 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  COUNT CHAMP — Blackjack counting trainer + Monte Carlo sim
+  Layout: tabs (Simulator | Cheat Sheets | Practice Table)
+  Deps: none. Canvas charts native.
+
+  FILE INDEX (post-comment line numbers; +40 from original)
+    47    <style>
+    603   </style>
+    605   <body>
+    624   Simulator tab (left params | right results)
+    728   Cheat Sheets tab (system dropdown + tag/strategy)
+    761   Practice tab (live dealing felt)
+    879   <script>
+    880     CARD / SHOE DATA (suits, deck, shoe builder)
+    907     COUNTING SYSTEMS (Hi-Lo, Hi-Opt I/II, Zen, Red 7, KO + BC/PE/IC)
+    992     BASIC STRATEGY (6-deck S17 DAS Late Surrender)
+    1045    HI-LO DEVIATIONS (Illustrious 18 + Fab 4)
+    1077    HAND LOGIC (handTotal, isSoft, isPair, isBlackjack, isBust)
+    1103    BASIC STRATEGY LOOKUP (bsLookup, resolveBS)
+    1148    DEVIATIONS lookup (TC-based)
+    1205    RUNNING COUNT / TRUE COUNT (cardTag, getTrueCount)
+    1224    BET SPREAD (DEFAULT_SPREAD: 6 TC buckets)
+    1242    DEAL & PLAY — SIMULATION ENGINE (drawCard, dealerPlay, settle, playHand)
+    1400    SIMULATION RUNNER (async runSimulation Monte Carlo)
+    1505    STATS (mean, std, percentiles, ROR, N0)
+    1530    UI: tab switching
+    1544    UI: populate system dropdowns
+    1557    UI: bet spread table
+    1586    UI: reset params
+    1620    RUN SIMULATION button + results render + bankroll chart
+    1781    CHEAT SHEETS (renderCheatSheet, tag tables, strategy tables)
+    1898    PRACTICE MODE (animated dealing module)
+    2575    INIT
+    2577  </script>
+
+  KEY METRICS OUTPUT: EV, hourly, SD, ROR, N0, win rate,
+  bankroll percentiles, up to 80 sample paths.
+  ============================================================
+-->
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />

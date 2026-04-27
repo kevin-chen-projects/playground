@@ -1,5 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  BARE DAW — Browser DAW shell
+  Drum sequencer + piano roll, drag-drop instruments,
+  sections (loop or song), QWERTY/MIDI keyboard input,
+  live VexFlow notation, WAV + MIDI export.
+
+  Files: index.html (this), styles.css, app.js
+  Deps: Tone.js v14.8.49 + VexFlow v3.0.9 (CDN)
+
+  STRUCTURE (post-comment line numbers; +19 from original)
+    29–62    Header (transport, BPM, steps, MIDI, export buttons)
+    64–141   Main app
+      65–102   Palette sidebar (instruments + help)
+      104–141  Timeline area (sections, ruler, tracks, notation, status)
+    144      Toast region
+    146–148  Tone.js + VexFlow CDNs + app.js
+  ============================================================
+-->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

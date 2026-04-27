@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================
+  GLOW STUDIO EASY — Mobile batch editor (alternate UX)
+  Layout: flex column, mobile-tuned
+  Deps: none. See PLAYGROUND_NOTES.md for full reference.
+  Diff vs glow-studio-mobile.html: prominent "One-Tap Easy"
+  pill, numbered (1/2/3) feature dots. Same effect engine.
+
+  FILE INDEX (post-comment line numbers; +44 from original)
+    54    <style>
+    97    Landing
+    216   Editor
+    272   Photo strip (56x56 thumbnails)
+    342   Canvas
+    434   Strength slider panel
+    505   Tool strip
+    571   Action row (compare/apply/reset)
+    597   Toast
+    621   </style>
+    623   <body>
+    625   Landing HTML (Easy pill, numbered features)
+    734   <script>
+    741     Tool definitions
+    781     State
+    790     DOM refs
+    818     Utilities
+    845     Tool strip
+    884     Strength slider
+    912     Photo strip (multi-photo selector)
+    981     File loading (multi-file)
+    1074    Render pipeline
+    1138    Cache computation
+    1163    Skin detection
+    1264    Fast blur (3-pass box ≈ Gaussian)
+    1344    Feature masks
+    1405    Effects (in-place on workBuffer)
+    1509    Apply-all & reset
+    1574    Compare (hold)
+    1596    Download
+    1639    Back
+    1655    Init
+    1660  </script>
+  ============================================================
+-->
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="theme-color" content="#fff5f7" />
+<title>Glow Studio Easy</title>
+<style>
+  :root {
+    --blush-50:  #fff5f7;
+    --blush-100: #ffe7ec;
+    --blush-200: #ffd0da;
+    --blush-300: #ffb1c1;
+    --blush-400: #ff87a0;
+    --blush-500: #ec5a7c;
+    --blush-600: #c93e61;
+    --ink-900:   #23181d;
+    --ink-700:   #4a3942;
+    --ink-500:   #7b6670;
+    --ink-300:   #b8a7ae;
+    --cream:     #fdfaf7;
+    --paper:     #ffffff;
+    --shadow-sm: 0 1px 2px rgba(50,20,30,0.06);
+    --shadow-md: 0 6px 20px rgba(60,20,35,0.10);
+    --shadow-lg: 0 -8px 32px rgba(60,20,35,0.15);
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: var(--ink-900);
+    background: var(--cream);
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    font-size: 15px;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; padding: 0; }
+  h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  input[type="file"] { display: none; }
+
+  /* ============ LANDING ============ */
+  .landing {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    padding-top: calc(env(safe-area-inset-top) + 32px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 32px);
+    background: linear-gradient(160deg, var(--blush-50) 0%, var(--cream) 50%, #faf4ef 100%);
+  }
+  .landing::before {
+    content: '';
+    position: absolute;
+    top: -20%; left: -20%;
+    width: 80vmin; height: 80vmin;
+    background: radial-gradient(circle, var(--blush-200), transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .landing::after {
+    content: '';
+    position: absolute;
+    bottom: -20%; right: -20%;
+    width: 70vmin; height: 70vmin;
+    background: radial-gradient(circle, #ffe4c4, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .landing-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  .brand {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 44px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin: 0 0 4px;
+  }
+  .brand .dot { color: var(--blush-500); }
+  .easy-pill {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 3px 10px;
+    background: linear-gradient(135deg, var(--blush-500), var(--blush-600));
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    border-radius: 12px;
+    text-transform: uppercase;
+  }
+  .tagline {
+    color: var(--ink-500);
+    font-size: 15px;
+    margin: 0 0 36px;
+  }
+
+  .upload-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 36px 24px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 2px dashed var(--blush-300);
+    border-radius: 16px;
+    color: var(--ink-900);
+    transition: all 0.15s;
+  }
+  .upload-btn:active {
+    background: var(--paper);
+    border-color: var(--blush-500);
+    transform: scale(0.98);
+  }
+  .upload-btn .icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blush-100), var(--blush-200));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blush-600);
+  }
+  .upload-btn .icon svg { width: 26px; height: 26px; }
+  .upload-btn .title { font-size: 17px; font-weight: 600; }
+  .upload-btn .sub { color: var(--ink-500); font-size: 13px; }
+
+  .landing-features {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--ink-500);
+    font-size: 13px;
+  }
+  .landing-features span { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+  .landing-features .dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--blush-100);
+    color: var(--blush-600);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ============ EDITOR ============ */
+  .editor {
+    display: none;
+    flex-direction: column;
+    height: 100dvh;
+    width: 100%;
+  }
+  .editor.active { display: flex; }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: env(safe-area-inset-top) 6px 0;
+    min-height: calc(env(safe-area-inset-top) + 48px);
+    background: var(--paper);
+    border-bottom: 1px solid var(--blush-100);
+    flex-shrink: 0;
+    z-index: 5;
+  }
+  .header-group { display: flex; align-items: center; gap: 2px; }
+  .header-title {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 20px;
+    font-weight: 500;
+    margin-left: 6px;
+  }
+  .header-title .dot { color: var(--blush-500); }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-700);
+    transition: background 0.1s;
+  }
+  .icon-btn:active { background: var(--blush-50); }
+  .icon-btn:disabled { opacity: 0.3; }
+  .icon-btn svg { width: 20px; height: 20px; }
+  .icon-btn.primary {
+    background: linear-gradient(135deg, var(--blush-500), var(--blush-600));
+    color: white;
+    width: auto;
+    padding: 0 14px;
+    height: 36px;
+    margin: 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    gap: 6px;
+    box-shadow: 0 2px 6px rgba(236, 90, 124, 0.3);
+  }
+  .icon-btn.primary svg { width: 16px; height: 16px; }
+  .icon-btn.primary:disabled { opacity: 0.45; box-shadow: none; }
+
+  /* ============ PHOTO STRIP ============ */
+  .photo-strip {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--blush-100);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .photo-strip::-webkit-scrollbar { display: none; }
+  .photo-thumb {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+    background: var(--blush-50);
+    padding: 0;
+  }
+  .photo-thumb.active { border-color: var(--blush-500); box-shadow: 0 2px 6px rgba(236,90,124,0.25); }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb .edited-dot {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--blush-500);
+    box-shadow: 0 0 0 2px var(--paper);
+    display: none;
+  }
+  .photo-thumb.has-edits .edited-dot { display: block; }
+  .photo-thumb .remove-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(35, 24, 29, 0.7);
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .photo-thumb.removable .remove-btn { display: inline-flex; }
+  .photo-thumb .remove-btn svg { width: 10px; height: 10px; }
+  .add-photo {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    border: 2px dashed var(--blush-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blush-500);
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.5);
+  }
+  .add-photo:disabled { opacity: 0.4; cursor: not-allowed; }
+  .add-photo svg { width: 22px; height: 22px; }
+
+  /* ============ CANVAS ============ */
+  .canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255,209,220,0.3), transparent 60%),
+      radial-gradient(circle at 70% 80%, rgba(255,228,196,0.3), transparent 60%),
+      var(--cream);
+    min-height: 0;
+    padding: 12px;
+  }
+  canvas {
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: var(--shadow-md);
+    border-radius: 6px;
+    background: #eee;
+    display: block;
+    object-fit: contain;
+  }
+  .compare-label {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(35, 24, 29, 0.8);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .compare-label.show { opacity: 1; }
+
+  .face-badge {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: rgba(35, 24, 29, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.25s;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .face-badge.show { opacity: 1; }
+  .face-badge svg { width: 12px; height: 12px; }
+
+  .processing-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(35,24,29,0.88);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    z-index: 5;
+  }
+  .processing-indicator.show { display: inline-flex; }
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ============ STRENGTH ============ */
+  .strength-panel {
+    background: var(--paper);
+    border-top: 1px solid var(--blush-100);
+    padding: 12px 16px;
+    flex-shrink: 0;
+  }
+  .strength-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .strength-label {
+    font-size: 12px;
+    color: var(--ink-500);
+    font-weight: 500;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .strength-label .tool-name {
+    color: var(--blush-600);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .strength-label .sub {
+    font-size: 10px;
+    color: var(--ink-300);
+  }
+  .strength-value {
+    font-size: 13px;
+    color: var(--blush-600);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    min-width: 32px;
+    text-align: right;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--blush-100);
+    outline: none;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--blush-500);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--blush-500);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  input[type="range"]:disabled::-webkit-slider-thumb {
+    border-color: var(--ink-300);
+  }
+
+  /* ============ TOOL STRIP ============ */
+  .tool-strip {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    background: var(--paper);
+    border-top: 1px solid var(--blush-100);
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .tool-strip::-webkit-scrollbar { display: none; }
+  .tool-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 70px;
+    padding: 8px 4px;
+    border-radius: 12px;
+    transition: background 0.1s;
+    flex-shrink: 0;
+  }
+  .tool-btn:active { background: var(--blush-50); }
+  .tool-btn.active {
+    background: linear-gradient(135deg, var(--blush-50), var(--blush-100));
+  }
+  .tool-btn .tool-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--blush-50);
+    color: var(--blush-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .tool-btn.active .tool-icon {
+    background: linear-gradient(135deg, var(--blush-500), var(--blush-600));
+    color: white;
+    box-shadow: 0 2px 8px rgba(236, 90, 124, 0.4);
+  }
+  .tool-btn .tool-icon .applied-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--blush-500);
+    border: 2px solid var(--paper);
+    display: none;
+  }
+  .tool-btn.applied .tool-icon .applied-dot { display: block; }
+  .tool-btn.active .tool-icon .applied-dot { background: white; border-color: var(--blush-500); }
+  .tool-btn .tool-icon svg { width: 18px; height: 18px; }
+  .tool-btn .tool-name {
+    font-size: 10px;
+    color: var(--ink-700);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .tool-btn.active .tool-name { color: var(--blush-600); font-weight: 700; }
+
+  /* ============ ACTION ROW ============ */
+  .bottom-actions {
+    display: flex;
+    padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px);
+    background: var(--paper);
+    border-top: 1px solid var(--blush-100);
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .action-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 4px;
+    border-radius: 10px;
+    color: var(--ink-700);
+    transition: background 0.1s;
+  }
+  .action-btn:active { background: var(--blush-50); }
+  .action-btn:disabled { opacity: 0.35; }
+  .action-btn svg { width: 20px; height: 20px; }
+  .action-btn .label { font-size: 10px; font-weight: 500; }
+  .action-btn.accent { color: var(--blush-600); }
+
+  /* ============ TOAST ============ */
+  .toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 60px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--ink-900);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 22px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s;
+    z-index: 100;
+    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== LANDING ========== -->
+<div class="landing" id="landing">
+  <div class="landing-inner">
+    <span class="easy-pill">One-Tap Easy</span>
+    <h1 class="brand">Glow<span class="dot">.</span>Studio</h1>
+    <p class="tagline">Tap an effect, slide the strength. Done.</p>
+
+    <label class="upload-btn" for="file-input">
+      <span class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </span>
+      <span class="title">Upload up to 5 photos</span>
+      <span class="sub">Tap to pick from your camera roll</span>
+    </label>
+    <input type="file" id="file-input" accept="image/*" multiple />
+
+    <div class="landing-features">
+      <span><span class="dot">1</span> Auto face detection — no painting needed</span>
+      <span><span class="dot">2</span> One slider per effect — pure simplicity</span>
+      <span><span class="dot">3</span> Edit a batch &amp; download them together</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== EDITOR ========== -->
+<div class="editor" id="editor">
+
+  <header class="app-header">
+    <div class="header-group">
+      <button class="icon-btn" id="back-btn" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="header-title">Glow<span class="dot">.</span></div>
+    </div>
+    <div class="header-group">
+      <button class="icon-btn" id="apply-all-btn" aria-label="Apply current edits to every photo" title="Copy edits to all photos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 8h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V8z"/></svg>
+      </button>
+      <button class="icon-btn primary" id="download-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span id="download-label">Save</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Photo strip -->
+  <div class="photo-strip" id="photo-strip">
+    <button class="add-photo" id="add-photo-btn" aria-label="Add photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+  <input type="file" id="add-file-input" accept="image/*" multiple />
+
+  <!-- Canvas -->
+  <div class="canvas-container">
+    <canvas id="editor-canvas"></canvas>
+    <div class="face-badge" id="face-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8"/><circle cx="15" cy="10" r="0.8"/><path d="M9 15s1 1.5 3 1.5 3-1.5 3-1.5"/></svg>
+      <span id="face-badge-text">Face detected</span>
+    </div>
+    <div class="compare-label" id="compare-label">Original</div>
+    <div class="processing-indicator" id="processing-indicator">
+      <span class="spinner"></span>
+      <span id="processing-text">Analyzing face…</span>
+    </div>
+  </div>
+
+  <!-- Strength slider for active tool -->
+  <div class="strength-panel">
+    <div class="strength-row">
+      <div class="strength-label">
+        <span class="tool-name" id="active-tool-name">Smooth</span>
+        <span class="sub">Strength</span>
+      </div>
+      <input type="range" id="strength-slider" min="0" max="100" value="0" />
+      <span class="strength-value" id="strength-value">0</span>
+    </div>
+  </div>
+
+  <!-- Tool strip (auto-populated) -->
+  <div class="tool-strip" id="tool-strip"></div>
+
+  <!-- Bottom actions -->
+  <div class="bottom-actions">
+    <button class="action-btn" id="compare-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20"/></svg>
+      <span class="label">Compare</span>
+    </button>
+    <button class="action-btn accent" id="auto-glow-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>
+      <span class="label">Auto Glow</span>
+    </button>
+    <button class="action-btn" id="reset-tool-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">Clear Effect</span>
+    </button>
+    <button class="action-btn" id="reset-photo-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      <span class="label">Reset Photo</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const MAX_PHOTOS = 5;
+  const MAX_DIM = 1400;
+
+  // ========== TOOL DEFINITIONS ==========
+  const TOOLS = [
+    {
+      id: 'smooth', name: 'Smooth', defaultStrength: 50,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>'
+    },
+    {
+      id: 'heal', name: 'Heal', defaultStrength: 70,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>'
+    },
+    {
+      id: 'wrinkle', name: 'Wrinkles', defaultStrength: 55,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-3 6 3 9 0s6 3 9 0"/></svg>'
+    },
+    {
+      id: 'brighten', name: 'Brighten', defaultStrength: 35,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>'
+    },
+    {
+      id: 'whiten', name: 'Whiten', defaultStrength: 50,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12M6 17h12M8 7v10M12 7v10M16 7v10"/></svg>'
+    },
+    {
+      id: 'sharpen', name: 'Sharpen', defaultStrength: 45,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4 2 8L12 16l-6.5 5 2-8L2 9h7z"/></svg>'
+    },
+    {
+      id: 'glow', name: 'Glow', defaultStrength: 40,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>'
+    },
+  ];
+  const TOOL_BY_ID = Object.fromEntries(TOOLS.map(t => [t.id, t]));
+  const EFFECT_KEYS = TOOLS.map(t => t.id);
+
+  function emptyEffects() {
+    const e = {};
+    EFFECT_KEYS.forEach(k => e[k] = 0);
+    return e;
+  }
+
+  // ========== STATE ==========
+  const state = {
+    photos: [],
+    activePhotoId: null,
+    activeTool: 'smooth',
+    pendingRender: false,
+    nextId: 1,
+  };
+
+  // ========== DOM ==========
+  const landing = document.getElementById('landing');
+  const editor = document.getElementById('editor');
+  const fileInput = document.getElementById('file-input');
+  const addFileInput = document.getElementById('add-file-input');
+  const canvas = document.getElementById('editor-canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const photoStrip = document.getElementById('photo-strip');
+  const addPhotoBtn = document.getElementById('add-photo-btn');
+  const toolStrip = document.getElementById('tool-strip');
+  const strengthSlider = document.getElementById('strength-slider');
+  const strengthValue = document.getElementById('strength-value');
+  const activeToolName = document.getElementById('active-tool-name');
+  const compareLabel = document.getElementById('compare-label');
+  const compareBtn = document.getElementById('compare-btn');
+  const applyAllBtn = document.getElementById('apply-all-btn');
+  const downloadBtn = document.getElementById('download-btn');
+  const downloadLabel = document.getElementById('download-label');
+  const resetPhotoBtn = document.getElementById('reset-photo-btn');
+  const resetToolBtn = document.getElementById('reset-tool-btn');
+  const autoGlowBtn = document.getElementById('auto-glow-btn');
+  const backBtn = document.getElementById('back-btn');
+  const procInd = document.getElementById('processing-indicator');
+  const procText = document.getElementById('processing-text');
+  const faceBadge = document.getElementById('face-badge');
+  const faceBadgeText = document.getElementById('face-badge-text');
+  const toastEl = document.getElementById('toast');
+
+  // ========== UTILITIES ==========
+  let toastTimer = null;
+  function toast(msg, ms = 1700) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+  }
+  function setProcessing(on, msg = 'Working…') {
+    procText.textContent = msg;
+    procInd.classList.toggle('show', on);
+  }
+  let badgeTimer = null;
+  function showFaceBadge(text) {
+    faceBadgeText.textContent = text;
+    faceBadge.classList.add('show');
+    clearTimeout(badgeTimer);
+    badgeTimer = setTimeout(() => faceBadge.classList.remove('show'), 2200);
+  }
+  function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+  function currentPhoto() {
+    return state.photos.find(p => p.id === state.activePhotoId);
+  }
+  function hasAnyEdits(p) {
+    return EFFECT_KEYS.some(k => p.effects[k] > 0);
+  }
+
+  // ========== TOOL STRIP ==========
+  function renderToolStrip() {
+    toolStrip.innerHTML = '';
+    TOOLS.forEach(tool => {
+      const btn = document.createElement('button');
+      btn.className = 'tool-btn';
+      btn.dataset.tool = tool.id;
+      btn.innerHTML = `
+        <span class="tool-icon">${tool.icon}<span class="applied-dot"></span></span>
+        <span class="tool-name">${tool.name}</span>
+      `;
+      btn.addEventListener('click', () => onToolTap(tool.id));
+      toolStrip.appendChild(btn);
+    });
+    updateToolStripUI();
+  }
+
+  function updateToolStripUI() {
+    const photo = currentPhoto();
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      const id = btn.dataset.tool;
+      btn.classList.toggle('active', id === state.activeTool);
+      btn.classList.toggle('applied', !!(photo && photo.effects[id] > 0));
+    });
+  }
+
+  function onToolTap(id) {
+    state.activeTool = id;
+    const photo = currentPhoto();
+    if (photo && photo.effects[id] === 0) {
+      // First tap on this tool for this photo: apply default strength so user sees an effect
+      photo.effects[id] = TOOL_BY_ID[id].defaultStrength;
+      requestRender();
+      updateThumbForPhoto(photo);
+    }
+    syncStrengthSlider();
+    updateToolStripUI();
+  }
+
+  // ========== STRENGTH SLIDER ==========
+  function syncStrengthSlider() {
+    const photo = currentPhoto();
+    const tool = TOOL_BY_ID[state.activeTool];
+    activeToolName.textContent = tool ? tool.name : '';
+    if (!photo) {
+      strengthSlider.disabled = true;
+      strengthSlider.value = 0;
+      strengthValue.textContent = '0';
+      return;
+    }
+    strengthSlider.disabled = false;
+    const v = photo.effects[state.activeTool];
+    strengthSlider.value = v;
+    strengthValue.textContent = v;
+  }
+
+  strengthSlider.addEventListener('input', () => {
+    const photo = currentPhoto();
+    if (!photo) return;
+    const v = parseInt(strengthSlider.value, 10);
+    photo.effects[state.activeTool] = v;
+    strengthValue.textContent = v;
+    requestRender();
+    updateToolStripUI();
+    updateThumbForPhoto(photo);
+  });
+
+  // ========== PHOTO STRIP ==========
+  function renderPhotoStrip() {
+    [...photoStrip.querySelectorAll('.photo-thumb')].forEach(el => el.remove());
+    state.photos.forEach(p => {
+      const thumb = document.createElement('button');
+      thumb.className = 'photo-thumb';
+      thumb.dataset.photoId = p.id;
+      if (state.photos.length > 1) thumb.classList.add('removable');
+      if (hasAnyEdits(p)) thumb.classList.add('has-edits');
+      if (p.id === state.activePhotoId) thumb.classList.add('active');
+      thumb.innerHTML = `
+        <img src="${p.thumbDataURL}" alt="" />
+        <span class="edited-dot"></span>
+        <button class="remove-btn" aria-label="Remove">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      `;
+      thumb.addEventListener('click', e => {
+        if (e.target.closest('.remove-btn')) {
+          removePhoto(p.id);
+        } else {
+          selectPhoto(p.id);
+        }
+      });
+      photoStrip.insertBefore(thumb, addPhotoBtn);
+    });
+    addPhotoBtn.disabled = state.photos.length >= MAX_PHOTOS;
+    updateDownloadLabel();
+  }
+
+  function updateThumbForPhoto(p) {
+    const el = photoStrip.querySelector(`.photo-thumb[data-photo-id="${p.id}"]`);
+    if (el) el.classList.toggle('has-edits', hasAnyEdits(p));
+  }
+
+  function updateDownloadLabel() {
+    if (state.photos.length > 1) {
+      downloadLabel.textContent = `Save All (${state.photos.length})`;
+    } else {
+      downloadLabel.textContent = 'Save';
+    }
+  }
+
+  function selectPhoto(id) {
+    if (id === state.activePhotoId) return;
+    state.activePhotoId = id;
+    renderPhotoStrip();
+    syncStrengthSlider();
+    updateToolStripUI();
+    renderActivePhoto();
+  }
+
+  function removePhoto(id) {
+    if (state.photos.length <= 1) {
+      toast('At least one photo required');
+      return;
+    }
+    const idx = state.photos.findIndex(p => p.id === id);
+    if (idx < 0) return;
+    state.photos.splice(idx, 1);
+    if (state.activePhotoId === id) {
+      state.activePhotoId = state.photos[Math.max(0, idx - 1)].id;
+    }
+    renderPhotoStrip();
+    syncStrengthSlider();
+    updateToolStripUI();
+    renderActivePhoto();
+  }
+
+  // ========== FILE LOADING ==========
+  fileInput.addEventListener('change', e => {
+    const files = [...e.target.files];
+    if (!files.length) return;
+    const taken = files.slice(0, MAX_PHOTOS);
+    if (files.length > MAX_PHOTOS) toast(`Loaded first ${MAX_PHOTOS} photos`);
+    loadPhotos(taken, true);
+  });
+
+  addFileInput.addEventListener('change', e => {
+    const files = [...e.target.files];
+    if (!files.length) return;
+    const remaining = MAX_PHOTOS - state.photos.length;
+    if (remaining <= 0) {
+      toast(`Maximum ${MAX_PHOTOS} photos`);
+      return;
+    }
+    const taken = files.slice(0, remaining);
+    if (files.length > remaining) toast(`Added ${remaining} of ${files.length}`);
+    loadPhotos(taken, false);
+  });
+  addPhotoBtn.addEventListener('click', () => addFileInput.click());
+
+  function loadPhotos(files, replaceAll) {
+    setProcessing(true, `Loading ${files.length} photo${files.length > 1 ? 's' : ''}…`);
+    Promise.all(files.map(f => loadFileAsPhoto(f))).then(results => {
+      const valid = results.filter(p => p);
+      if (!valid.length) {
+        setProcessing(false);
+        toast('Could not load photos');
+        return;
+      }
+      if (replaceAll) {
+        state.photos = valid;
+        state.activePhotoId = valid[0].id;
+        landing.style.display = 'none';
+        editor.classList.add('active');
+      } else {
+        state.photos.push(...valid);
+      }
+      renderPhotoStrip();
+      syncStrengthSlider();
+      updateToolStripUI();
+      renderActivePhoto();
+      setProcessing(false);
+      addFileInput.value = '';
+      fileInput.value = '';
+    });
+  }
+
+  function loadFileAsPhoto(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.naturalWidth, h = img.naturalHeight;
+          const scale = Math.min(1, MAX_DIM / Math.max(w, h));
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+          const tmp = document.createElement('canvas');
+          tmp.width = w; tmp.height = h;
+          const tctx = tmp.getContext('2d');
+          tctx.drawImage(img, 0, 0, w, h);
+          const data = tctx.getImageData(0, 0, w, h);
+          // Square thumbnail
+          const tw = 96;
+          const tCanvas = document.createElement('canvas');
+          tCanvas.width = tw; tCanvas.height = tw;
+          const ttctx = tCanvas.getContext('2d');
+          const sz = Math.min(w, h);
+          const sx = (w - sz) / 2, sy = (h - sz) / 2;
+          ttctx.drawImage(tmp, sx, sy, sz, sz, 0, 0, tw, tw);
+          const thumbDataURL = tCanvas.toDataURL('image/jpeg', 0.8);
+          resolve({
+            id: state.nextId++,
+            name: (file.name || `photo-${state.nextId}`).replace(/\.[^.]+$/, ''),
+            width: w, height: h,
+            originalData: data,
+            thumbDataURL,
+            effects: emptyEffects(),
+            cache: null,
+            workBuffer: null,
+          });
+        };
+        img.onerror = () => resolve(null);
+        img.src = ev.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ========== RENDER PIPELINE ==========
+  function requestRender() {
+    if (state.pendingRender) return;
+    state.pendingRender = true;
+    requestAnimationFrame(() => {
+      state.pendingRender = false;
+      renderActivePhoto();
+    });
+  }
+
+  let renderToken = 0;
+  async function renderActivePhoto() {
+    const photo = currentPhoto();
+    if (!photo) {
+      canvas.width = 1; canvas.height = 1;
+      return;
+    }
+    if (canvas.width !== photo.width || canvas.height !== photo.height) {
+      canvas.width = photo.width;
+      canvas.height = photo.height;
+    }
+    if (!photo.cache) {
+      // Show original first while we analyze
+      ctx.putImageData(photo.originalData, 0, 0);
+      const myToken = ++renderToken;
+      setProcessing(true, 'Analyzing face…');
+      // Yield to paint the spinner before heavy work
+      await new Promise(r => setTimeout(r, 16));
+      if (myToken !== renderToken) { setProcessing(false); return; }
+      try {
+        photo.cache = computeCache(photo.originalData);
+      } catch (err) {
+        console.error(err);
+        setProcessing(false);
+        toast('Could not analyze photo');
+        return;
+      }
+      setProcessing(false);
+      const detected = photo.cache.skinPixelCount > photo.width * photo.height * 0.01;
+      showFaceBadge(detected ? 'Face detected ✓' : 'No face — applying globally');
+      if (myToken !== renderToken) return;
+    }
+    // Apply effects
+    const out = applyAllEffects(photo);
+    ctx.putImageData(out, 0, 0);
+  }
+
+  function applyAllEffects(photo) {
+    const orig = photo.originalData;
+    if (!photo.workBuffer || photo.workBuffer.data.length !== orig.data.length) {
+      photo.workBuffer = new ImageData(new Uint8ClampedArray(orig.data.length), orig.width, orig.height);
+    }
+    photo.workBuffer.data.set(orig.data);
+    const eff = photo.effects;
+    if (eff.heal > 0)     applyHeal(photo.workBuffer, photo, eff.heal);
+    if (eff.wrinkle > 0)  applyWrinkle(photo.workBuffer, photo, eff.wrinkle);
+    if (eff.smooth > 0)   applySmooth(photo.workBuffer, photo, eff.smooth);
+    if (eff.brighten > 0) applyBrighten(photo.workBuffer, photo, eff.brighten);
+    if (eff.sharpen > 0)  applySharpen(photo.workBuffer, photo, eff.sharpen);
+    if (eff.whiten > 0)   applyWhiten(photo.workBuffer, photo, eff.whiten);
+    if (eff.glow > 0)     applyGlow(photo.workBuffer, photo, eff.glow);
+    return photo.workBuffer;
+  }
+
+  // ========== CACHE COMPUTATION ==========
+  function computeCache(orig) {
+    const w = orig.width, h = orig.height;
+    // Build a soft skin mask (0-255 per pixel)
+    const { mask: skinMask, count: skinPixelCount } = computeSkinMask(orig);
+    // Pre-compute blurs at three scales for various effects.
+    // Radii are scaled by image size so they look consistent across photo sizes.
+    const small = Math.max(2, Math.round(Math.min(w, h) * 0.003));
+    const med   = Math.max(4, Math.round(Math.min(w, h) * 0.012));
+    const large = Math.max(8, Math.round(Math.min(w, h) * 0.025));
+    const heal  = Math.max(12, Math.round(Math.min(w, h) * 0.04));
+    const blurSmall = fastBlur(orig, small);
+    const blurMed   = fastBlur(orig, med);
+    const blurLarge = fastBlur(orig, large);
+    const blurHeal  = fastBlur(orig, heal);
+    const blemishMask = computeBlemishMask(orig, blurHeal, skinMask);
+    const wrinkleMask = computeWrinkleMask(orig, blurMed, skinMask);
+    const whiteMask   = computeWhiteMask(orig, skinMask);
+    return {
+      skinMask, skinPixelCount,
+      blurSmall, blurMed, blurLarge, blurHeal,
+      blemishMask, wrinkleMask, whiteMask,
+    };
+  }
+
+  // ========== SKIN DETECTION ==========
+  function computeSkinMask(imgData) {
+    const w = imgData.width, h = imgData.height;
+    const d = imgData.data;
+    const raw = new Uint8Array(w * h);
+    let count = 0;
+    for (let p = 0, i = 0; p < raw.length; p++, i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const Y  =  0.299 * r + 0.587 * g + 0.114 * b;
+      const Cb = -0.169 * r - 0.331 * g + 0.500 * b + 128;
+      const Cr =  0.500 * r - 0.419 * g - 0.081 * b + 128;
+      // Standard YCbCr skin envelope plus an HSV-like sanity check.
+      let prob = 0;
+      if (Y > 50 && Cb >= 75 && Cb <= 140 && Cr >= 130 && Cr <= 180 && r > b * 0.55 && r >= g * 0.85) {
+        // Soft falloff from the typical skin centroid.
+        const cbDist = Math.abs(Cb - 108) / 32;
+        const crDist = Math.abs(Cr - 152) / 24;
+        const dist = Math.sqrt(cbDist * cbDist + crDist * crDist);
+        prob = Math.max(0, 1 - dist) * 255;
+      }
+      raw[p] = prob | 0;
+      if (prob > 80) count++;
+    }
+    // If there's almost no detected skin (e.g. user uploaded a non-portrait), apply globally.
+    if (count < (w * h) * 0.005) {
+      const all = new Uint8Array(w * h).fill(255);
+      return { mask: all, count: 0 };
+    }
+    // Dilate (max filter) then box-blur to fill small holes & feather edges.
+    const dilated = maxFilter(raw, w, h, 3);
+    const smoothed = boxBlurMask(dilated, w, h, Math.max(6, Math.round(Math.min(w, h) * 0.012)));
+    return { mask: smoothed, count };
+  }
+
+  function maxFilter(input, w, h, r) {
+    const tmp = new Uint8Array(input.length);
+    const out = new Uint8Array(input.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let m = 0;
+        for (let k = -r; k <= r; k++) {
+          let xx = x + k;
+          if (xx < 0) xx = 0; else if (xx >= w) xx = w - 1;
+          const v = input[y * w + xx];
+          if (v > m) m = v;
+        }
+        tmp[y * w + x] = m;
+      }
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let m = 0;
+        for (let k = -r; k <= r; k++) {
+          let yy = y + k;
+          if (yy < 0) yy = 0; else if (yy >= h) yy = h - 1;
+          const v = tmp[yy * w + x];
+          if (v > m) m = v;
+        }
+        out[y * w + x] = m;
+      }
+    }
+    return out;
+  }
+
+  function boxBlurMask(input, w, h, r) {
+    const k = r * 2 + 1;
+    const tmp = new Uint8Array(input.length);
+    const out = new Uint8Array(input.length);
+    // Horizontal
+    for (let y = 0; y < h; y++) {
+      let sum = 0;
+      for (let x = -r; x <= r; x++) {
+        const xx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+        sum += input[y * w + xx];
+      }
+      for (let x = 0; x < w; x++) {
+        tmp[y * w + x] = (sum / k) | 0;
+        const xL = x - r;     const xLi = xL < 0 ? 0 : xL;
+        const xR = x + r + 1; const xRi = xR >= w ? w - 1 : xR;
+        sum -= input[y * w + xLi];
+        sum += input[y * w + xRi];
+      }
+    }
+    // Vertical
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) {
+        const yy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+        sum += tmp[yy * w + x];
+      }
+      for (let y = 0; y < h; y++) {
+        out[y * w + x] = (sum / k) | 0;
+        const yT = y - r;     const yTi = yT < 0 ? 0 : yT;
+        const yB = y + r + 1; const yBi = yB >= h ? h - 1 : yB;
+        sum -= tmp[yTi * w + x];
+        sum += tmp[yBi * w + x];
+      }
+    }
+    return out;
+  }
+
+  // ========== FAST BLUR (3-pass box ≈ Gaussian) ==========
+  function fastBlur(imgData, radius) {
+    if (radius < 1) return imgData;
+    const w = imgData.width, h = imgData.height;
+    // 3-pass box approximation: derive box radii from desired sigma=radius
+    const passes = 3;
+    const sigma = radius;
+    let wIdeal = Math.sqrt(12 * sigma * sigma / passes + 1);
+    let wl = Math.floor(wIdeal);
+    if (wl % 2 === 0) wl--;
+    if (wl < 1) wl = 1;
+    const wu = wl + 2;
+    const mIdeal = (12 * sigma * sigma - passes * wl * wl - 4 * passes * wl - 3 * passes) / (-4 * wl - 4);
+    const m = Math.round(mIdeal);
+    let src = new Uint8ClampedArray(imgData.data);
+    let dst = new Uint8ClampedArray(imgData.data.length);
+    for (let i = 0; i < passes; i++) {
+      const r = (((i < m) ? wl : wu) - 1) / 2;
+      if (r < 1) continue;
+      boxBlurH(src, dst, w, h, r);
+      boxBlurV(dst, src, w, h, r);
+    }
+    return new ImageData(src, w, h);
+  }
+
+  function boxBlurH(src, dst, w, h, r) {
+    const k = r * 2 + 1;
+    for (let y = 0; y < h; y++) {
+      let sR = 0, sG = 0, sB = 0, sA = 0;
+      // Initialize sliding window
+      for (let x = -r; x <= r; x++) {
+        const xx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+        const i = (y * w + xx) * 4;
+        sR += src[i]; sG += src[i+1]; sB += src[i+2]; sA += src[i+3];
+      }
+      for (let x = 0; x < w; x++) {
+        const o = (y * w + x) * 4;
+        dst[o]   = sR / k;
+        dst[o+1] = sG / k;
+        dst[o+2] = sB / k;
+        dst[o+3] = sA / k;
+        const xL = x - r;     const xLi = xL < 0 ? 0 : xL;
+        const xR = x + r + 1; const xRi = xR >= w ? w - 1 : xR;
+        const iL = (y * w + xLi) * 4;
+        const iR = (y * w + xRi) * 4;
+        sR += src[iR]   - src[iL];
+        sG += src[iR+1] - src[iL+1];
+        sB += src[iR+2] - src[iL+2];
+        sA += src[iR+3] - src[iL+3];
+      }
+    }
+  }
+
+  function boxBlurV(src, dst, w, h, r) {
+    const k = r * 2 + 1;
+    for (let x = 0; x < w; x++) {
+      let sR = 0, sG = 0, sB = 0, sA = 0;
+      for (let y = -r; y <= r; y++) {
+        const yy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+        const i = (yy * w + x) * 4;
+        sR += src[i]; sG += src[i+1]; sB += src[i+2]; sA += src[i+3];
+      }
+      for (let y = 0; y < h; y++) {
+        const o = (y * w + x) * 4;
+        dst[o]   = sR / k;
+        dst[o+1] = sG / k;
+        dst[o+2] = sB / k;
+        dst[o+3] = sA / k;
+        const yT = y - r;     const yTi = yT < 0 ? 0 : yT;
+        const yB = y + r + 1; const yBi = yB >= h ? h - 1 : yB;
+        const iT = (yTi * w + x) * 4;
+        const iB = (yBi * w + x) * 4;
+        sR += src[iB]   - src[iT];
+        sG += src[iB+1] - src[iT+1];
+        sB += src[iB+2] - src[iT+2];
+        sA += src[iB+3] - src[iT+3];
+      }
+    }
+  }
+
+  // ========== FEATURE MASKS ==========
+  function computeBlemishMask(orig, blur, skinMask) {
+    // Pixel is "blemish-like" if it's darker than its surroundings AND/OR more red.
+    const d = orig.data, bd = blur.data;
+    const mask = new Uint8Array(skinMask.length);
+    for (let p = 0, i = 0; p < mask.length; p++, i += 4) {
+      const sm = skinMask[p];
+      if (sm < 60) continue;
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const br = bd[i], bg = bd[i+1], bb = bd[i+2];
+      const lum  = 0.299 * r  + 0.587 * g  + 0.114 * b;
+      const blum = 0.299 * br + 0.587 * bg + 0.114 * bb;
+      const dark = Math.max(0, blum - lum) / 28;
+      const red  = Math.max(0, (r - g) - (br - bg)) / 14;
+      let score = dark * 0.55 + red * 0.55;
+      if (score > 0) {
+        score = Math.min(1, score);
+        mask[p] = ((score * (sm / 255)) * 255) | 0;
+      }
+    }
+    return mask;
+  }
+
+  function computeWrinkleMask(orig, blur, skinMask) {
+    // Wrinkles = pixels noticeably darker than their local average inside skin.
+    const d = orig.data, bd = blur.data;
+    const mask = new Uint8Array(skinMask.length);
+    for (let p = 0, i = 0; p < mask.length; p++, i += 4) {
+      const sm = skinMask[p];
+      if (sm < 60) continue;
+      const lum  = 0.299 * d[i]  + 0.587 * d[i+1]  + 0.114 * d[i+2];
+      const blum = 0.299 * bd[i] + 0.587 * bd[i+1] + 0.114 * bd[i+2];
+      const diff = blum - lum;
+      if (diff > 2) {
+        const score = Math.min(1, diff / 22);
+        mask[p] = ((score * (sm / 255)) * 255) | 0;
+      }
+    }
+    return mask;
+  }
+
+  function computeWhiteMask(orig, skinMask) {
+    // Bright, low-saturation pixels near skin = teeth or eye whites.
+    const d = orig.data;
+    const mask = new Uint8Array(skinMask.length);
+    for (let p = 0, i = 0; p < mask.length; p++, i += 4) {
+      if (skinMask[p] < 30) continue;
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const sat = max === 0 ? 0 : (max - min) / max;
+      const val = max / 255;
+      if (val > 0.42 && sat < 0.42 && r > b * 0.7) {
+        const valScore = Math.min(1, (val - 0.42) / 0.40);
+        const satScore = Math.max(0, 1 - sat / 0.42);
+        mask[p] = (valScore * satScore * 255) | 0;
+      }
+    }
+    return mask;
+  }
+
+  // ========== EFFECTS (in-place on workBuffer) ==========
+  function applySmooth(out, photo, strength) {
+    const cache = photo.cache;
+    const blur = cache.blurMed;
+    const skin = cache.skinMask;
+    const d = out.data, bd = blur.data;
+    const k = (strength / 100) * 0.92;
+    for (let p = 0, i = 0; p < skin.length; p++, i += 4) {
+      const sm = skin[p];
+      if (sm === 0) continue;
+      const a = (sm / 255) * k;
+      d[i]   = d[i]   * (1 - a) + bd[i]   * a;
+      d[i+1] = d[i+1] * (1 - a) + bd[i+1] * a;
+      d[i+2] = d[i+2] * (1 - a) + bd[i+2] * a;
+    }
+  }
+
+  function applyHeal(out, photo, strength) {
+    const cache = photo.cache;
+    const blur = cache.blurHeal;
+    const blem = cache.blemishMask;
+    const d = out.data, bd = blur.data;
+    const k = (strength / 100) * 1.0;
+    for (let p = 0, i = 0; p < blem.length; p++, i += 4) {
+      const m = blem[p];
+      if (m === 0) continue;
+      const a = Math.min(1, (m / 255) * k * 1.25);
+      d[i]   = d[i]   * (1 - a) + bd[i]   * a;
+      d[i+1] = d[i+1] * (1 - a) + bd[i+1] * a;
+      d[i+2] = d[i+2] * (1 - a) + bd[i+2] * a;
+    }
+  }
+
+  function applyWrinkle(out, photo, strength) {
+    const cache = photo.cache;
+    const blur = cache.blurMed;
+    const wm = cache.wrinkleMask;
+    const d = out.data, bd = blur.data;
+    const k = (strength / 100) * 0.88;
+    for (let p = 0, i = 0; p < wm.length; p++, i += 4) {
+      const m = wm[p];
+      if (m === 0) continue;
+      const a = (m / 255) * k;
+      d[i]   = d[i]   * (1 - a) + bd[i]   * a;
+      d[i+1] = d[i+1] * (1 - a) + bd[i+1] * a;
+      d[i+2] = d[i+2] * (1 - a) + bd[i+2] * a;
+    }
+  }
+
+  function applyBrighten(out, photo, strength) {
+    const skin = photo.cache.skinMask;
+    const d = out.data;
+    const lift = (strength / 100) * 32;
+    const warm = (strength / 100) * 4;
+    for (let p = 0, i = 0; p < skin.length; p++, i += 4) {
+      const sm = skin[p];
+      if (sm === 0) continue;
+      const m = sm / 255;
+      d[i]   = clamp255(d[i]   + (lift + warm) * m);
+      d[i+1] = clamp255(d[i+1] + lift * m);
+      d[i+2] = clamp255(d[i+2] + (lift - warm * 0.5) * m);
+    }
+  }
+
+  function applyWhiten(out, photo, strength) {
+    const wm = photo.cache.whiteMask;
+    const d = out.data;
+    const k = (strength / 100) * 0.7;
+    for (let p = 0, i = 0; p < wm.length; p++, i += 4) {
+      const m = wm[p];
+      if (m === 0) continue;
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const lum = 0.30 * r + 0.59 * g + 0.11 * b;
+      const a = (m / 255) * k;
+      // Desaturate toward luminance and lift the blue channel slightly for cool whites.
+      d[i]   = clamp255(r + (lum - r) * a + 8 * a);
+      d[i+1] = clamp255(g + (lum - g) * a + 10 * a);
+      d[i+2] = clamp255(b + (lum - b) * a + 16 * a);
+    }
+  }
+
+  function applySharpen(out, photo, strength) {
+    const blur = photo.cache.blurSmall;
+    const d = out.data, bd = blur.data;
+    const amt = (strength / 100) * 1.3;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i]   = clamp255(d[i]   + (d[i]   - bd[i])   * amt);
+      d[i+1] = clamp255(d[i+1] + (d[i+1] - bd[i+1]) * amt);
+      d[i+2] = clamp255(d[i+2] + (d[i+2] - bd[i+2]) * amt);
+    }
+  }
+
+  function applyGlow(out, photo, strength) {
+    const blur = photo.cache.blurLarge;
+    const d = out.data, bd = blur.data;
+    const a = (strength / 100) * 0.5;
+    const lift = (strength / 100) * 6;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i]   = clamp255(d[i]   * (1 - a) + (bd[i]   + lift) * a);
+      d[i+1] = clamp255(d[i+1] * (1 - a) + (bd[i+1] + lift) * a);
+      d[i+2] = clamp255(d[i+2] * (1 - a) + (bd[i+2] + lift) * a);
+    }
+  }
+
+  // ========== APPLY-ALL & RESET ==========
+  applyAllBtn.addEventListener('click', () => {
+    const src = currentPhoto();
+    if (!src || state.photos.length < 2) {
+      toast('Add more photos first');
+      return;
+    }
+    const others = state.photos.filter(p => p.id !== src.id);
+    others.forEach(p => {
+      p.effects = { ...src.effects };
+      updateThumbForPhoto(p);
+    });
+    toast(`Copied edits to ${others.length} photo${others.length > 1 ? 's' : ''}`);
+  });
+
+  resetToolBtn.addEventListener('click', () => {
+    const photo = currentPhoto();
+    if (!photo) return;
+    const tool = state.activeTool;
+    if (photo.effects[tool] === 0) {
+      toast(`${TOOL_BY_ID[tool].name} already off`);
+      return;
+    }
+    photo.effects[tool] = 0;
+    syncStrengthSlider();
+    requestRender();
+    updateToolStripUI();
+    updateThumbForPhoto(photo);
+    toast(`${TOOL_BY_ID[tool].name} cleared`);
+  });
+
+  resetPhotoBtn.addEventListener('click', () => {
+    const photo = currentPhoto();
+    if (!photo) return;
+    if (!hasAnyEdits(photo)) {
+      toast('No edits to reset');
+      return;
+    }
+    photo.effects = emptyEffects();
+    syncStrengthSlider();
+    requestRender();
+    updateToolStripUI();
+    updateThumbForPhoto(photo);
+    toast('Photo reset');
+  });
+
+  autoGlowBtn.addEventListener('click', () => {
+    const photo = currentPhoto();
+    if (!photo) return;
+    photo.effects = {
+      smooth: 45,
+      heal: 65,
+      wrinkle: 35,
+      brighten: 22,
+      whiten: 35,
+      sharpen: 30,
+      glow: 30,
+    };
+    syncStrengthSlider();
+    requestRender();
+    updateToolStripUI();
+    updateThumbForPhoto(photo);
+    toast('Auto Glow ✨');
+  });
+
+  // ========== COMPARE (hold) ==========
+  let compareActive = false;
+  function showOriginal() {
+    const photo = currentPhoto();
+    if (!photo) return;
+    compareActive = true;
+    ctx.putImageData(photo.originalData, 0, 0);
+    compareLabel.classList.add('show');
+  }
+  function hideOriginal() {
+    if (!compareActive) return;
+    compareActive = false;
+    compareLabel.classList.remove('show');
+    renderActivePhoto();
+  }
+  compareBtn.addEventListener('touchstart', e => { e.preventDefault(); showOriginal(); }, { passive: false });
+  compareBtn.addEventListener('touchend', hideOriginal);
+  compareBtn.addEventListener('touchcancel', hideOriginal);
+  compareBtn.addEventListener('mousedown', showOriginal);
+  compareBtn.addEventListener('mouseup', hideOriginal);
+  compareBtn.addEventListener('mouseleave', hideOriginal);
+
+  // ========== DOWNLOAD ==========
+  downloadBtn.addEventListener('click', async () => {
+    if (!state.photos.length) return;
+    downloadBtn.disabled = true;
+    const tsBase = new Date().toISOString().replace(/[:T.]/g, '-').slice(0, 19);
+    const exporter = document.createElement('canvas');
+    const ectx = exporter.getContext('2d');
+    let saved = 0;
+    for (let i = 0; i < state.photos.length; i++) {
+      const p = state.photos[i];
+      setProcessing(true, `Saving ${i + 1}/${state.photos.length}…`);
+      // Yield so spinner updates
+      await new Promise(r => setTimeout(r, 16));
+      if (!p.cache) {
+        try {
+          p.cache = computeCache(p.originalData);
+        } catch (err) {
+          console.error(err);
+          continue;
+        }
+      }
+      const out = applyAllEffects(p);
+      exporter.width = p.width;
+      exporter.height = p.height;
+      ectx.putImageData(out, 0, 0);
+      const link = document.createElement('a');
+      const safeName = p.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'photo';
+      link.download = `glow-${tsBase}-${i + 1}-${safeName}.png`;
+      link.href = exporter.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      saved++;
+      // Small delay between downloads so the browser doesn't squash them
+      await new Promise(r => setTimeout(r, 350));
+    }
+    setProcessing(false);
+    downloadBtn.disabled = false;
+    toast(saved > 1 ? `Saved ${saved} photos` : 'Saved');
+    // Re-render the visible photo (in case last operation was on a different one)
+    renderActivePhoto();
+  });
+
+  // ========== BACK ==========
+  backBtn.addEventListener('click', () => {
+    if (state.photos.some(p => hasAnyEdits(p))) {
+      if (!confirm('Leave editor? All edits will be lost.')) return;
+    }
+    editor.classList.remove('active');
+    landing.style.display = 'flex';
+    state.photos = [];
+    state.activePhotoId = null;
+    state.activeTool = 'smooth';
+    fileInput.value = '';
+    addFileInput.value = '';
+    [...photoStrip.querySelectorAll('.photo-thumb')].forEach(el => el.remove());
+    canvas.width = 1; canvas.height = 1;
+  });
+
+  // ========== INIT ==========
+  renderToolStrip();
+  syncStrengthSlider();
+
+})();
+</script>
+</body>
+</html>

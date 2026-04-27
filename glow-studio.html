@@ -1,5 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  ============================================================
+  GLOW STUDIO — Desktop portrait retouching (single image)
+  Layout: 3-col grid (220 tools | 1fr canvas | 280 panel)
+  Deps: none. See PLAYGROUND_NOTES.md for full reference.
+
+  FILE INDEX
+    46    <style>
+    47    CSS variables (blush + ink palette)
+    81    Landing / upload view
+    200   Editor view (3-col grid)
+    264   Tool sidebar
+    313   Canvas area
+    375   Preset filter strip
+    426   Options panel (sliders, toggles)
+    542   </style>
+    544   <body>
+    546   Landing HTML (dropzone + sample btn)
+    579   Editor HTML (header, sidebar, canvas, panel)
+    768   <script> — main IIFE
+    772     State
+    791     DOM refs
+    807     Tool descriptions
+    826     File / drop handling
+    853     Sample-portrait generator (procedural)
+    1526    History (undo/redo, 25 step max)
+    1569    Render (retouch + adjustments)
+    1579    Adjustments (brightness/contrast/warmth/etc.)
+    1666    Gaussian blur (separable)
+    1717    Brush painting core
+    1906    Mouse / touch handling
+    1996    Tool selection
+    2006    Sliders
+    2062    Toolbar buttons
+    2149    Preset filters (glow, porcelain, studio, etc.)
+    2207    Keyboard shortcuts ([ ] resize, Cmd+Z undo)
+    2225  </script>
+  ============================================================
+-->
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />

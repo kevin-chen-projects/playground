@@ -10,6 +10,38 @@
  *   state.playMode     — 'loop' (current section) or 'song' (chain all sections).
  *
  * Note insertion pipeline (insertNoteAtCursor) is shared by mouse, QWERTY, and MIDI.
+ *
+ * FILE INDEX (post-comment line numbers; +32 from original)
+ *   47    Instrument catalog (kick/snare/hi-hat/clap/bass/lead/pad/pluck)
+ *   129   Piano-roll pitch range
+ *   134   QWERTY piano map (A W S E D F T G Y H U J K)
+ *   141   State (tracks, sections, currentSectionIdx, playMode, etc.)
+ *   154   newSection(name, stepsCount)
+ *   166   DOM helpers + toast/setStatus/kindOf
+ *   198   Section helpers (curSection, trackData, set/add/dup/remove/rename, render)
+ *   317   Music theory helpers (midiToNoteName, isBlackKey, getCellWidth, secondsPerStep)
+ *   341   Palette (drag-drop instruments)
+ *   382   Track lifecycle (addTrack, removeTrack, selectTrack)
+ *   430   Ruler (beat markers)
+ *   442   Track rendering (renderTracks, buildTrackControls)
+ *   529   Drum sequencer (buildDrumBody)
+ *   569   Piano roll (buildPianoRoll, createNoteEl)
+ *   670   Mouse drag note placement
+ *   727   Preview audio + key flash
+ *   741   Cursor / octave info
+ *   756   Note insertion pipeline (insertNoteAtCursor — shared by kbd/MIDI/mouse)
+ *   830   Steps count per section
+ *   851   Playback (Tone.Loop scheduler)
+ *   905   stopPlayback / highlightStep / togglePlayMode
+ *   959   WAV export (offline render of all sections)
+ *   1026  audioBufferToWav (16-bit PCM stereo interleaved)
+ *   1073  MIDI export (SMF v1)
+ *   1162  makeTrackChunk / vlq encoding
+ *   1181  downloadBlob
+ *   1192  Web MIDI input (chord window 150ms)
+ *   1234  Notation (VexFlow staff render of selected track)
+ *   1373  Wiring (event listeners, keyboard shortcuts)
+ *   1449  Boot
  */
 
 // ---------------- Instrument catalog ----------------

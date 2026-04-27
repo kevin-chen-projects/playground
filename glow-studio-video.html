@@ -18,23 +18,24 @@
     670   Landing HTML
     697   Editor HTML (header, canvas, player, options)
     822   <script> — main IIFE
-    827     State
-    867     DOM refs
-    905     Toast
-    916     File upload
-    953     Editor init
-    994     Render loop (real-time preview)
-    1022    Frame processing — CORE PIPELINE
-    1062    Skin mask + frequency-separation smoothing (YCbCr)
-    1184    Color adjustments (tone-preserving — no whitening)
-    1238    Player controls (play/pause/scrub/volume)
-    1331    Slider bindings (strength/detail/sensitivity/blur/etc.)
-    1463    Keyboard shortcuts
-    1474    Process & download via MediaRecorder
-    1580  </script>
+    827     State (incl. Web Audio fallback slots for iOS export)
+    873     DOM refs
+    911     Toast
+    922     File upload — iOS-safe blob load (DOM-attached, no crossOrigin)
+    982     Editor init
+    1023    Render loop (real-time preview)
+    1051    Frame processing — CORE PIPELINE
+    1091    Skin mask + frequency-separation smoothing (YCbCr)
+    1213    Color adjustments (tone-preserving — no whitening)
+    1267    Player controls (play/pause/scrub/volume)
+    1360    Slider bindings (strength/detail/sensitivity/blur/etc.)
+    1497    Keyboard shortcuts
+    1508    Process & download via MediaRecorder (WebM/MP4 + Web Audio iOS fallback)
+    1643  </script>
 
   KEY FEATURES: real-time preview, tone-preserving algorithm,
   protect eyes/lips toggle, skin-mask debug overlay, presets.
+  iOS Safari: end-to-end supported (upload + MP4 export).
   ============================================================
 -->
 <head>
@@ -858,6 +859,12 @@
     // Render loop
     rafId: null,
     lastFrameTime: 0,
+
+    // Web Audio fallback used during export when video.captureStream() is
+    // unavailable (iOS Safari). Created lazily on first export click.
+    audioCtx: null,
+    audioSource: null,
+    audioDest: null,
   };
 
   // Maximum processing dimension — anything larger is downsampled for real-time
@@ -934,19 +941,42 @@
     if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
     state.objectUrl = URL.createObjectURL(file);
 
+    // iOS Safari quirks: (1) the <video> must be in the DOM for a blob URL to
+    // decode reliably; (2) crossOrigin must NOT be set on blob URLs — blobs
+    // don't emit CORS headers and iOS rejects the load when it is present.
     const video = document.createElement('video');
-    video.src = state.objectUrl;
     video.preload = 'auto';
     video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
     video.muted = false;
-    video.crossOrigin = 'anonymous';
+    Object.assign(video.style, {
+      position: 'fixed', left: '-9999px', top: '0',
+      width: '1px', height: '1px', opacity: '0', pointerEvents: 'none',
+    });
+    document.body.appendChild(video);
 
-    video.addEventListener('loadeddata', () => {
+    let handed = false;
+    const onReady = () => {
+      if (handed) return;
+      if (video.readyState < 2 || !video.videoWidth) return;
+      handed = true;
       initEditor(video);
-    }, { once: true });
+    };
+    video.addEventListener('loadedmetadata', onReady);
+    video.addEventListener('loadeddata', onReady);
+    video.addEventListener('canplay', onReady);
     video.addEventListener('error', () => {
+      if (handed) return;
+      handed = true;
+      if (video.parentNode) video.parentNode.removeChild(video);
       showToast('Could not load that video');
     }, { once: true });
+
+    video.src = state.objectUrl;
+    video.load();
+    // Reset so re-selecting the same file still fires `change`.
+    fileInput.value = '';
   }
 
   // ============================================================
@@ -1450,7 +1480,12 @@
       state.video.pause();
       state.video.removeAttribute('src');
       state.video.load();
+      if (state.video.parentNode) state.video.parentNode.removeChild(state.video);
     }
+    // MediaElementAudioSourceNode is bound to the discarded <video>; the next
+    // export must build a fresh graph for the new element.
+    if (state.audioSource) { try { state.audioSource.disconnect(); } catch (e) {} state.audioSource = null; }
+    if (state.audioDest)   { try { state.audioDest.disconnect();   } catch (e) {} state.audioDest = null; }
     if (state.objectUrl) { URL.revokeObjectURL(state.objectUrl); state.objectUrl = null; }
     cancelAnimationFrame(state.rafId);
     state.video = null;
@@ -1480,16 +1515,22 @@
     if (!state.video || state.isRecording) return;
 
     if (!window.MediaRecorder) {
-      showToast('MediaRecorder is not supported in this browser');
+      showToast('Recording is not supported in this browser');
       return;
     }
 
+    // WebM for desktop/Android; MP4 fallback for iOS Safari, which only
+    // encodes H.264/AAC in an MP4 container.
     const mimeCandidates = [
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8,opus',
       'video/webm;codecs=vp8',
       'video/webm',
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4',
     ];
     let mimeType = '';
     for (const m of mimeCandidates) {
@@ -1499,6 +1540,41 @@
       showToast('No supported video encoder found');
       return;
     }
+    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+
+    // Resolve an audio stream while still inside the user-gesture window so
+    // iOS will let us create/resume an AudioContext. Prefer the native
+    // video.captureStream() on desktop; fall back to a MediaElementSource →
+    // MediaStreamDestination graph on iOS Safari (which lacks captureStream
+    // on HTMLVideoElement but supports Web Audio).
+    let audioTracks = [];
+    try {
+      if (typeof state.video.captureStream === 'function') {
+        audioTracks = state.video.captureStream().getAudioTracks();
+      } else if (typeof state.video.mozCaptureStream === 'function') {
+        audioTracks = state.video.mozCaptureStream().getAudioTracks();
+      }
+    } catch (err) { /* fall through to Web Audio */ }
+    if (audioTracks.length === 0) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          if (!state.audioCtx) state.audioCtx = new AudioCtx();
+          if (state.audioCtx.state === 'suspended') state.audioCtx.resume().catch(() => {});
+          if (!state.audioSource) {
+            // createMediaElementSource can only be called once per element;
+            // reuse the node on subsequent exports.
+            state.audioSource = state.audioCtx.createMediaElementSource(state.video);
+            state.audioSource.connect(state.audioCtx.destination);
+          }
+          if (!state.audioDest) {
+            state.audioDest = state.audioCtx.createMediaStreamDestination();
+            state.audioSource.connect(state.audioDest);
+          }
+          audioTracks = state.audioDest.stream.getAudioTracks();
+        }
+      } catch (err) { /* record silent if even Web Audio fails */ }
+    }
 
     state.isRecording = true;
     downloadBtn.disabled = true;
@@ -1506,20 +1582,8 @@
     state.video.currentTime = 0;
     await new Promise(r => state.video.addEventListener('seeked', r, { once: true }));
 
-    // Build combined MediaStream: canvas video + original audio
     const canvasStream = state.displayCanvas.captureStream(30);
-    const tracks = [...canvasStream.getVideoTracks()];
-    try {
-      const vidStream = state.video.captureStream
-        ? state.video.captureStream()
-        : (state.video.mozCaptureStream && state.video.mozCaptureStream());
-      if (vidStream) {
-        for (const t of vidStream.getAudioTracks()) tracks.push(t);
-      }
-    } catch (err) {
-      // Audio capture failed — proceed without it
-    }
-    const combined = new MediaStream(tracks);
+    const combined = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
 
     const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 8_000_000 });
     const chunks = [];
@@ -1542,12 +1606,12 @@
 
     recorder.onstop = () => {
       cancelAnimationFrame(renderRafId);
-      const blob = new Blob(chunks, { type: 'video/webm' });
+      const blob = new Blob(chunks, { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const ts = new Date().toISOString().replace(/[:T.]/g, '-').slice(0, 19);
       a.href = url;
-      a.download = `glow-video-${ts}.webm`;
+      a.download = `glow-video-${ts}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

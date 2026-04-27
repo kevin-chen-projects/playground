@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<!--
+  ============================================================
+  YouTube Smart Skip — settings popup
+  Layout: 340px wide vertical settings stack.
+  Persists to chrome.storage.sync; content.js picks up changes
+  via storage.onChanged.
+  ============================================================
+-->
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Smart Skip</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>YouTube Smart Skip</h1>
+      <p class="tagline">Auto-skip in-video sponsors</p>
+    </div>
+    <label class="toggle" title="Master switch">
+      <input type="checkbox" id="enabled">
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <section>
+    <h2>Detection</h2>
+    <label class="row">
+      <input type="checkbox" id="captionDetect">
+      <div>
+        <strong>Caption / phrase match</strong>
+        <small>Reads YouTube captions and triggers on sponsor phrases.</small>
+      </div>
+    </label>
+    <label class="row">
+      <input type="checkbox" id="visualDetect">
+      <div>
+        <strong>Visual progress bar</strong>
+        <small>Samples video pixels to find creator-baked sponsor bars. Experimental — may be blocked by cross-origin video.</small>
+      </div>
+    </label>
+  </section>
+
+  <section>
+    <h2>Skip duration</h2>
+    <div class="slider-row">
+      <input type="range" id="skipSeconds" min="5" max="120" step="5">
+      <span id="skipSecondsLabel" class="slider-val">30s</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Visual sensitivity</h2>
+    <div class="slider-row">
+      <input type="range" id="sensitivity" min="0.30" max="0.95" step="0.05">
+      <span id="sensitivityLabel" class="slider-val">0.70</span>
+    </div>
+    <p class="hint">Lower = more aggressive (more false positives). Higher = stricter.</p>
+  </section>
+
+  <section>
+    <h2>Sponsor phrases</h2>
+    <textarea id="keywords" rows="7" spellcheck="false" placeholder="One phrase per line"></textarea>
+    <p class="hint">Captions matching any of these phrases trigger a skip.</p>
+  </section>
+
+  <section class="row-section">
+    <label class="row">
+      <input type="checkbox" id="showToast">
+      <div>
+        <strong>Show toast on skip</strong>
+        <small>Notification with an Undo button.</small>
+      </div>
+    </label>
+  </section>
+
+  <button id="reset" class="reset" type="button">Reset to defaults</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

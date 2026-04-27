@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Smart Skip",
+  "version": "0.1.0",
+  "description": "Detects and auto-skips in-video sponsor segments using caption keyword matching and (opt-in) visual progress-bar detection.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.youtube.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube Smart Skip"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

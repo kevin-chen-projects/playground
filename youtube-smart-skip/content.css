@@ -1,0 +1,64 @@
+/*
+ * YouTube Smart Skip — content styles
+ * Only the skip toast lives in the page DOM.
+ */
+
+#yss-toast {
+  position: fixed;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 16px;
+  background: rgba(20, 20, 22, 0.96);
+  color: #f1f1f1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#yss-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+#yss-toast .yss-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ec5a7c;
+  box-shadow: 0 0 8px rgba(236, 90, 124, 0.6);
+  flex-shrink: 0;
+}
+
+#yss-toast .yss-msg {
+  white-space: nowrap;
+}
+
+#yss-toast .yss-undo {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+#yss-toast .yss-undo:hover {
+  background: rgba(255, 255, 255, 0.22);
+}

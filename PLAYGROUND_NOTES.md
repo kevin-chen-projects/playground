@@ -19,7 +19,8 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 7. [Slot Machine Memes](#7-slot-machine-memeshtml) — `slot-machine-memes.html`
 8. [Spades](#8-spadeshtml) — `spades.html`
 9. [Bare DAW](#9-daw-folder) — `daw/{index.html, styles.css, app.js}`
-10. [Cross-Project Patterns](#cross-project-patterns)
+10. [YouTube Smart Skip](#10-youtube-smart-skip-folder) — `youtube-smart-skip/{manifest.json, content.{js,css}, popup.{html,css,js}}`
+11. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -527,6 +528,85 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 
 ---
 
+## 10. `youtube-smart-skip/` folder
+
+**Chrome extension (Manifest V3) for in-video sponsor detection.** Auto-skips creator-baked sponsor segments that escape regular ad-blockers, using two independent signals: caption-keyword matching (on by default) and visual progress-bar detection (opt-in, experimental).
+
+- **Files:** `manifest.json` (21), `content.js` (359), `content.css` (64), `popup.html` (83), `popup.css` (203), `popup.js` (87), `README.md` (55)
+- **Layout (popup):** 340px-wide vertical settings stack
+- **Dependencies:** None — pure browser APIs (`MutationObserver`, `chrome.storage.sync`, Canvas 2D)
+- **No-build:** Load unpacked via `chrome://extensions` → Developer mode → Load unpacked
+
+### File Map
+
+| File | Role |
+|------|------|
+| `manifest.json` | MV3 declaration. Single content script on `*.youtube.com`. Permissions: `storage` + host. |
+| `content.js`    | Detection engine (caption observer + visual canvas sampler) and skip action. |
+| `content.css`   | Toast styles only. |
+| `popup.html`    | Settings UI shell (340px). |
+| `popup.css`     | Dark popup theme. |
+| `popup.js`      | Reads/writes `chrome.storage.sync`; content.js auto-reattaches via `storage.onChanged`. |
+| `README.md`     | Install steps, tuning, limitations, future ideas. |
+
+### Detection Strategies
+
+| Signal | Default | Mechanism |
+|--------|---------|-----------|
+| Caption keyword | on | `MutationObserver` on `.ytp-caption-segment` text. Rolling 25-entry buffer substring-matched against an editable phrase list ("sponsor of", "use code", "today's video is brought", etc.). |
+| Visual progress bar | off | Every 500 ms, `ctx.drawImage()` of bottom 12% of the `<video>` to a 200×24 canvas. For each row, compute mean RGB + longest run of near-mean pixels. Row is a "bar" if run covers >30% of width and variance is low. Skip triggers when the same bar persists ≥6 frames AND grows ≥4 frames. Self-disables if `getImageData` throws (cross-origin tainted canvas). |
+
+### Key JS Entry Points (`content.js`)
+
+| Line | Function | Purpose |
+|------|----------|---------|
+| 33   | `DEFAULTS` | Settings shape + sponsor keyword seed list |
+| 65   | bootstrap (storage load + SPA URL watcher) | Re-attaches detectors when YouTube swaps videos in-place |
+| 105  | `setup()` / `teardown()` | Per-video attach / detach |
+| 130  | `findVideo()` | Polls for `video.html5-main-video` (up to ~15 s) |
+| 145  | `startCaptionWatch()` / `matchesSponsorKeywords()` | Caption observer + substring match |
+| 195  | `startVisualWatch()` / `sampleBottomStrip()` / `detectHorizontalBar()` | Canvas pixel scan + temporal stability check |
+| 270  | `triggerSkip(source)` | 5 s debounced jump + toast |
+| 295  | `showToast(msg, undoTime)` | DOM toast with Undo button (5 s) |
+
+### Settings (persisted to `chrome.storage.sync`)
+
+| Key | Default | Range | Notes |
+|-----|---------|-------|-------|
+| `enabled`       | `true`  | bool      | Master switch |
+| `captionDetect` | `true`  | bool      | Caption observer |
+| `visualDetect`  | `false` | bool      | Visual sampler (experimental) |
+| `skipSeconds`   | `30`    | 5–120     | Forward jump distance |
+| `sensitivity`   | `0.70`  | 0.30–0.95 | Visual detector threshold |
+| `showToast`     | `true`  | bool      | Toast + Undo |
+| `keywords`      | array   | string[]  | Sponsor phrases (lowercased substring match) |
+
+### CSS Variables (popup)
+
+```css
+--bg      #0e0e10     --text    #f1f1f2     --accent  #ec5a7c
+--panel   #18181b     --muted   #9b9ba0     --accent2 #ff87a0
+--border  #2a2a2e
+```
+
+(Accent intentionally matches the Glow Studio blush family — `--blush-500`.)
+
+### Known Limitations
+
+- **Captions must be on** for caption detection (YouTube's auto-generated captions work fine).
+- **Cross-origin canvas:** YouTube's MSE blob URLs are usually same-origin, but if `getImageData` throws, the visual detector self-disables for the session and logs a warning.
+- **Fixed-duration skip.** v0.1 always jumps `skipSeconds` — does not yet detect segment end by re-checking captions.
+- **No per-channel rules.** No Live / Shorts guards yet.
+
+### Possible Next Iterations
+
+- SponsorBlock API (`sponsor.ajay.app`) as a third, crowd-sourced detection source — most reliable for already-seen videos.
+- Segment-end detection: keep watching captions after a skip, stop only when buffer is sponsor-free.
+- Per-channel allow / block list.
+- Audio fingerprinting via `AnalyserNode` for common sponsor-jingle templates.
+
+---
+
 ## Cross-Project Patterns
 
 | Pattern | Where |
@@ -539,6 +619,8 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 | **CSS variables for theming** | All projects |
 | **No build step / no framework** | Every project |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
+| **Chrome extension (MV3) / content script** | youtube-smart-skip only |
+| **`chrome.storage.sync` for settings** | youtube-smart-skip only |
 
 ### File Size Summary
 
@@ -555,7 +637,14 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 | daw/app.js | 1,456 | DAW engine |
 | daw/styles.css | 533 | DAW styling |
 | daw/index.html | 150 | DAW shell |
-| **Total** | **18,013** | |
+| youtube-smart-skip/content.js | 359 | Extension detection engine |
+| youtube-smart-skip/popup.css | 203 | Extension popup styling |
+| youtube-smart-skip/popup.js | 87 | Extension popup controller |
+| youtube-smart-skip/popup.html | 83 | Extension popup shell |
+| youtube-smart-skip/content.css | 64 | Extension toast styling |
+| youtube-smart-skip/README.md | 55 | Extension docs |
+| youtube-smart-skip/manifest.json | 21 | Extension manifest (MV3) |
+| **Total** | **18,885** | |
 
 ### Quick `grep` recipes
 

@@ -177,9 +177,9 @@ Upload or sample → pick brush tool → paint with size/strength sliders → ap
 
 ## 4. `glow-studio-video.html`
 
-**Video face-smoothing tool.** Tone-safe skin smoothing with real-time preview, frame-by-frame export. Emphasizes preserving natural skin colors across all tones via educational badges and protect-features toggle.
+**Video face-smoothing tool.** Tone-safe skin smoothing with real-time preview, frame-by-frame export. Emphasizes preserving natural skin colors across all tones via educational badges and protect-features toggle. Upload and export are iOS-Safari-compatible.
 
-- **Lines:** 1,545
+- **Lines:** 1,608
 - **Layout:** 2-column grid — `1fr canvas | 320px options panel`; collapses to single column under 900px
 - **Dependencies:** None
 
@@ -204,16 +204,22 @@ Upload or sample → pick brush tool → paint with size/strength sliders → ap
 
 | Line | Function | Purpose |
 |------|----------|---------|
-| 1204 | `togglePlay()` | Play/pause |
-| 1213 | `updatePlayIcon()` | Sync icon |
-| 1225 | `fmtTime(sec)` | MM:SS formatting |
-| 1232 | `updateTimeUI()` | Time label + scrubber position |
-| 1243 | `scrubFromEvent(e)` | Mouse/touch scrub |
-| 1269–1291 | Volume + mute control | |
-| 1296 | `bindSlider(id, transform, onChange)` | Generic slider binder |
-| 1316 | Preset chip handlers | 5 preset strength levels |
-| 1340–1348 | `maskToggle` / `protectToggle` | Debug overlays |
-| 1392–1398 | `showOriginal()` / `hideOriginal()` | Compare mode |
+| 939  | `loadVideoFile(file)` | iOS-safe blob-URL load — DOM-attached `<video>`, no `crossOrigin`, multi-event ready check |
+| 984  | `initEditor(video)` | Cap to `MAX_PROC_DIM` (720), size canvases, wire events, render first frame |
+| 1061 | `processFrame()` | Core pipeline: draw → native blur → skin-mask blend → adjustments → display |
+| 1116 | `blendSkinSmoothing(orig, blur)` | YCbCr skin detection + frequency-separation smoothing (per-pixel) |
+| 1219 | `applyAdjustments(imageData)` | Tone-preserving brightness/contrast/warmth/vibrance |
+| 1270 | `togglePlay()` | Play/pause |
+| 1279 | `updatePlayIcon()` | Sync icon + skin overlay badge |
+| 1291 | `fmtTime(sec)` | MM:SS formatting |
+| 1298 | `updateTimeUI()` | Time label + scrubber position |
+| 1309 | `scrubFromEvent(e)` | Mouse/touch scrub |
+| 1335–1358 | Volume + mute control | |
+| 1362 | `bindSlider(id, transform, onChange)` | Generic slider binder |
+| 1382 | Preset chip handlers | 5 preset strength levels |
+| 1406–1414 | `maskToggle` / `protectToggle` | Debug overlays |
+| 1458–1466 | `showOriginal()` / `hideOriginal()` | Compare mode |
+| 1513 | `downloadBtn` click | Export — MIME negotiation (WebM→MP4), Web Audio audio fallback for iOS, MediaRecorder loop |
 
 ### Slider Defaults
 
@@ -223,11 +229,28 @@ Upload or sample → pick brush tool → paint with size/strength sliders → ap
 
 - Video input (MP4/MOV/WebM) instead of images
 - Real-time preview as sliders move
-- Frame-by-frame batch render for export
+- Frame-by-frame batch render for export (WebM on desktop/Android, MP4 on iOS Safari)
 - Player controls (scrubber, play/pause, time, volume, mute)
 - Strength presets only (no named filter presets)
 - Pulsing "Smoothing active" indicator
 - Educational tone-safety messaging
+
+### Browser Compatibility & Usage
+
+End-to-end iOS Safari support (iPhone Photos-app uploads, H.264/AAC MP4 export):
+
+- **Upload path:** `<video>` is appended to the DOM (positioned offscreen) with no `crossOrigin` attribute — both are required for iOS to decode blob URLs reliably. Ready-check listens to `loadedmetadata`, `loadeddata`, and `canplay` and hands off as soon as `readyState ≥ 2` with a non-zero `videoWidth`.
+- **Export container:** `MediaRecorder.isTypeSupported()` walks a preference list (WebM VP9+Opus → WebM VP8+Opus → MP4 avc1+mp4a.40.2). iOS Safari only matches MP4. The Blob MIME and download filename extension (`.webm` / `.mp4`) follow the negotiated type.
+- **Audio capture:** `video.captureStream()` on desktop; iOS lacks it, so the export handler lazily builds an `AudioContext` → `MediaElementSource` → `MediaStreamDestination` graph inside the click (user-gesture scope) and feeds its tracks into `MediaRecorder`. The graph is cached on `state.audioCtx/audioSource/audioDest`; `createMediaElementSource` is one-shot per element, so **"New Video" disconnects** the nodes so the next upload can rebind.
+- **User gesture:** All AudioContext creation/`resume()` and MediaRecorder setup stays synchronous inside the click handler; awaits for seek and `play()` run after.
+
+### How to Use
+
+1. Open `glow-studio-video.html` directly in a browser (no build step).
+2. Drop a video onto the dropzone or tap it to browse — iPhone opens the Photos/Camera picker.
+3. Adjust **Strength**, **Detail Preserve**, **Skin Sensitivity**, **Blur Radius**, then fine-tune **Brightness / Contrast / Warmth / Vibrance**. Toggle the skin-mask overlay to see which pixels the smoother treats as skin.
+4. Press play, scrub, or use `Space` / `←` / `→` for playback. Hold the compare button to see the untouched original.
+5. Click **Process & Save**. The full video re-plays while the pipeline renders each frame; progress is shown in the overlay. A `.webm` (desktop/Android) or `.mp4` (iOS) is downloaded when done.
 
 ---
 
@@ -632,7 +655,7 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 | spades.html | 2,189 | Card game |
 | slot-machine-memes.html | 1,754 | Slot game |
 | glow-studio-easy.html | 1,662 | Photo editor |
-| glow-studio-video.html | 1,582 | Video editor |
+| glow-studio-video.html | 1,645 | Video editor |
 | slot-machine.html | 1,481 | Slot game |
 | daw/app.js | 1,456 | DAW engine |
 | daw/styles.css | 533 | DAW styling |
@@ -644,7 +667,7 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 | youtube-smart-skip/content.css | 64 | Extension toast styling |
 | youtube-smart-skip/README.md | 55 | Extension docs |
 | youtube-smart-skip/manifest.json | 21 | Extension manifest (MV3) |
-| **Total** | **18,885** | |
+| **Total** | **18,948** | |
 
 ### Quick `grep` recipes
 

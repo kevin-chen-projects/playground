@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Screener</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Stock Screener</h1>
+      <div class="subtitle">Momentum day trading reference · manual verification required</div>
+    </div>
+    <div id="meta"></div>
+  </header>
+
+  <nav id="tabs">
+    <button class="tab active" data-tab="gainers">Gainers</button>
+    <button class="tab" data-tab="losers">Losers</button>
+    <button class="tab" data-tab="russell_earnings">Russell 2000 Earnings</button>
+    <button class="tab" data-tab="low_float">Low-Float Runners</button>
+    <button class="tab" data-tab="options">Options Flow</button>
+  </nav>
+
+  <main>
+    <div id="tab-note" class="note"></div>
+    <div id="table-wrap"></div>
+  </main>
+
+  <footer>
+    <span>Refresh data: <code>python fetch_data.py</code></span>
+    <span>Click a symbol to open Yahoo Finance for manual verification.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

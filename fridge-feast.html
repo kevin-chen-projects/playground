@@ -1,0 +1,3200 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================
+  FRIDGE FEAST — cook from what you have
+  Ingredient picker (emoji grid + custom input) + optional
+  quantities + cuisine bias → scored recipe match with
+  limiting-ingredient proportional scaling.
+
+  Flow: Pick ingredients → Set cuisine → Generate recipe
+  No build step. Vanilla HTML/CSS/JS. Open in any browser.
+
+  FILE INDEX
+    10    <style>
+    15      :root vars (cream + terracotta + sage palette)
+    60      reset + layout base
+    100     header / intro
+    140     section cards
+    180     category tabs
+    220     ingredient grid + cards
+    290     selected-ingredients chip row + inline editor
+    360     custom input + cuisine pills + servings
+    430     generate button + empty state
+    470     recipe output (ingredients list, steps, missing)
+    580     responsive tweaks
+    640   </style>
+    660   <body>
+    665     header
+    675     pick section (category tabs + grid + custom)
+    700     selected section (chips + expand editor)
+    720     preferences (cuisine + servings)
+    740     generate button
+    750     recipe output
+    790   <script>
+    792     STATE + DOM refs
+    820     INGREDIENT LIBRARY (7 categories, ~85 items)
+    950     RECIPE LIBRARY (~30 recipes across cuisines)
+    1500    UNIT CONVERSION + NORMALIZATION
+    1560    INGREDIENT MATCHING (fuzzy + alias)
+    1620    RECIPE SCORING + RANKING
+    1700    LIMITING-INGREDIENT SCALING
+    1770    RENDERING (grid, chips, recipe card)
+    1950    EVENT WIRING + INIT
+    2000  </script>
+  ============================================================
+-->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fridge Feast · Cook From What You Have</title>
+  <style>
+    /* ============================================================
+       VARIABLES — warm kitchen palette
+       ============================================================ */
+    :root {
+      --cream-50:  #fef9f0;
+      --cream-100: #fcf0dc;
+      --cream-200: #f6dfb8;
+      --cream-300: #eec88a;
+
+      --terra-300: #f0a878;
+      --terra-400: #e8824a;
+      --terra-500: #d86a30;
+      --terra-600: #b4501d;
+      --terra-700: #833912;
+
+      --sage-200:  #d5e3be;
+      --sage-300:  #a8c288;
+      --sage-500:  #7c9a55;
+      --sage-600:  #5f7d3d;
+      --sage-700:  #4a6330;
+
+      --tomato-400: #e05b3f;
+      --tomato-500: #c44228;
+      --tomato-600: #9c3320;
+
+      --ink-900: #2d1f0f;
+      --ink-700: #4a3820;
+      --ink-500: #7a6549;
+      --ink-400: #9a8669;
+      --ink-300: #b8a58a;
+      --ink-200: #d8cab3;
+      --ink-100: #ece2d0;
+
+      --white:   #ffffff;
+      --shadow-sm: 0 1px 3px rgba(45, 31, 15, 0.08), 0 1px 2px rgba(45, 31, 15, 0.04);
+      --shadow-md: 0 4px 12px rgba(45, 31, 15, 0.10), 0 2px 4px rgba(45, 31, 15, 0.06);
+      --shadow-lg: 0 10px 30px rgba(45, 31, 15, 0.14), 0 4px 8px rgba(45, 31, 15, 0.08);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+    }
+
+    /* ============================================================
+       RESET + BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      color: var(--ink-900);
+      background:
+        radial-gradient(ellipse at top left, var(--cream-100) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom right, #f7e8cf 0%, transparent 55%),
+        var(--cream-50);
+      background-attachment: fixed;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+    input, select { font: inherit; color: inherit; }
+    h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--cream-200);
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--terra-700);
+      letter-spacing: 0.03em;
+      margin-bottom: 14px;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--ink-900);
+      margin-bottom: 10px;
+    }
+    .hero-title .accent {
+      background: linear-gradient(120deg, var(--terra-500), var(--tomato-500));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 1.05rem;
+      color: var(--ink-500);
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    /* ============================================================
+       SECTION CARDS
+       ============================================================ */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 20px;
+      border: 1px solid rgba(184, 165, 138, 0.15);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card-header h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--ink-900);
+    }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--terra-500);
+      color: var(--white);
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .card-hint {
+      font-size: 0.88rem;
+      color: var(--ink-500);
+      margin-left: auto;
+    }
+
+    /* ============================================================
+       INGREDIENT SECTIONS + GRID
+       ============================================================ */
+    .ing-sections {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .ing-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ink-500);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .section-heading .section-emoji {
+      font-size: 1.1rem;
+    }
+    .ing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+      gap: 10px;
+    }
+    .ing-card {
+      position: relative;
+      padding: 14px 6px 10px;
+      background: var(--cream-50);
+      border: 2px solid var(--cream-100);
+      border-radius: var(--radius-md);
+      text-align: center;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .ing-card:hover {
+      background: var(--cream-100);
+      border-color: var(--cream-200);
+      transform: translateY(-1px);
+    }
+    .ing-card.selected {
+      background: var(--sage-200);
+      border-color: var(--sage-500);
+      box-shadow: var(--shadow-sm);
+    }
+    .ing-card .emoji {
+      font-size: 1.8rem;
+      line-height: 1;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .ing-card .label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--ink-700);
+    }
+    .ing-card.selected .label { color: var(--sage-700); }
+    .ing-card .checkmark {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--sage-500);
+      color: var(--white);
+      font-size: 0.72rem;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+    .ing-card.selected .checkmark { display: flex; }
+
+    /* ============================================================
+       CUSTOM INGREDIENT INPUT + AUTOCOMPLETE
+       ============================================================ */
+    .custom-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px dashed var(--ink-200);
+    }
+    .custom-input-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .custom-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid var(--ink-200);
+      border-radius: var(--radius-md);
+      font-size: 0.95rem;
+      background: var(--white);
+      transition: border-color 0.15s ease;
+    }
+    .custom-input:focus {
+      outline: none;
+      border-color: var(--terra-400);
+    }
+    .autocomplete-list {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--white);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--radius-md);
+      max-height: 260px;
+      overflow-y: auto;
+      box-shadow: var(--shadow-md);
+      z-index: 100;
+      display: none;
+    }
+    .autocomplete-list.open { display: block; }
+    .autocomplete-item {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.92rem;
+      cursor: pointer;
+      color: var(--ink-700);
+      border-bottom: 1px solid var(--ink-100);
+    }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover,
+    .autocomplete-item.highlighted {
+      background: var(--cream-100);
+    }
+    .autocomplete-item .ac-emoji { font-size: 1.1em; }
+    .autocomplete-item .ac-cat {
+      margin-left: auto;
+      font-size: 0.78rem;
+      color: var(--ink-400);
+      text-transform: capitalize;
+    }
+    .autocomplete-item .ac-new {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--terra-600);
+      background: var(--cream-100);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .btn {
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--terra-500);
+      color: var(--white);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary:hover { background: var(--terra-600); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled {
+      background: var(--ink-200);
+      color: var(--ink-400);
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-700);
+      border: 1px solid var(--ink-200);
+    }
+    .btn-ghost:hover { background: var(--cream-100); }
+
+    /* ============================================================
+       SELECTED INGREDIENTS CHIPS
+       ============================================================ */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 44px;
+    }
+    .chips-empty {
+      color: var(--ink-400);
+      font-size: 0.92rem;
+      font-style: italic;
+      padding: 12px 0;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--sage-200);
+      border: 1.5px solid var(--sage-300);
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--sage-700);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chip:hover { background: var(--sage-300); }
+    .chip.priority {
+      background: #ffeeb6;
+      border-color: #e0a82a;
+      color: #7a5410;
+    }
+    .chip.priority::before {
+      content: '⭐';
+      font-size: 0.9em;
+    }
+    .chip-emoji { font-size: 1em; }
+    .chip-qty {
+      font-weight: 500;
+      color: rgba(0, 0, 0, 0.55);
+      font-size: 0.82rem;
+      padding-left: 8px;
+      margin-left: 2px;
+      border-left: 1px solid rgba(0, 0, 0, 0.2);
+    }
+    .chip-x {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.1);
+      font-size: 0.75rem;
+      margin-left: 2px;
+    }
+    .chip-x:hover { background: rgba(0, 0, 0, 0.2); }
+
+    /* ============================================================
+       INLINE EDITOR (for chip expand)
+       ============================================================ */
+    .chip-editor {
+      background: var(--cream-50);
+      border: 1.5px solid var(--cream-200);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-top: 10px;
+      display: none;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .chip-editor.open { display: flex; }
+    .chip-editor label {
+      font-size: 0.85rem;
+      color: var(--ink-700);
+      font-weight: 600;
+    }
+    .chip-editor .editor-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chip-editor input[type="number"] {
+      width: 72px;
+      padding: 6px 10px;
+      border: 1.5px solid var(--ink-200);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .chip-editor select {
+      padding: 6px 10px;
+      border: 1.5px solid var(--ink-200);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      background: var(--white);
+    }
+    .chip-editor input:focus, .chip-editor select:focus {
+      outline: none;
+      border-color: var(--terra-400);
+    }
+    .priority-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--white);
+      border: 1.5px solid var(--ink-200);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink-500);
+    }
+    .priority-toggle.on {
+      background: #ffeeb6;
+      border-color: #e0a82a;
+      color: #7a5410;
+    }
+
+    /* ============================================================
+       CUISINE + SERVINGS
+       ============================================================ */
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pill {
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--cream-100);
+      color: var(--ink-700);
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      border: 1.5px solid transparent;
+    }
+    .pill:hover { background: var(--cream-200); }
+    .pill.active {
+      background: var(--terra-500);
+      color: var(--white);
+      border-color: var(--terra-600);
+      box-shadow: var(--shadow-sm);
+    }
+    .pref-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .pref-block h3 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--ink-700);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .servings-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .servings-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--cream-100);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--ink-700);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .servings-btn:hover { background: var(--cream-200); }
+    .servings-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--ink-900);
+      min-width: 28px;
+      text-align: center;
+    }
+    .servings-label {
+      font-size: 0.9rem;
+      color: var(--ink-500);
+    }
+
+    /* ============================================================
+       GENERATE BUTTON + EMPTY STATE
+       ============================================================ */
+    .generate-row {
+      display: flex;
+      justify-content: center;
+      margin: 32px 0 24px;
+    }
+    .btn-generate {
+      padding: 18px 36px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--terra-500), var(--tomato-500));
+      color: var(--white);
+      border-radius: 999px;
+      box-shadow: var(--shadow-md);
+      letter-spacing: 0.01em;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-generate:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    .btn-generate:disabled {
+      background: var(--ink-200);
+      color: var(--ink-400);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ============================================================
+       RECIPE OUTPUT
+       ============================================================ */
+    .recipe-card {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(184, 165, 138, 0.15);
+      margin-bottom: 20px;
+      display: none;
+    }
+    .recipe-card.visible { display: block; animation: fadeUp 0.4s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .recipe-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--ink-900);
+      margin-bottom: 8px;
+    }
+    .recipe-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      color: var(--ink-500);
+    }
+    .recipe-meta .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .recipe-tag {
+      display: inline-block;
+      padding: 3px 10px;
+      background: var(--cream-100);
+      color: var(--terra-700);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .recipe-desc {
+      font-size: 1rem;
+      color: var(--ink-700);
+      margin-bottom: 24px;
+      line-height: 1.55;
+    }
+    .recipe-alt {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .recipe-alt .btn-alt {
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--cream-100);
+      color: var(--ink-700);
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid var(--cream-200);
+    }
+    .recipe-alt .btn-alt:hover { background: var(--cream-200); }
+    .recipe-section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink-500);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+      margin-top: 8px;
+    }
+    .recipe-ings {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 16px;
+    }
+    .recipe-ing {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--ink-100);
+      font-size: 0.95rem;
+    }
+    .recipe-ing .ing-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--sage-500);
+      flex-shrink: 0;
+    }
+    .recipe-ing.missing .ing-dot { background: var(--terra-500); }
+    .recipe-ing.missing .ing-name { color: var(--terra-700); }
+    .recipe-ing.missing::after {
+      content: 'need';
+      font-size: 0.7rem;
+      color: var(--terra-600);
+      font-weight: 700;
+      background: #ffe6c9;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-left: auto;
+    }
+    .recipe-ing .ing-qty {
+      font-weight: 600;
+      color: var(--ink-900);
+      min-width: 60px;
+      font-variant-numeric: tabular-nums;
+    }
+    .recipe-ing .ing-name { color: var(--ink-700); }
+
+    .scale-note {
+      font-size: 0.88rem;
+      color: var(--terra-700);
+      background: var(--cream-100);
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      border-left: 3px solid var(--terra-500);
+    }
+    .scale-note.hidden { display: none; }
+
+    .steps-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      counter-reset: step;
+    }
+    .steps-list li {
+      counter-increment: step;
+      padding: 12px 0 12px 44px;
+      position: relative;
+      font-size: 0.98rem;
+      color: var(--ink-900);
+      line-height: 1.6;
+      border-bottom: 1px solid var(--ink-100);
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .steps-list li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 12px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--sage-200);
+      color: var(--sage-700);
+      font-weight: 700;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .missing-box {
+      background: #fff6e6;
+      border-left: 3px solid var(--terra-500);
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      margin-top: 24px;
+      font-size: 0.92rem;
+      color: var(--terra-700);
+    }
+    .missing-box strong { color: var(--terra-700); }
+
+    .no-match {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--ink-500);
+    }
+    .no-match h3 { color: var(--ink-700); margin-bottom: 8px; }
+
+    /* ============================================================
+       SETTINGS (AI / web search)
+       ============================================================ */
+    .settings-card h2 .opt-label {
+      font-weight: 400;
+      font-size: 0.85rem;
+      color: var(--ink-500);
+      margin-left: 4px;
+    }
+    .settings-toggle {
+      margin-left: auto;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--terra-600);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .settings-toggle:hover { background: var(--cream-100); }
+    .settings-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .settings-card.collapsed .settings-body { display: none; }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      cursor: pointer;
+    }
+    .settings-row input[type="checkbox"] {
+      width: 18px; height: 18px;
+      accent-color: var(--terra-500);
+      cursor: pointer;
+    }
+    .help-text {
+      font-size: 0.86rem;
+      color: var(--ink-500);
+      margin: 0 0 4px;
+      line-height: 1.55;
+    }
+    .help-text a {
+      color: var(--terra-600);
+      text-decoration: underline;
+    }
+    .api-key-input {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.85rem;
+    }
+
+    /* ============================================================
+       LOADING / AI BADGE
+       ============================================================ */
+    .recipe-loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--ink-500);
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--cream-200);
+      border-top-color: var(--terra-500);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ai-badge {
+      color: var(--terra-600) !important;
+      font-weight: 600;
+    }
+    .web-sources {
+      margin-top: 18px;
+      padding: 12px 14px;
+      background: var(--cream-50);
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      color: var(--ink-500);
+    }
+    .web-sources strong { color: var(--ink-700); }
+    .web-sources a {
+      color: var(--terra-600);
+      text-decoration: none;
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .web-sources a:hover { text-decoration: underline; }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (min-width: 680px) {
+      .pref-grid {
+        grid-template-columns: 1fr auto;
+        align-items: start;
+      }
+    }
+    @media (max-width: 560px) {
+      .container { padding: 20px 14px 60px; }
+      .card { padding: 18px; }
+      .recipe-card { padding: 22px; }
+      .ing-grid { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); }
+      .ing-card .emoji { font-size: 1.5rem; }
+      .ing-card .label { font-size: 0.7rem; }
+      .btn-generate { padding: 14px 28px; font-size: 1rem; }
+      .recipe-title { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-badge">🍳 WASTE NOT, COOK WELL</div>
+      <h1 class="hero-title">Fridge <span class="accent">Feast</span></h1>
+      <p class="hero-subtitle">Tell us what's in your fridge — especially what's about to go bad — and we'll cook up a recipe that uses what you've got.</p>
+    </div>
+
+    <!-- STEP 1 — PICK INGREDIENTS -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-num">1</span>
+        <h2>Pick what you have</h2>
+        <span class="card-hint" id="pickedCount">0 picked</span>
+      </div>
+
+      <div class="ing-sections" id="ingSections"></div>
+
+      <div class="custom-row">
+        <div class="custom-input-wrap">
+          <input type="text" class="custom-input" id="customInput" placeholder="Search everything else, or type a custom ingredient" autocomplete="off" />
+          <div class="autocomplete-list" id="autocompleteList"></div>
+        </div>
+        <button class="btn btn-ghost" id="customAdd">+ Add</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 — YOUR INGREDIENTS -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-num">2</span>
+        <h2>Your ingredients</h2>
+        <span class="card-hint">Tap a chip to set quantity or mark as priority</span>
+      </div>
+      <div class="chips" id="chipsArea">
+        <div class="chips-empty">Nothing picked yet — start from the grid above ⬆️</div>
+      </div>
+      <div class="chip-editor" id="chipEditor">
+        <label id="editorLabel">Editing:</label>
+        <div class="editor-row">
+          <label>qty</label>
+          <input type="number" id="editorQty" min="0" step="0.25" placeholder="—" />
+          <select id="editorUnit">
+            <option value="">unit</option>
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="oz">oz</option>
+            <option value="lb">lb</option>
+            <option value="ml">ml</option>
+            <option value="L">L</option>
+            <option value="cup">cup</option>
+            <option value="tbsp">tbsp</option>
+            <option value="tsp">tsp</option>
+            <option value="piece">piece</option>
+            <option value="clove">clove</option>
+            <option value="slice">slice</option>
+          </select>
+        </div>
+        <button class="priority-toggle" id="editorPriority">⭐ Must use</button>
+        <button class="btn btn-ghost" id="editorClose" style="margin-left:auto; padding: 6px 14px;">Done</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 — PREFERENCES -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-num">3</span>
+        <h2>Set the vibe</h2>
+      </div>
+      <div class="pref-grid">
+        <div class="pref-block">
+          <h3>Cuisine bias</h3>
+          <div class="pill-row" id="cuisineRow"></div>
+        </div>
+        <div class="pref-block">
+          <h3>Servings</h3>
+          <div class="servings-row">
+            <button class="servings-btn" id="srvMinus">−</button>
+            <span class="servings-value" id="srvValue">4</span>
+            <button class="servings-btn" id="srvPlus">+</button>
+            <span class="servings-label">portions</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI / WEB SEARCH (optional) -->
+    <div class="card settings-card collapsed" id="settingsCard">
+      <div class="card-header">
+        <span class="step-num">✨</span>
+        <h2>Generate with AI <span class="opt-label">(optional)</span></h2>
+        <button class="settings-toggle" id="settingsToggle">Show ▾</button>
+      </div>
+      <div class="settings-body" id="settingsBody">
+        <p class="help-text">
+          Skip the built-in library and have Claude compose a recipe tailored to exactly what you have. Bring your own API key —
+          <a href="https://console.anthropic.com" target="_blank" rel="noopener">get one at console.anthropic.com</a>.
+          Your key is kept in this browser only and sent directly to Anthropic.
+        </p>
+        <label class="settings-row">
+          <input type="checkbox" id="aiToggle">
+          <span>Use AI to generate recipes</span>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="webToggle">
+          <span>🌐 Also search the web for inspiration (slower, costs more)</span>
+        </label>
+        <input type="password" class="custom-input api-key-input" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" />
+      </div>
+    </div>
+
+    <!-- GENERATE -->
+    <div class="generate-row">
+      <button class="btn btn-generate" id="generateBtn" disabled>
+        <span id="genIcon">🍲</span>
+        <span id="genLabel">Find my recipe</span>
+      </button>
+    </div>
+
+    <!-- RECIPE OUTPUT -->
+    <div class="recipe-card" id="recipeCard">
+      <div id="recipeContent"></div>
+    </div>
+
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    const state = {
+      selected: new Map(),      // key: canonicalName → { name, emoji, qty, unit, priority }
+      cuisine: 'any',
+      servings: 4,
+      editingKey: null,
+      lastRecipes: [],          // ranked library alternatives
+      recipeIdx: 0,
+      acItems: [],              // autocomplete suggestions
+      acIdx: -1,
+      settings: {
+        apiKey: '',
+        useAi: false,
+        useWebSearch: false,
+      },
+      generating: false,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const DOM = {
+      ingSections: $('ingSections'),
+      customInput: $('customInput'),
+      customAdd:   $('customAdd'),
+      autocompleteList: $('autocompleteList'),
+      chipsArea:   $('chipsArea'),
+      chipEditor:  $('chipEditor'),
+      editorLabel: $('editorLabel'),
+      editorQty:   $('editorQty'),
+      editorUnit:  $('editorUnit'),
+      editorExp:   $('editorPriority'),
+      editorClose: $('editorClose'),
+      cuisineRow:  $('cuisineRow'),
+      srvMinus:    $('srvMinus'),
+      srvPlus:     $('srvPlus'),
+      srvValue:    $('srvValue'),
+      generateBtn: $('generateBtn'),
+      genIcon:     $('genIcon'),
+      genLabel:    $('genLabel'),
+      recipeCard:  $('recipeCard'),
+      recipeContent: $('recipeContent'),
+      pickedCount: $('pickedCount'),
+      settingsCard: $('settingsCard'),
+      settingsToggle: $('settingsToggle'),
+      aiToggle:    $('aiToggle'),
+      webToggle:   $('webToggle'),
+      apiKey:      $('apiKey'),
+    };
+
+    // ============================================================
+    // INGREDIENT LIBRARY
+    // ============================================================
+    const CATEGORIES = [
+      { id: 'protein', name: 'Protein',    emoji: '🥩' },
+      { id: 'veg',     name: 'Vegetables', emoji: '🥕' },
+      { id: 'pantry',  name: 'Pantry',     emoji: '🍚' },
+      { id: 'dairy',   name: 'Dairy',      emoji: '🥛' },
+      { id: 'fruit',   name: 'Fruits',     emoji: '🍋' },
+      { id: 'herb',    name: 'Herbs',      emoji: '🌿' },
+      { id: 'sauce',   name: 'Sauces',     emoji: '🫒' },
+    ];
+
+    // Curated subset shown as picker tiles — everything else lives in autocomplete
+    const COMMON_KEYS = new Set([
+      'chicken','beef','ground beef','eggs','bacon','salmon','shrimp',
+      'onion','garlic','tomato','bell pepper','carrot','potato','broccoli','spinach','mushroom',
+      'rice','pasta','bread','tortilla','canned tomatoes','black beans',
+      'milk','butter','cheddar','parmesan','mozzarella',
+      'lemon','lime','avocado',
+      'basil','cilantro','parsley',
+      'olive oil','soy sauce','honey',
+    ]);
+
+    // Kitchen staples that never count as "missing" for scoring purposes
+    const STAPLES = new Set([
+      'salt','black pepper','olive oil','vegetable oil',
+    ]);
+
+    // Each: { key (canonical), label (display), emoji, cat, aliases: [] }
+    const INGREDIENTS = [
+      // PROTEIN
+      { key: 'chicken',      label: 'Chicken',      emoji: '🍗', cat: 'protein', aliases: ['chicken breast','chicken thigh','poultry','chicken meat'] },
+      { key: 'beef',         label: 'Beef',         emoji: '🥩', cat: 'protein', aliases: ['steak','sirloin','chuck roast'] },
+      { key: 'ground beef',  label: 'Ground beef',  emoji: '🥩', cat: 'protein', aliases: ['mince','minced beef','hamburger'] },
+      { key: 'pork',         label: 'Pork',         emoji: '🍖', cat: 'protein', aliases: ['pork chop','pork loin','pork shoulder'] },
+      { key: 'bacon',        label: 'Bacon',        emoji: '🥓', cat: 'protein', aliases: ['streaky bacon','pancetta'] },
+      { key: 'sausage',      label: 'Sausage',      emoji: '🌭', cat: 'protein', aliases: ['italian sausage','chorizo'] },
+      { key: 'salmon',       label: 'Salmon',       emoji: '🐟', cat: 'protein', aliases: ['salmon fillet'] },
+      { key: 'tuna',         label: 'Tuna',         emoji: '🐟', cat: 'protein', aliases: ['canned tuna'] },
+      { key: 'shrimp',       label: 'Shrimp',       emoji: '🦐', cat: 'protein', aliases: ['prawns'] },
+      { key: 'white fish',   label: 'White fish',   emoji: '🐟', cat: 'protein', aliases: ['cod','tilapia','halibut','haddock'] },
+      { key: 'eggs',         label: 'Eggs',         emoji: '🥚', cat: 'protein', aliases: ['egg','chicken eggs'] },
+      { key: 'tofu',         label: 'Tofu',         emoji: '🧈', cat: 'protein', aliases: ['firm tofu','silken tofu'] },
+      { key: 'ham',          label: 'Ham',          emoji: '🥓', cat: 'protein', aliases: ['deli ham','cured ham'] },
+      { key: 'turkey',       label: 'Turkey',       emoji: '🦃', cat: 'protein', aliases: ['ground turkey','deli turkey'] },
+      { key: 'chickpeas',    label: 'Chickpeas',    emoji: '🫘', cat: 'protein', aliases: ['garbanzo beans'] },
+
+      // VEG
+      { key: 'onion',        label: 'Onion',        emoji: '🧅', cat: 'veg',     aliases: ['yellow onion','red onion','white onion'] },
+      { key: 'garlic',       label: 'Garlic',       emoji: '🧄', cat: 'veg',     aliases: ['garlic clove','minced garlic'] },
+      { key: 'ginger',       label: 'Ginger',       emoji: '🫚', cat: 'veg',     aliases: ['fresh ginger','ginger root'] },
+      { key: 'carrot',       label: 'Carrot',       emoji: '🥕', cat: 'veg',     aliases: ['baby carrots'] },
+      { key: 'potato',       label: 'Potato',       emoji: '🥔', cat: 'veg',     aliases: ['potatoes','russet','yukon'] },
+      { key: 'sweet potato', label: 'Sweet potato', emoji: '🍠', cat: 'veg',     aliases: ['yam'] },
+      { key: 'tomato',       label: 'Tomato',       emoji: '🍅', cat: 'veg',     aliases: ['roma tomato','plum tomato','tomatoes'] },
+      { key: 'cherry tomato',label: 'Cherry tomato',emoji: '🍅', cat: 'veg',     aliases: ['grape tomato'] },
+      { key: 'bell pepper',  label: 'Bell pepper',  emoji: '🫑', cat: 'veg',     aliases: ['capsicum','red pepper','green pepper','yellow pepper'] },
+      { key: 'chili pepper', label: 'Chili pepper', emoji: '🌶️', cat: 'veg',    aliases: ['jalapeno','serrano','red chili','green chili'] },
+      { key: 'broccoli',     label: 'Broccoli',     emoji: '🥦', cat: 'veg',     aliases: ['broccoli florets'] },
+      { key: 'cauliflower',  label: 'Cauliflower',  emoji: '🥦', cat: 'veg',     aliases: ['cauliflower florets'] },
+      { key: 'spinach',      label: 'Spinach',      emoji: '🥬', cat: 'veg',     aliases: ['baby spinach','frozen spinach'] },
+      { key: 'lettuce',      label: 'Lettuce',      emoji: '🥬', cat: 'veg',     aliases: ['romaine','iceberg','butter lettuce'] },
+      { key: 'cucumber',     label: 'Cucumber',     emoji: '🥒', cat: 'veg',     aliases: ['english cucumber'] },
+      { key: 'mushroom',     label: 'Mushroom',     emoji: '🍄', cat: 'veg',     aliases: ['cremini','button mushroom','portobello','shiitake'] },
+      { key: 'zucchini',     label: 'Zucchini',     emoji: '🥒', cat: 'veg',     aliases: ['courgette'] },
+      { key: 'eggplant',     label: 'Eggplant',     emoji: '🍆', cat: 'veg',     aliases: ['aubergine'] },
+      { key: 'corn',         label: 'Corn',         emoji: '🌽', cat: 'veg',     aliases: ['sweet corn','corn kernels','frozen corn'] },
+      { key: 'peas',         label: 'Peas',         emoji: '🫛', cat: 'veg',     aliases: ['green peas','frozen peas','snap peas'] },
+      { key: 'green beans',  label: 'Green beans',  emoji: '🫛', cat: 'veg',     aliases: ['string beans','haricot verts'] },
+      { key: 'cabbage',      label: 'Cabbage',      emoji: '🥬', cat: 'veg',     aliases: ['napa cabbage','green cabbage'] },
+
+      // PANTRY
+      { key: 'rice',         label: 'Rice',         emoji: '🍚', cat: 'pantry',  aliases: ['white rice','brown rice','jasmine rice','basmati rice'] },
+      { key: 'pasta',        label: 'Pasta',        emoji: '🍝', cat: 'pantry',  aliases: ['spaghetti','penne','rigatoni','linguine','macaroni','fettuccine'] },
+      { key: 'bread',        label: 'Bread',        emoji: '🍞', cat: 'pantry',  aliases: ['sandwich bread','sourdough','baguette','toast'] },
+      { key: 'tortilla',     label: 'Tortilla',     emoji: '🌮', cat: 'pantry',  aliases: ['flour tortilla','corn tortilla','wraps'] },
+      { key: 'flour',        label: 'Flour',        emoji: '🌾', cat: 'pantry',  aliases: ['all purpose flour','ap flour'] },
+      { key: 'oats',         label: 'Oats',         emoji: '🥣', cat: 'pantry',  aliases: ['rolled oats','oatmeal','quick oats'] },
+      { key: 'quinoa',       label: 'Quinoa',       emoji: '🌾', cat: 'pantry',  aliases: [] },
+      { key: 'couscous',     label: 'Couscous',     emoji: '🌾', cat: 'pantry',  aliases: [] },
+      { key: 'noodles',      label: 'Noodles',      emoji: '🍜', cat: 'pantry',  aliases: ['egg noodles','ramen noodles','rice noodles','udon'] },
+      { key: 'canned tomatoes', label: 'Canned tomatoes', emoji: '🥫', cat: 'pantry', aliases: ['diced tomatoes','crushed tomatoes','tomato sauce','passata'] },
+      { key: 'black beans',  label: 'Black beans',  emoji: '🫘', cat: 'pantry',  aliases: ['canned black beans'] },
+      { key: 'white beans',  label: 'White beans',  emoji: '🫘', cat: 'pantry',  aliases: ['cannellini','navy beans','great northern beans'] },
+      { key: 'lentils',      label: 'Lentils',      emoji: '🫘', cat: 'pantry',  aliases: ['red lentils','green lentils','brown lentils'] },
+      { key: 'broth',        label: 'Broth',        emoji: '🥣', cat: 'pantry',  aliases: ['stock','chicken stock','vegetable stock','beef broth'] },
+
+      // DAIRY
+      { key: 'milk',         label: 'Milk',         emoji: '🥛', cat: 'dairy',   aliases: ['whole milk','2% milk','skim milk'] },
+      { key: 'butter',       label: 'Butter',       emoji: '🧈', cat: 'dairy',   aliases: ['unsalted butter','salted butter'] },
+      { key: 'cream',        label: 'Cream',        emoji: '🥛', cat: 'dairy',   aliases: ['heavy cream','heavy whipping cream','double cream'] },
+      { key: 'yogurt',       label: 'Yogurt',       emoji: '🥛', cat: 'dairy',   aliases: ['greek yogurt','plain yogurt'] },
+      { key: 'cheddar',      label: 'Cheddar',      emoji: '🧀', cat: 'dairy',   aliases: ['cheddar cheese','sharp cheddar'] },
+      { key: 'parmesan',     label: 'Parmesan',     emoji: '🧀', cat: 'dairy',   aliases: ['parmigiano','pecorino'] },
+      { key: 'mozzarella',   label: 'Mozzarella',   emoji: '🧀', cat: 'dairy',   aliases: ['fresh mozzarella'] },
+      { key: 'feta',         label: 'Feta',         emoji: '🧀', cat: 'dairy',   aliases: ['feta cheese'] },
+      { key: 'sour cream',   label: 'Sour cream',   emoji: '🥛', cat: 'dairy',   aliases: ['crema'] },
+
+      // FRUIT
+      { key: 'lemon',        label: 'Lemon',        emoji: '🍋', cat: 'fruit',   aliases: ['lemon juice','lemon zest'] },
+      { key: 'lime',         label: 'Lime',         emoji: '🍋', cat: 'fruit',   aliases: ['lime juice','lime zest'] },
+      { key: 'orange',       label: 'Orange',       emoji: '🍊', cat: 'fruit',   aliases: ['orange juice'] },
+      { key: 'apple',        label: 'Apple',        emoji: '🍎', cat: 'fruit',   aliases: [] },
+      { key: 'banana',       label: 'Banana',       emoji: '🍌', cat: 'fruit',   aliases: [] },
+      { key: 'berries',      label: 'Berries',      emoji: '🫐', cat: 'fruit',   aliases: ['blueberries','strawberries','raspberries'] },
+      { key: 'avocado',      label: 'Avocado',      emoji: '🥑', cat: 'fruit',   aliases: [] },
+      { key: 'coconut milk', label: 'Coconut milk', emoji: '🥥', cat: 'fruit',   aliases: ['coconut cream'] },
+
+      // HERB & SPICE
+      { key: 'basil',        label: 'Basil',        emoji: '🌿', cat: 'herb',    aliases: ['fresh basil','thai basil'] },
+      { key: 'parsley',      label: 'Parsley',      emoji: '🌿', cat: 'herb',    aliases: ['fresh parsley','flat leaf parsley'] },
+      { key: 'cilantro',     label: 'Cilantro',     emoji: '🌿', cat: 'herb',    aliases: ['coriander','fresh coriander'] },
+      { key: 'oregano',      label: 'Oregano',      emoji: '🌿', cat: 'herb',    aliases: ['dried oregano'] },
+      { key: 'rosemary',     label: 'Rosemary',     emoji: '🌿', cat: 'herb',    aliases: ['fresh rosemary'] },
+      { key: 'thyme',        label: 'Thyme',        emoji: '🌿', cat: 'herb',    aliases: ['fresh thyme','dried thyme'] },
+      { key: 'paprika',      label: 'Paprika',      emoji: '🌶️', cat: 'herb',   aliases: ['smoked paprika','sweet paprika'] },
+      { key: 'cumin',        label: 'Cumin',        emoji: '🌶️', cat: 'herb',   aliases: ['ground cumin','cumin seeds'] },
+      { key: 'chili powder', label: 'Chili powder', emoji: '🌶️', cat: 'herb',   aliases: ['red chili powder'] },
+      { key: 'curry powder', label: 'Curry powder', emoji: '🌶️', cat: 'herb',   aliases: ['garam masala','curry paste'] },
+      { key: 'black pepper', label: 'Black pepper', emoji: '🌰', cat: 'herb',    aliases: ['pepper','ground pepper'] },
+      { key: 'salt',         label: 'Salt',         emoji: '🧂', cat: 'herb',    aliases: ['kosher salt','sea salt','table salt'] },
+
+      // SAUCES & OILS
+      { key: 'olive oil',    label: 'Olive oil',    emoji: '🫒', cat: 'sauce',   aliases: ['extra virgin olive oil','evoo'] },
+      { key: 'vegetable oil',label: 'Vegetable oil',emoji: '🛢️', cat: 'sauce',   aliases: ['canola oil','neutral oil','cooking oil'] },
+      { key: 'sesame oil',   label: 'Sesame oil',   emoji: '🛢️', cat: 'sauce',   aliases: ['toasted sesame oil'] },
+      { key: 'soy sauce',    label: 'Soy sauce',    emoji: '🍶', cat: 'sauce',   aliases: ['tamari','shoyu'] },
+      { key: 'fish sauce',   label: 'Fish sauce',   emoji: '🍶', cat: 'sauce',   aliases: ['nam pla','nuoc mam'] },
+      { key: 'honey',        label: 'Honey',        emoji: '🍯', cat: 'sauce',   aliases: [] },
+      { key: 'vinegar',      label: 'Vinegar',      emoji: '🫙', cat: 'sauce',   aliases: ['white vinegar','apple cider vinegar','red wine vinegar','rice vinegar','balsamic'] },
+      { key: 'mustard',      label: 'Mustard',      emoji: '🫙', cat: 'sauce',   aliases: ['dijon','yellow mustard','whole grain mustard'] },
+      { key: 'mayo',         label: 'Mayo',         emoji: '🫙', cat: 'sauce',   aliases: ['mayonnaise'] },
+      { key: 'hot sauce',    label: 'Hot sauce',    emoji: '🌶️', cat: 'sauce',  aliases: ['sriracha','tabasco','chili sauce'] },
+    ];
+
+    // ============================================================
+    // CUISINES
+    // ============================================================
+    const CUISINES = [
+      { id: 'any',          label: 'Any' },
+      { id: 'italian',      label: '🇮🇹 Italian' },
+      { id: 'mexican',      label: '🇲🇽 Mexican' },
+      { id: 'asian',        label: '🥢 Asian' },
+      { id: 'indian',       label: '🇮🇳 Indian' },
+      { id: 'mediterranean',label: '🫒 Mediterranean' },
+      { id: 'american',     label: '🇺🇸 American' },
+      { id: 'french',       label: '🇫🇷 French' },
+    ];
+
+    // ============================================================
+    // RECIPE LIBRARY
+    //   Each ingredient: { key, qty, unit, required?, limiter? }
+    //   qty/unit define base-servings proportions.
+    // ============================================================
+    const RECIPES = [
+      // --------------- ITALIAN ---------------
+      {
+        id: 'garlic-butter-pasta',
+        name: 'Garlic Butter Pasta',
+        cuisine: 'italian',
+        servings: 4, time: '20 min',
+        description: 'Silky, peppery pasta that turns a handful of pantry staples into something greater than the sum of its parts.',
+        ingredients: [
+          { key: 'pasta',       qty: 12,  unit: 'oz',    required: true, limiter: true },
+          { key: 'butter',      qty: 4,   unit: 'tbsp',  required: true },
+          { key: 'garlic',      qty: 4,   unit: 'clove', required: true },
+          { key: 'parmesan',    qty: 0.5, unit: 'cup',   required: false },
+          { key: 'parsley',     qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'black pepper',qty: 0.5, unit: 'tsp',   required: false },
+          { key: 'salt',        qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Bring a large pot of well-salted water to a boil. Cook the pasta until al dente, about 1 minute less than the package time.',
+          'While the pasta cooks, melt the butter in a wide skillet over medium heat. Add the minced garlic and cook for 1–2 minutes until fragrant but not browned.',
+          'Reserve 1/2 cup of pasta water before draining. Drain the pasta.',
+          'Add the pasta to the skillet and toss with the garlic butter. Splash in pasta water a few tablespoons at a time until you get a glossy sauce.',
+          'Off heat, stir in the parmesan, parsley, salt, and a generous crack of black pepper. Taste and adjust. Serve right away.',
+        ],
+      },
+      {
+        id: 'aglio-olio',
+        name: 'Spaghetti Aglio e Olio',
+        cuisine: 'italian',
+        servings: 4, time: '15 min',
+        description: 'The desert-island Italian pasta — just garlic, chili, oil, and good pasta.',
+        ingredients: [
+          { key: 'pasta',        qty: 12, unit: 'oz',   required: true, limiter: true },
+          { key: 'olive oil',    qty: 5,  unit: 'tbsp', required: true },
+          { key: 'garlic',       qty: 6,  unit: 'clove',required: true },
+          { key: 'chili pepper', qty: 1,  unit: 'piece',required: false },
+          { key: 'parsley',      qty: 3,  unit: 'tbsp', required: false },
+          { key: 'parmesan',     qty: 0.33,unit: 'cup', required: false },
+          { key: 'salt',         qty: 1,  unit: 'tsp',  required: false },
+        ],
+        steps: [
+          'Start a pot of heavily salted water boiling for the pasta. Cook until al dente, reserve 1 cup pasta water, then drain.',
+          'Meanwhile, slice the garlic thinly and chop the chili. Warm the olive oil in a large skillet over medium-low heat.',
+          'Add the garlic and chili to the cool oil. Let them sizzle gently for 4–5 minutes — the garlic should turn pale gold, not brown. Kill the heat if it colors too fast.',
+          'Add a ladle of pasta water to stop the garlic cooking. Return to medium heat and add the drained pasta.',
+          'Toss vigorously for 1 minute, adding splashes of pasta water to build a light emulsion. Off heat, toss in parsley and parmesan. Serve immediately.',
+        ],
+      },
+      {
+        id: 'tomato-pasta',
+        name: 'Simple Tomato Pasta',
+        cuisine: 'italian',
+        servings: 4, time: '25 min',
+        description: 'A honest, slow-simmered tomato sauce clinging to your favorite shape of pasta.',
+        ingredients: [
+          { key: 'pasta',           qty: 12,  unit: 'oz',    required: true, limiter: true },
+          { key: 'canned tomatoes', qty: 28,  unit: 'oz',    required: true },
+          { key: 'garlic',          qty: 4,   unit: 'clove', required: true },
+          { key: 'olive oil',       qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'onion',           qty: 0.5, unit: 'piece', required: false },
+          { key: 'basil',           qty: 0.25,unit: 'cup',   required: false },
+          { key: 'parmesan',        qty: 0.33,unit: 'cup',   required: false },
+          { key: 'salt',            qty: 1,   unit: 'tsp',   required: false },
+          { key: 'black pepper',    qty: 0.5, unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Warm olive oil in a wide saucepan over medium heat. Add the diced onion (if using) and a pinch of salt; cook gently for 6–8 minutes until soft and sweet.',
+          'Smash in the minced garlic and stir for 30 seconds — don\'t let it brown.',
+          'Pour in the canned tomatoes (crush with your hand if whole). Simmer 15–20 minutes, stirring occasionally, until thickened.',
+          'Meanwhile, cook the pasta in well-salted boiling water until al dente. Reserve 1/2 cup pasta water, then drain.',
+          'Stir the pasta into the sauce with a splash of pasta water. Tear in basil, season, and finish with parmesan.',
+        ],
+      },
+      {
+        id: 'carbonara',
+        name: 'Classic Carbonara',
+        cuisine: 'italian',
+        servings: 4, time: '20 min',
+        description: 'Rendered bacon, silky egg-cheese sauce, and pepper — no cream required, ever.',
+        ingredients: [
+          { key: 'pasta',        qty: 12, unit: 'oz',    required: true, limiter: true },
+          { key: 'bacon',        qty: 6,  unit: 'oz',    required: true },
+          { key: 'eggs',         qty: 3,  unit: 'piece', required: true },
+          { key: 'parmesan',     qty: 1,  unit: 'cup',   required: true },
+          { key: 'black pepper', qty: 1,  unit: 'tsp',   required: true },
+          { key: 'garlic',       qty: 2,  unit: 'clove', required: false },
+          { key: 'salt',         qty: 0.5,unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'In a large bowl, whisk the eggs with the grated parmesan and a heavy hit of freshly cracked black pepper. Set aside.',
+          'Dice the bacon and cook in a cold skillet over medium-low heat until the fat renders and it crisps, about 8 minutes. Add smashed garlic for the last minute (optional), then kill the heat.',
+          'Meanwhile, boil the pasta in well-salted water until just shy of al dente. Reserve 1 cup of the pasta water before draining.',
+          'Transfer the hot pasta into the skillet with the bacon (no direct heat), tossing to coat. Add 1/4 cup pasta water.',
+          'Pour the egg-cheese mixture over the pasta and toss constantly — the residual heat turns it silky, not scrambled. Add more pasta water by the spoonful until glossy. Finish with extra pepper and parmesan.',
+        ],
+      },
+      {
+        id: 'caprese',
+        name: 'Caprese Salad',
+        cuisine: 'italian',
+        servings: 4, time: '10 min',
+        description: 'Peak-summer tomatoes, fresh mozzarella, and basil — assembly over cooking.',
+        ingredients: [
+          { key: 'tomato',      qty: 3,   unit: 'piece', required: true, limiter: true },
+          { key: 'mozzarella',  qty: 8,   unit: 'oz',    required: true },
+          { key: 'basil',       qty: 0.5, unit: 'cup',   required: true },
+          { key: 'olive oil',   qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'vinegar',     qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'salt',        qty: 0.5, unit: 'tsp',   required: false },
+          { key: 'black pepper',qty: 0.25,unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Slice the tomatoes and mozzarella into rounds about 1/4-inch thick.',
+          'Alternate and fan them across a platter, tucking whole basil leaves between each slice.',
+          'Drizzle generously with olive oil and vinegar (if using balsamic, a thin glaze works beautifully).',
+          'Season with flaky salt and freshly cracked black pepper. Serve right away — this wilts if it sits.',
+        ],
+      },
+      {
+        id: 'chicken-parm',
+        name: 'Chicken Parmesan',
+        cuisine: 'italian',
+        servings: 4, time: '45 min',
+        description: 'Crispy cutlets smothered in red sauce and melted cheese. Comfort-food royalty.',
+        ingredients: [
+          { key: 'chicken',         qty: 1.5, unit: 'lb',    required: true, limiter: true },
+          { key: 'canned tomatoes', qty: 14,  unit: 'oz',    required: true },
+          { key: 'mozzarella',      qty: 6,   unit: 'oz',    required: true },
+          { key: 'eggs',            qty: 2,   unit: 'piece', required: true },
+          { key: 'flour',           qty: 0.5, unit: 'cup',   required: true },
+          { key: 'parmesan',        qty: 0.5, unit: 'cup',   required: false },
+          { key: 'garlic',          qty: 3,   unit: 'clove', required: false },
+          { key: 'basil',           qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'olive oil',       qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'salt',            qty: 1,   unit: 'tsp',   required: false },
+          { key: 'black pepper',    qty: 0.5, unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Pound the chicken breasts to an even 1/2-inch thickness between two sheets of plastic wrap. Season with salt and pepper.',
+          'Set up three shallow bowls: flour, beaten eggs, and parmesan (mixed with breadcrumbs if you have them). Dredge each cutlet: flour, egg, cheese mixture.',
+          'Heat olive oil in a skillet over medium-high. Sear cutlets 3–4 minutes per side until golden. Transfer to a baking dish.',
+          'In the same pan, sauté minced garlic 30 seconds, then add the canned tomatoes and simmer 5 minutes. Season.',
+          'Spoon sauce over the cutlets, top with torn mozzarella. Bake at 425°F/220°C for 12–15 minutes until bubbly. Scatter basil and serve.',
+        ],
+      },
+      {
+        id: 'minestrone',
+        name: 'Hearty Minestrone',
+        cuisine: 'italian',
+        servings: 6, time: '45 min',
+        description: 'A no-rules Italian vegetable soup — whatever\'s in the crisper goes in the pot.',
+        ingredients: [
+          { key: 'canned tomatoes', qty: 14, unit: 'oz',    required: true },
+          { key: 'broth',           qty: 6,  unit: 'cup',   required: true },
+          { key: 'onion',           qty: 1,  unit: 'piece', required: true },
+          { key: 'carrot',          qty: 2,  unit: 'piece', required: true },
+          { key: 'garlic',          qty: 3,  unit: 'clove', required: true },
+          { key: 'white beans',     qty: 15, unit: 'oz',    required: false },
+          { key: 'pasta',           qty: 1,  unit: 'cup',   required: false },
+          { key: 'spinach',         qty: 2,  unit: 'cup',   required: false },
+          { key: 'zucchini',        qty: 1,  unit: 'piece', required: false },
+          { key: 'parmesan',        qty: 0.33,unit: 'cup',  required: false },
+          { key: 'olive oil',       qty: 3,  unit: 'tbsp',  required: true },
+          { key: 'salt',            qty: 1,  unit: 'tsp',   required: false },
+          { key: 'basil',           qty: 2,  unit: 'tbsp',  required: false },
+        ],
+        steps: [
+          'Heat the olive oil in a large pot over medium. Add diced onion, carrot, and any other hardy veg you\'re using. Cook 8 minutes until softened.',
+          'Stir in the minced garlic for 30 seconds, then pour in the canned tomatoes and broth. Bring to a simmer.',
+          'Add the beans (drained) and any tender vegetables (zucchini). Simmer 15 minutes.',
+          'If using pasta, stir it in and cook until just tender, about 8 more minutes. Add spinach at the end so it just wilts.',
+          'Season with salt and pepper. Ladle into bowls and top with grated parmesan and torn basil.',
+        ],
+      },
+
+      // --------------- MEXICAN ---------------
+      {
+        id: 'chicken-fajitas',
+        name: 'Chicken Fajitas',
+        cuisine: 'mexican',
+        servings: 4, time: '30 min',
+        description: 'Sizzling charred chicken and peppers, piled into warm tortillas with your favorite toppings.',
+        ingredients: [
+          { key: 'chicken',     qty: 1.25,unit: 'lb',    required: true, limiter: true },
+          { key: 'bell pepper', qty: 2,   unit: 'piece', required: true },
+          { key: 'onion',       qty: 1,   unit: 'piece', required: true },
+          { key: 'tortilla',    qty: 8,   unit: 'piece', required: true },
+          { key: 'lime',        qty: 1,   unit: 'piece', required: false },
+          { key: 'cumin',       qty: 1.5, unit: 'tsp',   required: false },
+          { key: 'paprika',     qty: 1,   unit: 'tsp',   required: false },
+          { key: 'chili powder',qty: 1,   unit: 'tsp',   required: false },
+          { key: 'garlic',      qty: 2,   unit: 'clove', required: false },
+          { key: 'vegetable oil',qty: 2,  unit: 'tbsp',  required: true },
+          { key: 'cilantro',    qty: 3,   unit: 'tbsp',  required: false },
+          { key: 'sour cream',  qty: 0.5, unit: 'cup',   required: false },
+          { key: 'salt',        qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Slice the chicken into thin strips. Toss with cumin, paprika, chili powder, salt, minced garlic, and a drizzle of oil. Let marinate 10 minutes.',
+          'Slice the peppers and onion into strips. Heat oil in a large cast-iron or heavy skillet over high heat until it just smokes.',
+          'Sear the chicken in a single layer, undisturbed, for 3 minutes. Flip and cook 2 more minutes until nicely charred. Transfer out.',
+          'Add the peppers and onion to the same pan. Cook 5–6 minutes, tossing, until edges blacken but vegetables still have some bite.',
+          'Return chicken to the pan, squeeze in lime juice, and toss. Warm the tortillas. Pile everything up, top with cilantro, sour cream, and anything else you love.',
+        ],
+      },
+      {
+        id: 'beef-tacos',
+        name: 'Ground Beef Tacos',
+        cuisine: 'mexican',
+        servings: 4, time: '25 min',
+        description: 'The Tuesday-night classic — well-seasoned beef in warm tortillas with all the toppings.',
+        ingredients: [
+          { key: 'ground beef', qty: 1,   unit: 'lb',    required: true, limiter: true },
+          { key: 'tortilla',    qty: 8,   unit: 'piece', required: true },
+          { key: 'onion',       qty: 0.5, unit: 'piece', required: true },
+          { key: 'garlic',      qty: 2,   unit: 'clove', required: false },
+          { key: 'cumin',       qty: 1,   unit: 'tsp',   required: true },
+          { key: 'chili powder',qty: 1.5, unit: 'tsp',   required: true },
+          { key: 'paprika',     qty: 1,   unit: 'tsp',   required: false },
+          { key: 'tomato',      qty: 1,   unit: 'piece', required: false },
+          { key: 'lettuce',     qty: 2,   unit: 'cup',   required: false },
+          { key: 'cheddar',     qty: 1,   unit: 'cup',   required: false },
+          { key: 'sour cream',  qty: 0.5, unit: 'cup',   required: false },
+          { key: 'lime',        qty: 1,   unit: 'piece', required: false },
+          { key: 'cilantro',    qty: 3,   unit: 'tbsp',  required: false },
+          { key: 'salt',        qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'In a dry skillet over medium-high, break up the ground beef and cook until no longer pink, 6–8 minutes. Drain excess fat.',
+          'Add the diced onion and cook 3 minutes until softening. Stir in minced garlic for 30 seconds.',
+          'Add cumin, chili powder, paprika, salt, and a splash of water. Simmer 3 minutes until glossy and well-seasoned. Taste and adjust.',
+          'Warm the tortillas directly over a gas flame or in a dry skillet for 20 seconds per side.',
+          'Build the tacos: beef, lettuce, diced tomato, shredded cheese, sour cream, cilantro, and a good squeeze of lime.',
+        ],
+      },
+      {
+        id: 'black-bean-quesadilla',
+        name: 'Black Bean Quesadilla',
+        cuisine: 'mexican',
+        servings: 2, time: '15 min',
+        description: 'Crispy on the outside, molten on the inside — pantry-staple lunch in 15 minutes.',
+        ingredients: [
+          { key: 'tortilla',    qty: 4,   unit: 'piece', required: true, limiter: true },
+          { key: 'black beans', qty: 15,  unit: 'oz',    required: true },
+          { key: 'cheddar',     qty: 1.5, unit: 'cup',   required: true },
+          { key: 'onion',       qty: 0.5, unit: 'piece', required: false },
+          { key: 'bell pepper', qty: 0.5, unit: 'piece', required: false },
+          { key: 'cumin',       qty: 0.5, unit: 'tsp',   required: false },
+          { key: 'cilantro',    qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'butter',      qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'sour cream',  qty: 0.25,unit: 'cup',   required: false },
+          { key: 'hot sauce',   qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Drain and rinse the beans. Mash about half of them with a fork and stir with cumin, a pinch of salt, and cilantro.',
+          'Dice the onion and pepper small. Sauté briefly in a dry skillet until edges char, 3 minutes.',
+          'Lay a tortilla in a buttered skillet over medium heat. Scatter cheese, bean mixture, veggies, then more cheese. Top with second tortilla.',
+          'Cook 2–3 minutes per side, pressing gently, until deeply golden and the cheese melts.',
+          'Cut into wedges. Serve with sour cream and hot sauce.',
+        ],
+      },
+      {
+        id: 'mexican-rice-bowl',
+        name: 'Mexican Rice Bowl',
+        cuisine: 'mexican',
+        servings: 4, time: '30 min',
+        description: 'A customizable bowl anchored by seasoned rice and black beans — add whatever else you have.',
+        ingredients: [
+          { key: 'rice',        qty: 1.5, unit: 'cup',   required: true, limiter: true },
+          { key: 'black beans', qty: 15,  unit: 'oz',    required: true },
+          { key: 'tomato',      qty: 1,   unit: 'piece', required: false },
+          { key: 'avocado',     qty: 1,   unit: 'piece', required: false },
+          { key: 'corn',        qty: 1,   unit: 'cup',   required: false },
+          { key: 'lime',        qty: 1,   unit: 'piece', required: true },
+          { key: 'cilantro',    qty: 0.25,unit: 'cup',   required: false },
+          { key: 'onion',       qty: 0.5, unit: 'piece', required: false },
+          { key: 'cumin',       qty: 1,   unit: 'tsp',   required: false },
+          { key: 'cheddar',     qty: 0.5, unit: 'cup',   required: false },
+          { key: 'sour cream',  qty: 0.33,unit: 'cup',   required: false },
+          { key: 'olive oil',   qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'salt',        qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Cook the rice according to package directions. Once done, fluff with a fork and stir in lime zest, cumin, and chopped cilantro.',
+          'In a saucepan, warm the drained black beans with a drizzle of oil, a pinch of salt, and a squeeze of lime. Simmer 5 minutes.',
+          'Dice the tomato, avocado, and red onion small. If using frozen corn, char it briefly in a dry skillet for smoky flavor.',
+          'Layer into bowls: rice on the bottom, then beans, then all the toppings arranged by color.',
+          'Finish with cheese, a spoonful of sour cream, more cilantro, and a final lime wedge.',
+        ],
+      },
+
+      // --------------- ASIAN ---------------
+      {
+        id: 'chicken-fried-rice',
+        name: 'Chicken Fried Rice',
+        cuisine: 'asian',
+        servings: 4, time: '25 min',
+        description: 'The takeout classic. Best made with day-old rice — the slightly dry grains fry up perfectly.',
+        ingredients: [
+          { key: 'rice',         qty: 3,   unit: 'cup',   required: true, limiter: true },
+          { key: 'chicken',      qty: 0.75,unit: 'lb',    required: false },
+          { key: 'eggs',         qty: 2,   unit: 'piece', required: true },
+          { key: 'soy sauce',    qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'sesame oil',   qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'peas',         qty: 1,   unit: 'cup',   required: false },
+          { key: 'carrot',       qty: 1,   unit: 'piece', required: false },
+          { key: 'onion',        qty: 0.5, unit: 'piece', required: false },
+        ],
+        steps: [
+          'Cube the chicken into bite-size pieces. Heat 1 tbsp vegetable oil in a wok or big skillet over high heat. Sear the chicken 3–4 minutes until cooked through. Transfer out.',
+          'Push the pan over high heat again, add another tsp of oil, and scramble the eggs loosely. Break them up and push to one side.',
+          'Add the remaining oil, then the diced onion, carrot, and peas. Stir-fry 2 minutes. Add garlic and ginger, stir 30 seconds.',
+          'Add the rice, breaking up clumps. Let it sit briefly to crisp, then toss. Pour in soy sauce around the edge of the pan — it should sizzle and caramelize.',
+          'Return the chicken and eggs. Drizzle with sesame oil, toss, and serve.',
+        ],
+      },
+      {
+        id: 'beef-stir-fry',
+        name: 'Beef & Broccoli Stir Fry',
+        cuisine: 'asian',
+        servings: 4, time: '25 min',
+        description: 'Thin slices of beef and crisp-tender broccoli in a glossy ginger-garlic sauce.',
+        ingredients: [
+          { key: 'beef',         qty: 1,   unit: 'lb',    required: true, limiter: true },
+          { key: 'broccoli',     qty: 4,   unit: 'cup',   required: true },
+          { key: 'soy sauce',    qty: 4,   unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'sesame oil',   qty: 1,   unit: 'tsp',   required: false },
+          { key: 'honey',        qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'bell pepper',  qty: 1,   unit: 'piece', required: false },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: false },
+          { key: 'corn',         qty: 0.5, unit: 'cup',   required: false },
+        ],
+        steps: [
+          'Start rice cooking if serving with it. Slice the beef thinly across the grain — easier if half-frozen for 15 minutes first.',
+          'Whisk the sauce: soy sauce, honey, minced garlic, grated ginger, and 2 tbsp water.',
+          'Heat 1 tbsp oil in a wok over high heat. Stir-fry the beef in a single layer for 90 seconds without moving it, then toss 30 seconds more. Transfer out.',
+          'Add remaining oil, then broccoli (and bell pepper if using). Splash in 2 tbsp water and cover for 2 minutes to steam. Uncover and stir-fry 1 more minute.',
+          'Return beef to the wok. Pour in the sauce — it will thicken in seconds. Drizzle with sesame oil. Serve over rice.',
+        ],
+      },
+      {
+        id: 'teriyaki-chicken',
+        name: 'Teriyaki Chicken',
+        cuisine: 'asian',
+        servings: 4, time: '25 min',
+        description: 'Sticky-sweet glaze, crisp-edged chicken, and steamed rice. Weeknight gold.',
+        ingredients: [
+          { key: 'chicken',      qty: 1.25,unit: 'lb',    required: true, limiter: true },
+          { key: 'soy sauce',    qty: 0.33,unit: 'cup',   required: true },
+          { key: 'honey',        qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 2,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'vinegar',      qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'sesame oil',   qty: 1,   unit: 'tsp',   required: false },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: true },
+          { key: 'vegetable oil',qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'broccoli',     qty: 2,   unit: 'cup',   required: false },
+        ],
+        steps: [
+          'Start the rice. Whisk soy sauce, honey, minced garlic, grated ginger, vinegar, and sesame oil in a small bowl.',
+          'Pat the chicken dry and cut into bite-sized chunks. Heat vegetable oil in a skillet over medium-high.',
+          'Sear chicken in a single layer for 3 minutes, flip, and cook 2 minutes more until golden.',
+          'Pour the sauce over the chicken. Let it bubble furiously for 2–3 minutes, tossing, until it reduces to a sticky glaze that coats everything.',
+          'Serve over rice with steamed broccoli, if using. Scatter sesame seeds or scallions if you have them.',
+        ],
+      },
+      {
+        id: 'shrimp-lo-mein',
+        name: 'Shrimp Lo Mein',
+        cuisine: 'asian',
+        servings: 4, time: '20 min',
+        description: 'Springy noodles tossed with garlicky shrimp and cabbage in a savory-sweet sauce.',
+        ingredients: [
+          { key: 'noodles',      qty: 12,  unit: 'oz',    required: true, limiter: true },
+          { key: 'shrimp',       qty: 1,   unit: 'lb',    required: true },
+          { key: 'cabbage',      qty: 3,   unit: 'cup',   required: false },
+          { key: 'carrot',       qty: 1,   unit: 'piece', required: false },
+          { key: 'soy sauce',    qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'sesame oil',   qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tsp',   required: false },
+          { key: 'honey',        qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+        ],
+        steps: [
+          'Boil the noodles according to package directions, aiming for just past al dente. Drain and toss with a drop of sesame oil so they don\'t clump.',
+          'Whisk soy sauce, sesame oil, honey, and 2 tbsp water.',
+          'Heat 1 tbsp vegetable oil in a wok over high. Stir-fry shrimp 2 minutes until just pink. Transfer out.',
+          'Add remaining oil, then shredded cabbage and julienned carrot. Stir-fry 3 minutes until edges char but veggies are still crisp. Add minced garlic and ginger for 30 seconds.',
+          'Return noodles and shrimp. Pour in the sauce and toss for 1 minute until everything is coated and glossy.',
+        ],
+      },
+
+      // --------------- INDIAN ---------------
+      {
+        id: 'chicken-curry',
+        name: 'Quick Chicken Curry',
+        cuisine: 'indian',
+        servings: 4, time: '40 min',
+        description: 'A weeknight curry with depth — onions cooked low and slow make all the difference.',
+        ingredients: [
+          { key: 'chicken',      qty: 1.25,unit: 'lb',    required: true, limiter: true },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: true },
+          { key: 'garlic',       qty: 4,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'canned tomatoes', qty: 14, unit: 'oz',  required: true },
+          { key: 'coconut milk', qty: 13,  unit: 'oz',    required: false },
+          { key: 'curry powder', qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'cumin',        qty: 1,   unit: 'tsp',   required: false },
+          { key: 'paprika',      qty: 1,   unit: 'tsp',   required: false },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: false },
+          { key: 'cilantro',     qty: 3,   unit: 'tbsp',  required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Start the rice. Heat oil in a heavy pot over medium. Add diced onion and a pinch of salt. Cook 10 minutes, stirring, until deeply golden.',
+          'Stir in minced garlic and grated ginger for 1 minute. Add the curry powder, cumin, and paprika — toast in the oil for 30 seconds.',
+          'Add canned tomatoes and simmer 5 minutes, mashing them down. The mixture should look like a thick paste.',
+          'Add the cubed chicken, stirring to coat in the sauce. Pour in the coconut milk (or 1 cup water if skipping). Simmer 15–20 minutes until chicken is cooked and sauce has thickened.',
+          'Taste and adjust salt. Scatter cilantro. Serve over rice.',
+        ],
+      },
+      {
+        id: 'chana-masala',
+        name: 'Chana Masala',
+        cuisine: 'indian',
+        servings: 4, time: '30 min',
+        description: 'Pantry-first chickpea curry — bright, tangy, and ready in half an hour.',
+        ingredients: [
+          { key: 'chickpeas',    qty: 30,  unit: 'oz',    required: true, limiter: true },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: true },
+          { key: 'canned tomatoes', qty: 14, unit: 'oz',  required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'curry powder', qty: 1.5, unit: 'tbsp',  required: true },
+          { key: 'cumin',        qty: 1,   unit: 'tsp',   required: true },
+          { key: 'paprika',      qty: 1,   unit: 'tsp',   required: false },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'lemon',        qty: 0.5, unit: 'piece', required: false },
+          { key: 'cilantro',     qty: 0.25,unit: 'cup',   required: false },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Heat oil in a saucepan over medium. Sauté finely diced onion 8 minutes until golden.',
+          'Add minced garlic and grated ginger for 1 minute. Stir in curry powder, cumin, and paprika to bloom for 30 seconds.',
+          'Tip in the canned tomatoes. Simmer 8 minutes until thickened and the oil starts to separate — that\'s how you know the masala is ready.',
+          'Add drained chickpeas and 1/2 cup water. Simmer 10 minutes. Mash some chickpeas against the side of the pan to thicken the sauce.',
+          'Season, squeeze in lemon juice, and scatter cilantro. Serve over rice or with flatbread.',
+        ],
+      },
+      {
+        id: 'veg-curry',
+        name: 'Vegetable Coconut Curry',
+        cuisine: 'indian',
+        servings: 4, time: '35 min',
+        description: 'Creamy, fragrant, vegetable-forward — this curry bends to whatever vegetables you have.',
+        ingredients: [
+          { key: 'potato',       qty: 2,   unit: 'piece', required: false },
+          { key: 'carrot',       qty: 2,   unit: 'piece', required: false },
+          { key: 'cauliflower',  qty: 2,   unit: 'cup',   required: false },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'coconut milk', qty: 13,  unit: 'oz',    required: true, limiter: true },
+          { key: 'canned tomatoes', qty: 14, unit: 'oz',  required: false },
+          { key: 'curry powder', qty: 1.5, unit: 'tbsp',  required: true },
+          { key: 'cumin',        qty: 1,   unit: 'tsp',   required: false },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: false },
+          { key: 'spinach',      qty: 2,   unit: 'cup',   required: false },
+          { key: 'cilantro',     qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Dice the hardy vegetables (potato, carrot) into 1/2-inch cubes. Cut cauliflower into small florets.',
+          'Heat oil in a large pot over medium. Add diced onion; cook 8 minutes until soft. Add minced garlic and grated ginger for 1 minute.',
+          'Stir in curry powder and cumin, toasting for 30 seconds until fragrant. Add tomatoes (if using) and cook 3 minutes.',
+          'Add the hardy vegetables and coconut milk, plus 1/2 cup water. Cover and simmer 15 minutes until vegetables are tender.',
+          'Add any tender veg (spinach) at the very end to wilt. Season, scatter cilantro, and serve over rice.',
+        ],
+      },
+      {
+        id: 'dal',
+        name: 'Simple Red Lentil Dal',
+        cuisine: 'indian',
+        servings: 4, time: '30 min',
+        description: 'Turmeric-stained, buttery dal — pure comfort food, mostly pantry ingredients.',
+        ingredients: [
+          { key: 'lentils',      qty: 1,   unit: 'cup',   required: true, limiter: true },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'tomato',       qty: 1,   unit: 'piece', required: false },
+          { key: 'butter',       qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'cumin',        qty: 1,   unit: 'tsp',   required: true },
+          { key: 'curry powder', qty: 1,   unit: 'tsp',   required: false },
+          { key: 'lemon',        qty: 0.5, unit: 'piece', required: false },
+          { key: 'cilantro',     qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'rice',         qty: 1,   unit: 'cup',   required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Rinse the lentils. Add to a pot with 3 cups water, a pinch of salt, and a diced tomato. Bring to a boil, then simmer uncovered 15–20 minutes, stirring occasionally, until creamy.',
+          'Meanwhile, melt butter in a small skillet over medium. Add cumin seeds (or ground cumin) — let them sizzle 20 seconds.',
+          'Add finely diced onion; cook 6 minutes until golden. Stir in minced garlic, grated ginger, and curry powder for 1 minute.',
+          'Tip the tempered spice mixture into the dal. Stir, simmer 2 more minutes.',
+          'Season, squeeze in lemon, scatter cilantro. Serve with rice.',
+        ],
+      },
+
+      // --------------- MEDITERRANEAN ---------------
+      {
+        id: 'shakshuka',
+        name: 'Shakshuka',
+        cuisine: 'mediterranean',
+        servings: 4, time: '30 min',
+        description: 'Eggs poached in a smoky, spicy tomato sauce — perfect for breakfast, lunch, or dinner.',
+        ingredients: [
+          { key: 'eggs',         qty: 4,   unit: 'piece', required: true, limiter: true },
+          { key: 'canned tomatoes', qty: 28, unit: 'oz',  required: true },
+          { key: 'bell pepper',  qty: 1,   unit: 'piece', required: true },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'paprika',      qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'cumin',        qty: 1,   unit: 'tsp',   required: true },
+          { key: 'olive oil',    qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'feta',         qty: 0.5, unit: 'cup',   required: false },
+          { key: 'parsley',      qty: 3,   unit: 'tbsp',  required: false },
+          { key: 'bread',        qty: 4,   unit: 'slice', required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Heat olive oil in a wide skillet over medium. Add diced onion and bell pepper. Cook 8 minutes until softened and just starting to color.',
+          'Stir in minced garlic, paprika, and cumin. Toast 30 seconds until fragrant.',
+          'Pour in the canned tomatoes, crushing any whole ones. Simmer 10–15 minutes until thickened. Season with salt.',
+          'Make 4 wells in the sauce with the back of a spoon. Crack an egg into each well. Cover and cook 5–7 minutes until whites are set but yolks still runny.',
+          'Crumble feta over the top, scatter parsley. Bring the pan to the table with warm bread for scooping.',
+        ],
+      },
+      {
+        id: 'lemon-herb-chicken',
+        name: 'Lemon Herb Chicken',
+        cuisine: 'mediterranean',
+        servings: 4, time: '35 min',
+        description: 'Bright, herby, golden-skinned chicken that smells like a sunny afternoon on the coast.',
+        ingredients: [
+          { key: 'chicken',      qty: 1.5, unit: 'lb',    required: true, limiter: true },
+          { key: 'lemon',        qty: 2,   unit: 'piece', required: true },
+          { key: 'garlic',       qty: 4,   unit: 'clove', required: true },
+          { key: 'olive oil',    qty: 4,   unit: 'tbsp',  required: true },
+          { key: 'oregano',      qty: 1.5, unit: 'tsp',   required: false },
+          { key: 'thyme',        qty: 1,   unit: 'tsp',   required: false },
+          { key: 'rosemary',     qty: 1,   unit: 'tsp',   required: false },
+          { key: 'potato',       qty: 1.5, unit: 'lb',    required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.5, unit: 'tsp',   required: false },
+          { key: 'parsley',      qty: 2,   unit: 'tbsp',  required: false },
+        ],
+        steps: [
+          'Preheat oven to 425°F/220°C. Whisk olive oil with juice of 1 lemon, minced garlic, oregano, thyme, rosemary, salt, and pepper.',
+          'Pat chicken dry. Toss with 2/3 of the marinade. If using potatoes, cut into wedges and toss with the remaining marinade.',
+          'Spread potatoes on a sheet pan. Nest the chicken pieces among them. Slice remaining lemon into rounds and tuck them in.',
+          'Roast 25–30 minutes until chicken reaches 165°F/75°C and potatoes are golden and tender.',
+          'Rest chicken 5 minutes. Scatter parsley and squeeze any remaining lemon over the top.',
+        ],
+      },
+      {
+        id: 'greek-salad',
+        name: 'Greek Salad',
+        cuisine: 'mediterranean',
+        servings: 4, time: '15 min',
+        description: 'Crunchy, salty, bright — the Mediterranean on a plate.',
+        ingredients: [
+          { key: 'cucumber',    qty: 1,   unit: 'piece', required: true, limiter: true },
+          { key: 'tomato',      qty: 3,   unit: 'piece', required: true },
+          { key: 'bell pepper', qty: 1,   unit: 'piece', required: false },
+          { key: 'onion',       qty: 0.5, unit: 'piece', required: false },
+          { key: 'feta',        qty: 6,   unit: 'oz',    required: true },
+          { key: 'olive oil',   qty: 4,   unit: 'tbsp',  required: true },
+          { key: 'vinegar',     qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'oregano',     qty: 1,   unit: 'tsp',   required: true },
+          { key: 'lemon',       qty: 0.5, unit: 'piece', required: false },
+          { key: 'salt',        qty: 0.5, unit: 'tsp',   required: false },
+          { key: 'black pepper',qty: 0.25,unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Chop the cucumber into chunky half-moons, dice the tomatoes into generous wedges, and slice the bell pepper into rings.',
+          'Thinly slice the red onion — soak in cold water for 5 minutes if you want to mellow the bite.',
+          'Combine all the vegetables in a shallow bowl. Top with the feta in a single block or crumbled.',
+          'Whisk olive oil, vinegar, lemon juice, oregano, salt, and pepper. Pour over the salad and toss gently.',
+          'Let sit 5 minutes before serving so the tomatoes release their juices into the dressing.',
+        ],
+      },
+
+      // --------------- AMERICAN ---------------
+      {
+        id: 'frittata',
+        name: 'Everything Frittata',
+        cuisine: 'american',
+        servings: 4, time: '25 min',
+        description: 'A clear-out-the-fridge frittata — just eggs + cheese + whatever.',
+        ingredients: [
+          { key: 'eggs',         qty: 8,   unit: 'piece', required: true, limiter: true },
+          { key: 'milk',         qty: 0.25,unit: 'cup',   required: false },
+          { key: 'cheddar',      qty: 1,   unit: 'cup',   required: false },
+          { key: 'onion',        qty: 0.5, unit: 'piece', required: false },
+          { key: 'bell pepper',  qty: 0.5, unit: 'piece', required: false },
+          { key: 'spinach',      qty: 2,   unit: 'cup',   required: false },
+          { key: 'mushroom',     qty: 1,   unit: 'cup',   required: false },
+          { key: 'bacon',        qty: 4,   unit: 'slice', required: false },
+          { key: 'butter',       qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'parmesan',     qty: 0.25,unit: 'cup',   required: false },
+          { key: 'salt',         qty: 0.5, unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.25,unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Preheat oven to 375°F/190°C. Whisk eggs with milk, cheddar, salt, and pepper.',
+          'In a 10-inch oven-safe skillet (cast iron is perfect), cook the bacon until crisp; remove and crumble. Or melt butter if skipping bacon.',
+          'Add onion and mushroom to the hot fat. Cook 5 minutes. Add bell pepper for 2 minutes more. Toss in spinach last and let it wilt.',
+          'Spread everything evenly and pour the egg mixture over. Let it set on the bottom for 2 minutes without stirring.',
+          'Transfer to the oven and bake 12–15 minutes until just set in the center. Scatter parmesan over the top. Rest 5 minutes, then slice into wedges.',
+        ],
+      },
+      {
+        id: 'grilled-cheese',
+        name: 'Classic Grilled Cheese',
+        cuisine: 'american',
+        servings: 2, time: '10 min',
+        description: 'Golden crust, molten middle. The one that never goes out of style.',
+        ingredients: [
+          { key: 'bread',   qty: 4,   unit: 'slice', required: true, limiter: true },
+          { key: 'cheddar', qty: 4,   unit: 'oz',    required: true },
+          { key: 'butter',  qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'mustard', qty: 1,   unit: 'tsp',   required: false },
+          { key: 'tomato',  qty: 0.5, unit: 'piece', required: false },
+        ],
+        steps: [
+          'Let the butter soften (or microwave 10 seconds). Spread generously on one side of each bread slice.',
+          'Place two slices butter-side-down in a cold skillet. Layer the cheese (and tomato/mustard if using). Top with remaining slices, butter-side-up.',
+          'Turn the heat to medium-low. Cook patiently for 3–4 minutes — low and slow is the whole secret.',
+          'When the bottom is deep golden, flip. Cook another 3 minutes until the second side matches and the cheese has fully melted.',
+          'Rest 60 seconds so the cheese sets slightly, then slice and serve.',
+        ],
+      },
+      {
+        id: 'chili',
+        name: 'Weeknight Chili',
+        cuisine: 'american',
+        servings: 6, time: '45 min',
+        description: 'A deep, smoky, pantry-powered chili. Better the next day if you can wait.',
+        ingredients: [
+          { key: 'ground beef', qty: 1.5, unit: 'lb',    required: true, limiter: true },
+          { key: 'onion',       qty: 1,   unit: 'piece', required: true },
+          { key: 'garlic',      qty: 3,   unit: 'clove', required: true },
+          { key: 'canned tomatoes', qty: 28, unit: 'oz', required: true },
+          { key: 'black beans', qty: 15,  unit: 'oz',    required: true },
+          { key: 'white beans', qty: 15,  unit: 'oz',    required: false },
+          { key: 'bell pepper', qty: 1,   unit: 'piece', required: false },
+          { key: 'chili powder',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'cumin',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'paprika',     qty: 1,   unit: 'tsp',   required: false },
+          { key: 'cheddar',     qty: 0.5, unit: 'cup',   required: false },
+          { key: 'sour cream',  qty: 0.33,unit: 'cup',   required: false },
+          { key: 'olive oil',   qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'salt',        qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Heat oil in a heavy pot over medium-high. Brown the ground beef, breaking it up, for 6–8 minutes. Drain excess fat.',
+          'Add diced onion and bell pepper; cook 5 minutes. Add minced garlic for 30 seconds.',
+          'Stir in chili powder, cumin, paprika, and salt. Toast for 1 minute — this blooms the flavor.',
+          'Add canned tomatoes, drained beans, and 1 cup water. Bring to a simmer, then lower heat and cook 20–30 minutes, uncovered, stirring occasionally.',
+          'Taste and adjust — chili should taste a little bolder than you think. Top bowls with cheese, sour cream, and cilantro or green onions if you have them.',
+        ],
+      },
+      {
+        id: 'sheet-pan-veg',
+        name: 'Sheet Pan Roasted Vegetables',
+        cuisine: 'american',
+        servings: 4, time: '40 min',
+        description: 'The easiest side (or meal) — caramelized vegetables, hands-off in the oven.',
+        ingredients: [
+          { key: 'potato',       qty: 1,   unit: 'lb',    required: false },
+          { key: 'carrot',       qty: 3,   unit: 'piece', required: false },
+          { key: 'broccoli',     qty: 2,   unit: 'cup',   required: false },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: false },
+          { key: 'bell pepper',  qty: 1,   unit: 'piece', required: false },
+          { key: 'zucchini',     qty: 1,   unit: 'piece', required: false },
+          { key: 'olive oil',    qty: 4,   unit: 'tbsp',  required: true, limiter: true },
+          { key: 'garlic',       qty: 4,   unit: 'clove', required: false },
+          { key: 'rosemary',     qty: 1,   unit: 'tsp',   required: false },
+          { key: 'thyme',        qty: 1,   unit: 'tsp',   required: false },
+          { key: 'paprika',      qty: 1,   unit: 'tsp',   required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.5, unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Preheat oven to 425°F/220°C. Cut the hardy vegetables (potato, carrot, onion) into 1-inch chunks. Cut the tender ones (zucchini, bell pepper) a touch bigger so they don\'t overcook.',
+          'On one big sheet pan, pile the hardy vegetables with half the oil, half the herbs, salt, and pepper. Toss and spread out in a single layer.',
+          'Roast 20 minutes. Push to one side, add the tender vegetables tossed with remaining oil and herbs.',
+          'Roast 15–20 more minutes until everything is deeply browned at the edges and tender when poked with a fork.',
+          'Scatter crushed garlic over the hot pan — the residual heat will mellow it. Finish with flaky salt.',
+        ],
+      },
+      {
+        id: 'tuna-melt',
+        name: 'Tuna Melt',
+        cuisine: 'american',
+        servings: 2, time: '15 min',
+        description: 'Creamy tuna salad, melty cheese, crunchy toast. Lunch perfected.',
+        ingredients: [
+          { key: 'tuna',    qty: 10, unit: 'oz',    required: true, limiter: true },
+          { key: 'bread',   qty: 4,  unit: 'slice', required: true },
+          { key: 'cheddar', qty: 3,  unit: 'oz',    required: true },
+          { key: 'mayo',    qty: 3,  unit: 'tbsp',  required: true },
+          { key: 'mustard', qty: 1,  unit: 'tsp',   required: false },
+          { key: 'onion',   qty: 2,  unit: 'tbsp',  required: false },
+          { key: 'lemon',   qty: 0.25,unit: 'piece',required: false },
+          { key: 'butter',  qty: 2,  unit: 'tbsp',  required: true },
+          { key: 'tomato',  qty: 0.5, unit: 'piece',required: false },
+          { key: 'salt',    qty: 0.25,unit: 'tsp',  required: false },
+        ],
+        steps: [
+          'Drain the tuna well. Mix with mayo, mustard, minced red onion, a squeeze of lemon, and a little salt. Taste — should be bright and creamy.',
+          'Butter one side of each bread slice. Flip two slices over and divide the tuna salad between them.',
+          'Top with cheese and the remaining bread, butter-side up.',
+          'Cook over medium-low in a skillet, 3–4 minutes per side, pressing gently, until deeply golden and the cheese has melted.',
+          'Slice diagonally — the correct cut — and serve.',
+        ],
+      },
+      {
+        id: 'broccoli-cheddar-soup',
+        name: 'Broccoli Cheddar Soup',
+        cuisine: 'american',
+        servings: 4, time: '30 min',
+        description: 'Velvety, cheesy, and cozy — the bread bowl is optional but encouraged.',
+        ingredients: [
+          { key: 'broccoli', qty: 4,   unit: 'cup',   required: true, limiter: true },
+          { key: 'cheddar',  qty: 2,   unit: 'cup',   required: true },
+          { key: 'milk',     qty: 2,   unit: 'cup',   required: true },
+          { key: 'broth',    qty: 2,   unit: 'cup',   required: true },
+          { key: 'butter',   qty: 4,   unit: 'tbsp',  required: true },
+          { key: 'flour',    qty: 0.25,unit: 'cup',   required: true },
+          { key: 'onion',    qty: 1,   unit: 'piece', required: true },
+          { key: 'carrot',   qty: 1,   unit: 'piece', required: false },
+          { key: 'garlic',   qty: 2,   unit: 'clove', required: false },
+          { key: 'bread',    qty: 4,   unit: 'slice', required: false },
+          { key: 'salt',     qty: 1,   unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.5, unit: 'tsp', required: false },
+        ],
+        steps: [
+          'Melt butter in a heavy pot over medium. Add diced onion and cook 6 minutes until soft. Add minced garlic for 30 seconds.',
+          'Sprinkle flour over and whisk constantly for 1 minute to cook off the raw flour taste.',
+          'Slowly pour in the milk and broth, whisking smoothly. Add grated carrot. Simmer 10 minutes, stirring often, until thickened.',
+          'Add small broccoli florets. Simmer another 8 minutes until tender. For a smoother texture, blend half the soup.',
+          'Off heat, stir in the cheese a handful at a time until melted. Season. Serve with bread for dunking.',
+        ],
+      },
+
+      // --------------- FRENCH ---------------
+      {
+        id: 'veg-omelette',
+        name: 'French Vegetable Omelette',
+        cuisine: 'french',
+        servings: 1, time: '10 min',
+        description: 'Custardy eggs folded around cheese and tender veg — a 10-minute solo dinner.',
+        ingredients: [
+          { key: 'eggs',         qty: 3,   unit: 'piece', required: true, limiter: true },
+          { key: 'butter',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'cheddar',      qty: 0.33,unit: 'cup',   required: false },
+          { key: 'mushroom',     qty: 0.5, unit: 'cup',   required: false },
+          { key: 'onion',        qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'bell pepper',  qty: 0.25,unit: 'piece', required: false },
+          { key: 'spinach',      qty: 1,   unit: 'cup',   required: false },
+          { key: 'parsley',      qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'salt',         qty: 0.25,unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.25,unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Whisk the eggs with a pinch of salt and pepper until completely smooth — no streaks of white.',
+          'Melt half the butter in a small nonstick skillet over medium-high. Sauté the mushrooms and onion until browned, 3 minutes. Toss in spinach for 30 seconds. Transfer out.',
+          'Wipe the pan. Add remaining butter over medium. When it foams, pour in the eggs.',
+          'Stir gently with a spatula for 20 seconds, then let the bottom set for 30 seconds. Scatter cheese and the cooked veg across one half.',
+          'Tilt and fold the other half over. Slide onto a plate. Top with parsley.',
+        ],
+      },
+      {
+        id: 'ratatouille',
+        name: 'Ratatouille',
+        cuisine: 'french',
+        servings: 6, time: '50 min',
+        description: 'A slow stew of summer vegetables — deep, silky, and even better reheated.',
+        ingredients: [
+          { key: 'eggplant',     qty: 1,   unit: 'piece', required: true, limiter: true },
+          { key: 'zucchini',     qty: 2,   unit: 'piece', required: true },
+          { key: 'bell pepper',  qty: 2,   unit: 'piece', required: true },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: true },
+          { key: 'canned tomatoes', qty: 28, unit: 'oz',  required: true },
+          { key: 'garlic',       qty: 4,   unit: 'clove', required: true },
+          { key: 'olive oil',    qty: 5,   unit: 'tbsp',  required: true },
+          { key: 'thyme',        qty: 1,   unit: 'tsp',   required: false },
+          { key: 'basil',        qty: 0.25,unit: 'cup',   required: false },
+          { key: 'salt',         qty: 1,   unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.5, unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Cut eggplant, zucchini, and bell pepper into 1-inch chunks. Dice the onion.',
+          'Heat 2 tbsp olive oil in a large pot over medium-high. Brown the eggplant 5 minutes, then the zucchini 4 minutes, each in separate batches. Transfer out.',
+          'Add remaining oil, onion, and bell pepper. Cook 6 minutes until softened. Add minced garlic and thyme for 1 minute.',
+          'Pour in the canned tomatoes. Return all the browned vegetables to the pot. Simmer uncovered for 25–30 minutes, stirring occasionally.',
+          'Season and tear in basil right at the end. Serve warm with crusty bread, or over rice or pasta.',
+        ],
+      },
+
+      // --------------- GAP-FILLING PROTEINS ---------------
+      {
+        id: 'lemon-salmon',
+        name: 'Lemon & Herb Baked Salmon',
+        cuisine: 'mediterranean',
+        servings: 4, time: '25 min',
+        description: 'Flaky, bright, hands-off salmon — the easiest way to feel fancy on a weeknight.',
+        ingredients: [
+          { key: 'salmon',       qty: 1.25, unit: 'lb',    required: true, limiter: true },
+          { key: 'lemon',        qty: 1,    unit: 'piece', required: true },
+          { key: 'olive oil',    qty: 2,    unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 3,    unit: 'clove', required: false },
+          { key: 'thyme',        qty: 1,    unit: 'tsp',   required: false },
+          { key: 'parsley',      qty: 2,    unit: 'tbsp',  required: false },
+          { key: 'butter',       qty: 1,    unit: 'tbsp',  required: false },
+          { key: 'broccoli',     qty: 3,    unit: 'cup',   required: false },
+          { key: 'potato',       qty: 0.75, unit: 'lb',    required: false },
+          { key: 'rice',         qty: 1,    unit: 'cup',   required: false },
+          { key: 'salt',         qty: 0.75, unit: 'tsp',   required: false },
+          { key: 'black pepper', qty: 0.25, unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Preheat oven to 400°F/200°C. Pat the salmon dry and place skin-side-down on a parchment-lined sheet pan.',
+          'Drizzle with olive oil, squeeze half the lemon over, and season with salt, pepper, and thyme. Scatter minced garlic over the top.',
+          'If using vegetables, toss broccoli florets or halved baby potatoes with a little oil and salt, and spread around the salmon.',
+          'Bake 12–15 minutes for the salmon (until it flakes but still looks slightly translucent at the thickest part). Potatoes may need a few extra minutes — give them a 10-minute head start if they\'re thick.',
+          'Finish with small pats of butter, the remaining lemon cut into wedges, and a scatter of parsley.',
+        ],
+      },
+      {
+        id: 'tofu-stir-fry',
+        name: 'Crispy Tofu Stir Fry',
+        cuisine: 'asian',
+        servings: 4, time: '30 min',
+        description: 'Golden-edged tofu tossed with vegetables in a punchy garlic-ginger sauce. Surprisingly meaty.',
+        ingredients: [
+          { key: 'tofu',         qty: 14,  unit: 'oz',    required: true, limiter: true },
+          { key: 'soy sauce',    qty: 4,   unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: true },
+          { key: 'vegetable oil',qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'broccoli',     qty: 3,   unit: 'cup',   required: false },
+          { key: 'bell pepper',  qty: 1,   unit: 'piece', required: false },
+          { key: 'carrot',       qty: 1,   unit: 'piece', required: false },
+          { key: 'sesame oil',   qty: 1,   unit: 'tsp',   required: false },
+          { key: 'honey',        qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: false },
+          { key: 'hot sauce',    qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Press the tofu: wrap in a clean towel and set a heavy pan on top for 15 minutes. Cut into 1-inch cubes.',
+          'Whisk the sauce: soy sauce, honey, minced garlic, grated ginger, 2 tbsp water, and a dash of hot sauce if you like heat.',
+          'Heat 2 tbsp oil in a nonstick skillet over medium-high. Add the tofu in a single layer and DO NOT TOUCH IT for 3 minutes — wait until a deep crust forms. Flip and repeat. Transfer out.',
+          'Add remaining oil, then broccoli, bell pepper, and carrot. Stir-fry 3–4 minutes with a splash of water. Veggies should stay crisp.',
+          'Return tofu, pour in the sauce, and toss for 1 minute until glossy. Finish with sesame oil. Serve over rice.',
+        ],
+      },
+      {
+        id: 'pork-stir-fry',
+        name: 'Pork & Bell Pepper Stir Fry',
+        cuisine: 'asian',
+        servings: 4, time: '25 min',
+        description: 'Thin strips of pork and sweet peppers in a quick pan sauce — fast, bold, weeknight-perfect.',
+        ingredients: [
+          { key: 'pork',         qty: 1,   unit: 'lb',    required: true, limiter: true },
+          { key: 'bell pepper',  qty: 2,   unit: 'piece', required: true },
+          { key: 'soy sauce',    qty: 3,   unit: 'tbsp',  required: true },
+          { key: 'garlic',       qty: 3,   unit: 'clove', required: true },
+          { key: 'ginger',       qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'honey',        qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'vegetable oil',qty: 2,   unit: 'tbsp',  required: true },
+          { key: 'onion',        qty: 1,   unit: 'piece', required: false },
+          { key: 'rice',         qty: 1.5, unit: 'cup',   required: false },
+          { key: 'sesame oil',   qty: 1,   unit: 'tsp',   required: false },
+          { key: 'hot sauce',    qty: 1,   unit: 'tsp',   required: false },
+        ],
+        steps: [
+          'Slice the pork thinly against the grain — easier if half-frozen. Toss with 1 tbsp soy sauce and let marinate while you prep.',
+          'Slice the peppers and onion into thick strips. Whisk remaining soy sauce with honey, grated ginger, and 2 tbsp water.',
+          'Heat 1 tbsp oil in a wok over high heat. Sear the pork in a single layer for 90 seconds without moving, then stir 30 seconds more. Transfer out.',
+          'Add remaining oil, peppers, and onion. Stir-fry 3 minutes until edges char but still crisp. Add minced garlic for 30 seconds.',
+          'Return pork, pour in the sauce, and toss for 1 minute until thickened. Drizzle with sesame oil. Serve over rice.',
+        ],
+      },
+      {
+        id: 'turkey-ham-sandwich',
+        name: 'Deli-Style Sandwich',
+        cuisine: 'american',
+        servings: 2, time: '8 min',
+        description: 'A proper sandwich: crusty bread, good cheese, crisp greens, and the spread that makes everything sing.',
+        ingredients: [
+          { key: 'bread',   qty: 4,   unit: 'slice', required: true, limiter: true },
+          { key: 'turkey',  qty: 6,   unit: 'oz',    required: false },
+          { key: 'ham',     qty: 6,   unit: 'oz',    required: false },
+          { key: 'cheddar', qty: 2,   unit: 'oz',    required: false },
+          { key: 'lettuce', qty: 4,   unit: 'piece', required: false },
+          { key: 'tomato',  qty: 1,   unit: 'piece', required: false },
+          { key: 'mayo',    qty: 2,   unit: 'tbsp',  required: false },
+          { key: 'mustard', qty: 1,   unit: 'tsp',   required: false },
+          { key: 'butter',  qty: 1,   unit: 'tbsp',  required: false },
+          { key: 'black pepper', qty: 0.25, unit: 'tsp', required: false },
+        ],
+        steps: [
+          'Toast the bread lightly if you like a bit of structure. Otherwise leave it soft.',
+          'Spread mayo on one slice and mustard on the other — the two spreads on opposite faces is the secret.',
+          'Layer on the meat (turkey or ham, or both), then cheese, then the vegetables — leaves closest to the mayo side so they stay crisp.',
+          'Crack some pepper on top, close the sandwich, and slice on a diagonal. Always a diagonal.',
+        ],
+      },
+    ];
+
+    // ============================================================
+    // UNIT CONVERSION — just enough to compare quantities
+    // All mapped to a base unit per "type"
+    // ============================================================
+    const MASS_TO_G   = { g: 1, kg: 1000, oz: 28.35, lb: 453.59 };
+    const VOL_TO_ML   = { ml: 1, L: 1000, cup: 240, tbsp: 15, tsp: 5 };
+    const COUNT_UNITS = new Set(['piece', 'clove', 'slice']);
+
+    function unitType(u) {
+      if (!u) return 'none';
+      if (MASS_TO_G[u])   return 'mass';
+      if (VOL_TO_ML[u])   return 'volume';
+      if (COUNT_UNITS.has(u)) return 'count';
+      return 'other';
+    }
+    function toBase(qty, unit) {
+      if (!qty || !unit) return null;
+      if (MASS_TO_G[unit]) return { type: 'mass',   val: qty * MASS_TO_G[unit] };
+      if (VOL_TO_ML[unit]) return { type: 'volume', val: qty * VOL_TO_ML[unit] };
+      if (COUNT_UNITS.has(unit)) return { type: 'count', val: qty };
+      return null;
+    }
+    function comparable(userQty, userUnit, recipeQty, recipeUnit) {
+      const a = toBase(userQty, userUnit);
+      const b = toBase(recipeQty, recipeUnit);
+      if (!a || !b || a.type !== b.type) return null;
+      return { user: a.val, recipe: b.val };
+    }
+
+    // ============================================================
+    // NORMALIZATION + MATCHING
+    // ============================================================
+    function norm(s) {
+      return (s || '').toString().toLowerCase().trim()
+        .replace(/s$/, '')          // basic singularize
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s]/g, '');
+    }
+
+    // Build a quick lookup: any term (including aliases) -> canonical key
+    const TERM_TO_KEY = (() => {
+      const map = new Map();
+      for (const ing of INGREDIENTS) {
+        map.set(norm(ing.key), ing.key);
+        map.set(norm(ing.label), ing.key);
+        for (const a of ing.aliases || []) map.set(norm(a), ing.key);
+      }
+      return map;
+    })();
+
+    const KEY_TO_ING = Object.fromEntries(INGREDIENTS.map(i => [i.key, i]));
+
+    function resolveToKnown(userInput) {
+      const n = norm(userInput);
+      if (TERM_TO_KEY.has(n)) return TERM_TO_KEY.get(n);
+      // substring search (careful)
+      for (const [term, key] of TERM_TO_KEY) {
+        if (term.length >= 4 && (n.includes(term) || term.includes(n))) return key;
+      }
+      return null;
+    }
+
+    function matchesIngredient(userKey, recipeKey) {
+      // userKey is a canonical key OR a free-typed label (for custom)
+      // recipeKey is always a canonical key from our library
+      if (userKey === recipeKey) return true;
+      const uIng = KEY_TO_ING[userKey];
+      const rIng = KEY_TO_ING[recipeKey];
+      if (uIng && rIng && uIng.key === rIng.key) return true;
+
+      const un = norm(userKey);
+      const rn = norm(recipeKey);
+      if (un === rn) return true;
+
+      // Alias match — only in the direction "user text IS or CONTAINS the alias as a phrase".
+      // We deliberately don't do the reverse (alias contains user text as substring),
+      // because that produces false positives like user "beef" matching recipe "broth"
+      // via the alias "beef broth".
+      const containsAsPhrase = (haystack, needle) =>
+        haystack === needle ||
+        haystack.startsWith(needle + ' ') ||
+        haystack.endsWith(' ' + needle) ||
+        haystack.includes(' ' + needle + ' ');
+
+      if (rIng) {
+        const terms = [rn, ...(rIng.aliases || []).map(norm)];
+        for (const t of terms) if (t && containsAsPhrase(un, t)) return true;
+      }
+      if (uIng) {
+        const terms = [un, ...(uIng.aliases || []).map(norm)];
+        for (const t of terms) if (t && containsAsPhrase(rn, t)) return true;
+      }
+      return false;
+    }
+
+    function findUserIngredient(recipeKey) {
+      for (const [key, userIng] of state.selected) {
+        if (matchesIngredient(key, recipeKey)) return userIng;
+      }
+      return null;
+    }
+
+    // ============================================================
+    // RECIPE SCORING — coverage-first, with priority hard-filter
+    //   1. Priority items (⭐) MUST all be in the recipe — hard veto
+    //   2. If user has any protein, recipe must use at least one of them
+    //   3. Coverage (fraction of user picks the recipe uses) drives scoring
+    //   4. Missing recipe ingredients become a shopping list, not a veto
+    // ============================================================
+    function scoreRecipe(recipe) {
+      const userKeys = [...state.selected.keys()];
+      if (userKeys.length === 0) return { score: -Infinity };
+
+      const userProteinKeys = userKeys.filter(k => KEY_TO_ING[k]?.cat === 'protein');
+      const priorityKeys    = userKeys.filter(k => state.selected.get(k).priority);
+
+      const userMatched = new Set();
+      let requiredMatched = 0;
+      let requiredTotal   = 0;
+      let optionalMatched = 0;
+      let optionalTotal   = 0;
+      let priorityUsed    = 0;
+      let proteinUsed     = 0;
+      let missingRequiredNonStaple = 0;
+      const matched = [];
+      const missing = [];
+
+      for (const ing of recipe.ingredients) {
+        const userHas = findUserIngredient(ing.key);
+        if (ing.required) requiredTotal++;
+        else              optionalTotal++;
+
+        if (userHas) {
+          if (ing.required) requiredMatched++;
+          else              optionalMatched++;
+          if (userHas.priority) priorityUsed++;
+          matched.push({ ing, userHas });
+          // Record which USER key matched (coverage counter)
+          for (const uKey of userKeys) {
+            if (matchesIngredient(uKey, ing.key)) {
+              userMatched.add(uKey);
+              if (KEY_TO_ING[uKey]?.cat === 'protein') proteinUsed++;
+              break;
+            }
+          }
+        } else {
+          missing.push(ing);
+          if (ing.required && !STAPLES.has(ing.key)) missingRequiredNonStaple++;
+        }
+      }
+
+      const coverage = userMatched.size / userKeys.length;
+
+      // ---- Hard filters ----
+      // Priority items must all be used
+      const missedPriority = priorityKeys.filter(k => !userMatched.has(k));
+      if (missedPriority.length > 0) {
+        return { score: -Infinity, coverage, matched, missing, disqualReason: 'priority', missedPriority };
+      }
+      // If user has proteins, recipe must use at least one
+      if (userProteinKeys.length > 0 && proteinUsed === 0) {
+        return { score: -Infinity, coverage, matched, missing, disqualReason: 'protein' };
+      }
+      // Coverage floor — stricter with fewer picks
+      const n = userKeys.length;
+      const minCoverage = n <= 3 ? 1.0 : (n <= 5 ? 0.75 : 0.6);
+      if (userMatched.size === 0 || coverage < minCoverage) {
+        return { score: -Infinity, coverage, matched, missing, disqualReason: 'coverage' };
+      }
+
+      // ---- Score (coverage dominates) ----
+      let score = coverage * 120;
+      score += requiredMatched * 4;
+      score += optionalMatched * 2;
+      score -= missingRequiredNonStaple * 3;
+      score += priorityUsed * 8;      // light bonus for using MORE priority items when there's slack
+      score += proteinUsed * 10;      // prefer recipes that use user proteins
+      if (state.cuisine !== 'any') {
+        score += recipe.cuisine === state.cuisine ? 15 : -3;
+      }
+
+      return {
+        score, matched, missing, coverage,
+        requiredMatched, requiredTotal,
+        optionalMatched, optionalTotal,
+        missingRequiredNonStaple, priorityUsed, proteinUsed,
+        userMatchedCount: userMatched.size,
+      };
+    }
+
+    function rankRecipes() {
+      return RECIPES
+        .map(r => ({ recipe: r, ...scoreRecipe(r) }))
+        .sort((a, b) => b.score - a.score);
+    }
+
+    // ============================================================
+    // LIMITING-INGREDIENT SCALING
+    // ============================================================
+    function computeScale(recipe, targetServings) {
+      // Base scale from servings preference
+      const servingsScale = targetServings / recipe.servings;
+
+      // Find the most constraining user-supplied quantity
+      let limiter = null;       // { ing, userHas, scale }
+      let minScale = Infinity;
+
+      for (const ing of recipe.ingredients) {
+        const userHas = findUserIngredient(ing.key);
+        if (!userHas || !userHas.qty || !userHas.unit || !ing.qty || !ing.unit) continue;
+
+        const needed = ing.qty * servingsScale;
+        const cmp = comparable(userHas.qty, userHas.unit, needed, ing.unit);
+        if (!cmp) continue;
+
+        const ratio = cmp.user / cmp.recipe;
+        if (ratio < minScale) {
+          minScale = ratio;
+          limiter = { ing, userHas, ratio };
+        }
+      }
+
+      // If minScale < 1, user doesn't have enough of something — cap.
+      // If minScale >= 1, user has enough; don't scale up artificially.
+      const finalScale = (minScale < 1 && limiter) ? minScale * servingsScale : servingsScale;
+      return { scale: finalScale, limiter: minScale < 1 ? limiter : null, servingsScale };
+    }
+
+    function scaleIngredient(ing, scale) {
+      if (!ing.qty) return { ...ing, scaledQty: null };
+      return { ...ing, scaledQty: +(ing.qty * scale).toFixed(2) };
+    }
+
+    // ============================================================
+    // FORMATTING
+    // ============================================================
+    function formatQty(qty, unit) {
+      if (qty == null) return '';
+      let q = qty;
+      // Convert fractional decimals to pretty fractions where possible
+      const fracMap = { 0.25: '¼', 0.33: '⅓', 0.5: '½', 0.67: '⅔', 0.75: '¾' };
+      const whole = Math.floor(q);
+      const decimal = +(q - whole).toFixed(2);
+      let display;
+      if (fracMap[decimal] != null) {
+        display = (whole ? whole + ' ' : '') + fracMap[decimal];
+      } else if (decimal === 0) {
+        display = whole.toString();
+      } else {
+        display = q.toString();
+      }
+      const suffix = unit ? ` ${unit}${qty !== 1 && COUNT_UNITS.has(unit) ? 's' : ''}` : '';
+      return `${display}${suffix}`;
+    }
+
+    // ============================================================
+    // RENDER — INGREDIENT SECTIONS (common items, per category)
+    // ============================================================
+    function renderIngSections() {
+      DOM.ingSections.innerHTML = '';
+
+      for (const cat of CATEGORIES) {
+        const items = INGREDIENTS.filter(i => i.cat === cat.id && COMMON_KEYS.has(i.key));
+        if (items.length === 0) continue;
+
+        const section = document.createElement('div');
+        section.className = 'ing-section';
+
+        const heading = document.createElement('div');
+        heading.className = 'section-heading';
+        heading.innerHTML = `<span class="section-emoji">${cat.emoji}</span><span>${cat.name}</span>`;
+        section.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'ing-grid';
+        for (const ing of items) {
+          grid.appendChild(buildIngCard(ing));
+        }
+        // Custom ingredients the user added that fall in this category get shown too
+        for (const [key, u] of state.selected) {
+          if (!u.isCustom && !COMMON_KEYS.has(key)) {
+            const full = KEY_TO_ING[key];
+            if (full && full.cat === cat.id) {
+              grid.appendChild(buildIngCard(full));
+            }
+          }
+        }
+        section.appendChild(grid);
+        DOM.ingSections.appendChild(section);
+      }
+    }
+
+    function buildIngCard(ing) {
+      const card = document.createElement('button');
+      card.className = 'ing-card' + (state.selected.has(ing.key) ? ' selected' : '');
+      card.innerHTML = `
+        <span class="checkmark">✓</span>
+        <span class="emoji">${ing.emoji}</span>
+        <span class="label">${ing.label}</span>
+      `;
+      card.addEventListener('click', () => {
+        if (state.selected.has(ing.key)) {
+          state.selected.delete(ing.key);
+        } else {
+          state.selected.set(ing.key, {
+            key: ing.key, label: ing.label, emoji: ing.emoji,
+            qty: null, unit: '', priority: false, isCustom: false,
+          });
+        }
+        renderIngSections();
+        renderChips();
+        updateGenerateButton();
+      });
+      return card;
+    }
+
+    // ============================================================
+    // RENDER — SELECTED CHIPS
+    // ============================================================
+    function renderChips() {
+      DOM.chipsArea.innerHTML = '';
+      DOM.pickedCount.textContent = `${state.selected.size} picked`;
+
+      if (state.selected.size === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'chips-empty';
+        empty.textContent = 'Nothing picked yet — start from the grid above ⬆️';
+        DOM.chipsArea.appendChild(empty);
+        return;
+      }
+
+      for (const [key, ing] of state.selected) {
+        const chip = document.createElement('div');
+        chip.className = 'chip' + (ing.priority ? ' priority' : '');
+        chip.dataset.key = key;
+
+        const qtyLabel = ing.qty ? `<span class="chip-qty">${formatQty(ing.qty, ing.unit)}</span>` : '';
+        const emoji = ing.emoji ? `<span class="chip-emoji">${ing.emoji}</span>` : '';
+        chip.innerHTML = `
+          ${emoji}
+          <span>${ing.label}</span>
+          ${qtyLabel}
+          <span class="chip-x" title="Remove">×</span>
+        `;
+
+        chip.querySelector('.chip-x').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.selected.delete(key);
+          if (state.editingKey === key) closeEditor();
+          renderIngSections();
+          renderChips();
+          updateGenerateButton();
+        });
+
+        chip.addEventListener('click', (e) => {
+          if (e.target.classList.contains('chip-x')) return;
+          openEditor(key);
+        });
+
+        DOM.chipsArea.appendChild(chip);
+      }
+    }
+
+    // ============================================================
+    // RENDER — EDITOR
+    // ============================================================
+    function openEditor(key) {
+      const ing = state.selected.get(key);
+      if (!ing) return;
+      state.editingKey = key;
+      DOM.editorLabel.textContent = `Editing: ${ing.label}`;
+      DOM.editorQty.value = ing.qty ?? '';
+      DOM.editorUnit.value = ing.unit ?? '';
+      DOM.editorExp.classList.toggle('on', !!ing.priority);
+      DOM.chipEditor.classList.add('open');
+      DOM.editorQty.focus();
+    }
+
+    function closeEditor() {
+      state.editingKey = null;
+      DOM.chipEditor.classList.remove('open');
+    }
+
+    function commitEditor() {
+      if (!state.editingKey) return;
+      const ing = state.selected.get(state.editingKey);
+      if (!ing) return;
+      const qv = parseFloat(DOM.editorQty.value);
+      ing.qty = isNaN(qv) ? null : qv;
+      ing.unit = DOM.editorUnit.value || '';
+      ing.priority = DOM.editorExp.classList.contains('on');
+      renderChips();
+    }
+
+    // ============================================================
+    // RENDER — CUISINE PILLS + SERVINGS
+    // ============================================================
+    function renderCuisines() {
+      DOM.cuisineRow.innerHTML = '';
+      for (const c of CUISINES) {
+        const pill = document.createElement('button');
+        pill.className = 'pill' + (c.id === state.cuisine ? ' active' : '');
+        pill.textContent = c.label;
+        pill.addEventListener('click', () => {
+          state.cuisine = c.id;
+          renderCuisines();
+        });
+        DOM.cuisineRow.appendChild(pill);
+      }
+    }
+
+    function renderServings() {
+      DOM.srvValue.textContent = state.servings.toString();
+    }
+
+    function updateGenerateButton() {
+      DOM.generateBtn.disabled = state.selected.size < 2;
+      if (typeof updateGenerateLabel === 'function') updateGenerateLabel();
+    }
+
+    // ============================================================
+    // RENDER — RECIPE OUTPUT
+    // ============================================================
+    function renderRecipe() {
+      if (state.lastRecipes.length === 0) return;
+      const entry = state.lastRecipes[state.recipeIdx];
+      const recipe = entry.recipe;
+
+      const { scale, limiter } = computeScale(recipe, state.servings);
+      const scaledServings = Math.round(recipe.servings * scale);
+
+      // Build ingredients display
+      const ingItems = recipe.ingredients.map(ing => {
+        const scaled = scaleIngredient(ing, scale);
+        const userHas = findUserIngredient(ing.key);
+        const matchedCls = userHas ? '' : ' missing';
+        const name = (KEY_TO_ING[ing.key]?.label) || ing.key;
+        return `
+          <li class="recipe-ing${matchedCls}">
+            <span class="ing-dot"></span>
+            <span class="ing-qty">${formatQty(scaled.scaledQty, ing.unit)}</span>
+            <span class="ing-name">${name}${ing.required ? '' : ' <span style="color:var(--ink-400);font-size:0.85em;">(optional)</span>'}</span>
+          </li>
+        `;
+      }).join('');
+
+      const missing = recipe.ingredients.filter(ing => !findUserIngredient(ing.key) && ing.required);
+
+      const limiterNote = limiter ? `
+        <div class="scale-note">
+          📏 Scaled down to match your <strong>${KEY_TO_ING[limiter.ing.key]?.label || limiter.ing.key}</strong>
+          (you have ${formatQty(limiter.userHas.qty, limiter.userHas.unit)}).
+          Recipe now serves <strong>${scaledServings}</strong>.
+        </div>
+      ` : '';
+
+      const missingBox = missing.length ? `
+        <div class="missing-box">
+          <strong>You'll need to grab:</strong>
+          ${missing.map(m => KEY_TO_ING[m.key]?.label || m.key).join(', ')}.
+        </div>
+      ` : '';
+
+      // Alternate recipe buttons
+      const alts = state.lastRecipes.slice(0, 5).map((alt, i) => {
+        const isActive = i === state.recipeIdx;
+        return `<button class="btn-alt${isActive ? ' active' : ''}" data-idx="${i}" ${isActive ? 'style="background:var(--terra-500);color:#fff;border-color:var(--terra-500)"' : ''}>${alt.recipe.name}</button>`;
+      }).join('');
+
+      DOM.recipeContent.innerHTML = `
+        <div class="recipe-meta">
+          <span class="recipe-tag">${recipe.cuisine}</span>
+          <span class="meta-item">⏱️ ${recipe.time}</span>
+          <span class="meta-item">🍽️ serves ${scaledServings}</span>
+          <span class="meta-item">✅ uses ${entry.userMatchedCount} of your ${state.selected.size} picks</span>
+        </div>
+        <h2 class="recipe-title">${recipe.name}</h2>
+        <p class="recipe-desc">${recipe.description}</p>
+        <div class="recipe-alt">${alts}</div>
+        ${limiterNote}
+        <div class="recipe-section-title">Ingredients</div>
+        <ul class="recipe-ings">${ingItems}</ul>
+        <div class="recipe-section-title">Instructions</div>
+        <ol class="steps-list">
+          ${recipe.steps.map(s => `<li>${s}</li>`).join('')}
+        </ol>
+        ${missingBox}
+      `;
+
+      // Wire alt buttons
+      DOM.recipeContent.querySelectorAll('.btn-alt').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.recipeIdx = parseInt(btn.dataset.idx, 10);
+          renderRecipe();
+          DOM.recipeCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+
+      DOM.recipeCard.classList.add('visible');
+    }
+
+    function renderNoMatch(ranked) {
+      const n = state.selected.size;
+      // Was there at least one recipe that failed only on priority/protein?
+      const topFail = (ranked || []).find(r => r.disqualReason);
+      let reason;
+      if (topFail && topFail.disqualReason === 'priority') {
+        const names = topFail.missedPriority
+          .map(k => KEY_TO_ING[k]?.label || k).join(', ');
+        reason = `No recipe in our library uses all your ⭐ priority ingredients (${names}). Try unflagging one, adding more ingredients, or switch to AI mode below.`;
+      } else if (topFail && topFail.disqualReason === 'protein') {
+        reason = `You picked a protein, but no recipe uses it with your other ingredients. Add a starch + aromatic (rice + garlic, pasta + tomato, etc.) or try AI mode.`;
+      } else if (n < 3) {
+        reason = `You've picked ${n}. Try picking ${Math.max(1, 3 - n)} more — most recipes need at least a protein + a starch + an aromatic.`;
+      } else {
+        reason = `We couldn't find a library recipe that uses enough of your picks. Try removing a less-central ingredient, switching cuisine, or turning on AI mode.`;
+      }
+      DOM.recipeContent.innerHTML = `
+        <div class="no-match">
+          <h3>No great match yet 🍳</h3>
+          <p>${reason}</p>
+        </div>
+      `;
+      DOM.recipeCard.classList.add('visible');
+    }
+
+    // ============================================================
+    // GENERATE
+    // ============================================================
+    function doGenerate() {
+      commitEditor();
+      closeEditor();
+
+      if (state.settings.useAi) {
+        doGenerateAi();
+        return;
+      }
+
+      const ranked = rankRecipes();
+      state.lastRecipes = ranked.filter(r => isFinite(r.score));
+      state.recipeIdx = 0;
+
+      if (state.lastRecipes.length === 0) {
+        renderNoMatch(ranked);
+      } else {
+        renderRecipe();
+      }
+
+      setTimeout(() => {
+        DOM.recipeCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    }
+
+    // ============================================================
+    // CUSTOM INGREDIENT INPUT
+    // ============================================================
+    function addCustom() {
+      const text = DOM.customInput.value.trim();
+      if (!text) return;
+      DOM.customInput.value = '';
+      state.acItems = [];
+      state.acIdx = -1;
+      DOM.autocompleteList.classList.remove('open');
+
+      // Try to resolve to a known ingredient first
+      const resolved = resolveToKnown(text);
+      if (resolved) {
+        const ing = KEY_TO_ING[resolved];
+        if (!state.selected.has(ing.key)) {
+          state.selected.set(ing.key, {
+            key: ing.key, label: ing.label, emoji: ing.emoji,
+            qty: null, unit: '', priority: false, isCustom: false,
+          });
+        }
+      } else {
+        // Add as custom — use the typed text as the key
+        const key = norm(text);
+        if (!state.selected.has(key)) {
+          state.selected.set(key, {
+            key, label: text, emoji: '🥘',
+            qty: null, unit: '', priority: false, isCustom: true,
+          });
+        }
+      }
+      renderIngSections();
+      renderChips();
+      updateGenerateButton();
+    }
+
+    // ============================================================
+    // AUTOCOMPLETE — searches the full INGREDIENTS library
+    // ============================================================
+    function acScore(ing, q) {
+      const cands = [norm(ing.label), norm(ing.key), ...(ing.aliases || []).map(norm)];
+      let best = 0;
+      for (const c of cands) {
+        if (!c) continue;
+        if (c === q)             best = Math.max(best, 120);
+        else if (c.startsWith(q))best = Math.max(best, 90);
+        else if (c.includes(q))  best = Math.max(best, 60);
+      }
+      return best;
+    }
+
+    function filterAutocomplete(query) {
+      const q = norm(query);
+      if (!q) return [];
+      const results = [];
+      for (const ing of INGREDIENTS) {
+        // Skip items already shown as chips to avoid duplicates in suggestions
+        if (state.selected.has(ing.key)) continue;
+        const s = acScore(ing, q);
+        if (s > 0) results.push({ ing, score: s });
+      }
+      results.sort((a, b) => b.score - a.score);
+      return results.slice(0, 8).map(r => r.ing);
+    }
+
+    function renderAutocomplete() {
+      DOM.autocompleteList.innerHTML = '';
+      const items = state.acItems;
+      const q = DOM.customInput.value.trim();
+
+      if (items.length === 0) {
+        if (q) {
+          // Offer to add as a custom ingredient
+          const el = document.createElement('div');
+          el.className = 'autocomplete-item highlighted';
+          el.innerHTML = `<span class="ac-emoji">🥘</span><span>Add "<strong>${q}</strong>"</span><span class="ac-new">Custom</span>`;
+          el.addEventListener('click', () => addCustom());
+          DOM.autocompleteList.appendChild(el);
+          DOM.autocompleteList.classList.add('open');
+        } else {
+          DOM.autocompleteList.classList.remove('open');
+        }
+        return;
+      }
+
+      items.forEach((ing, i) => {
+        const el = document.createElement('div');
+        el.className = 'autocomplete-item' + (i === state.acIdx ? ' highlighted' : '');
+        el.innerHTML = `
+          <span class="ac-emoji">${ing.emoji}</span>
+          <span>${ing.label}</span>
+          <span class="ac-cat">${ing.cat}</span>
+        `;
+        el.addEventListener('click', () => pickFromAutocomplete(i));
+        el.addEventListener('mouseenter', () => { state.acIdx = i; updateAcHighlight(); });
+        DOM.autocompleteList.appendChild(el);
+      });
+      DOM.autocompleteList.classList.add('open');
+    }
+
+    function updateAcHighlight() {
+      const els = DOM.autocompleteList.querySelectorAll('.autocomplete-item');
+      els.forEach((el, i) => el.classList.toggle('highlighted', i === state.acIdx));
+    }
+
+    function pickFromAutocomplete(i) {
+      const ing = state.acItems[i];
+      if (!ing) return;
+      if (!state.selected.has(ing.key)) {
+        state.selected.set(ing.key, {
+          key: ing.key, label: ing.label, emoji: ing.emoji,
+          qty: null, unit: '', priority: false, isCustom: false,
+        });
+      }
+      DOM.customInput.value = '';
+      state.acItems = [];
+      state.acIdx = -1;
+      DOM.autocompleteList.classList.remove('open');
+      renderIngSections();
+      renderChips();
+      updateGenerateButton();
+    }
+
+    function onAcInput() {
+      state.acItems = filterAutocomplete(DOM.customInput.value);
+      state.acIdx = state.acItems.length ? 0 : -1;
+      renderAutocomplete();
+    }
+
+    function onAcKeydown(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.acItems.length && state.acIdx >= 0) {
+          pickFromAutocomplete(state.acIdx);
+        } else {
+          addCustom();
+        }
+      } else if (e.key === 'ArrowDown') {
+        if (state.acItems.length) {
+          e.preventDefault();
+          state.acIdx = Math.min(state.acIdx + 1, state.acItems.length - 1);
+          updateAcHighlight();
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (state.acItems.length) {
+          e.preventDefault();
+          state.acIdx = Math.max(state.acIdx - 1, 0);
+          updateAcHighlight();
+        }
+      } else if (e.key === 'Escape') {
+        DOM.autocompleteList.classList.remove('open');
+      }
+    }
+
+    // ============================================================
+    // SETTINGS — localStorage-persisted
+    // ============================================================
+    const SETTINGS_KEY = 'fridge-feast-settings-v1';
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (raw) Object.assign(state.settings, JSON.parse(raw));
+      } catch (e) { /* ignore */ }
+    }
+    function saveSettings() {
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings)); }
+      catch (e) { /* ignore */ }
+    }
+    function updateGenerateLabel() {
+      const ready = state.selected.size >= 2;
+      if (!ready) {
+        DOM.genIcon.textContent = '🍲';
+        DOM.genLabel.textContent = 'Pick some ingredients';
+        return;
+      }
+      if (state.settings.useAi) {
+        DOM.genIcon.textContent = '✨';
+        DOM.genLabel.textContent = state.settings.useWebSearch
+          ? 'Generate with AI + web search'
+          : 'Generate with AI';
+      } else {
+        DOM.genIcon.textContent = '🍲';
+        DOM.genLabel.textContent = 'Find my recipe';
+      }
+    }
+
+    // ============================================================
+    // AI RECIPE GENERATION (optional — Anthropic API)
+    // ============================================================
+    function buildRecipePrompt() {
+      const lines = [...state.selected.values()].map(i => {
+        const bits = [i.label];
+        if (i.qty && i.unit) bits.push(`(${i.qty} ${i.unit} on hand)`);
+        else if (i.qty)      bits.push(`(${i.qty} on hand)`);
+        if (i.priority)      bits.push('⭐ MUST USE');
+        return '- ' + bits.join(' ');
+      }).join('\n');
+
+      const hasQty = [...state.selected.values()].some(i => i.qty);
+      const scalingRule = hasQty
+        ? '- The user has stated quantities. Treat the most-constraining user ingredient as the limiter and scale the whole recipe to match it — do not call for more than they have of any quantified ingredient.'
+        : '- The user did not state quantities; pick sensible amounts for the target servings.';
+
+      return `You are Fridge Feast, a recipe generator that makes the best dish from a user's on-hand ingredients.
+
+USER INGREDIENTS:
+${lines}
+
+Cuisine bias: ${state.cuisine === 'any' ? 'any cuisine is fine' : state.cuisine}
+Target servings: ${state.servings}
+
+Rules:
+- Use as many of the user's listed ingredients as you reasonably can.
+- Any ingredient marked ⭐ MUST USE is required in the final recipe — do not skip it.
+- If the user has a protein, the recipe MUST feature it.
+- Keep additional shopping to a minimum — 0 to 3 extra items at most, and only common things (salt, pepper, oil are fine).
+${scalingRule}
+- Return ONE recipe, not a list of options.
+
+Respond with ONLY valid JSON in exactly this shape — no preamble, no markdown fences, no trailing text:
+{
+  "name": "Recipe Name",
+  "description": "A compelling 1-2 sentence description.",
+  "cuisine": "italian | mexican | asian | indian | mediterranean | american | french | other",
+  "servings": 4,
+  "time": "30 min",
+  "ingredients": [
+    {"name": "chicken breast", "qty": 1, "unit": "lb", "required": true, "userHas": true},
+    {"name": "soy sauce", "qty": 3, "unit": "tbsp", "required": true, "userHas": false}
+  ],
+  "steps": ["Step 1 with real technique...", "Step 2...", "..."]
+}
+
+Each ingredient object:
+- "name" (string)
+- "qty" (number or null)
+- "unit" (string like "lb", "cup", "tbsp", "piece", "clove", or "")
+- "required" (bool — is it essential to the dish?)
+- "userHas" (bool — did the user list this ingredient?)`;
+    }
+
+    async function callClaudeApi(prompt) {
+      const body = {
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      };
+      if (state.settings.useWebSearch) {
+        body.tools = [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 3,
+        }];
+      }
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': state.settings.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        let detail = await res.text();
+        try { detail = JSON.parse(detail).error?.message || detail; } catch {}
+        throw new Error(`Anthropic API ${res.status}: ${detail.slice(0, 200)}`);
+      }
+      return res.json();
+    }
+
+    function extractTextAndSources(resp) {
+      const blocks = resp.content || [];
+      const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n');
+      const sources = [];
+      for (const b of blocks) {
+        if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+          for (const r of b.content) {
+            if (r.type === 'web_search_result' && r.url) {
+              sources.push({ url: r.url, title: r.title || r.url });
+            }
+          }
+        }
+      }
+      return { text, sources };
+    }
+
+    function parseAiRecipe(text) {
+      let s = text.trim();
+      const fence = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (fence) s = fence[1];
+      const start = s.indexOf('{');
+      const end   = s.lastIndexOf('}');
+      if (start === -1 || end === -1) throw new Error('No JSON object found in response.');
+      return JSON.parse(s.slice(start, end + 1));
+    }
+
+    async function doGenerateAi() {
+      if (!state.settings.apiKey) {
+        DOM.settingsCard.classList.remove('collapsed');
+        DOM.settingsToggle.textContent = 'Hide ▴';
+        renderAiError('Paste your Claude API key in the panel above to generate with AI.');
+        return;
+      }
+      if (state.generating) return;
+      state.generating = true;
+      renderAiLoading();
+      try {
+        const prompt = buildRecipePrompt();
+        const resp   = await callClaudeApi(prompt);
+        const { text, sources } = extractTextAndSources(resp);
+        if (!text.trim()) throw new Error('The model returned no text.');
+        const recipe = parseAiRecipe(text);
+        renderAiRecipe(recipe, sources);
+      } catch (err) {
+        renderAiError(err.message || String(err));
+      } finally {
+        state.generating = false;
+      }
+    }
+
+    function renderAiLoading() {
+      const msg = state.settings.useWebSearch
+        ? 'Searching the web and composing a recipe...'
+        : 'Claude is cooking something up...';
+      DOM.recipeContent.innerHTML = `
+        <div class="recipe-loading">
+          <div class="spinner"></div>
+          <p>${msg}</p>
+        </div>
+      `;
+      DOM.recipeCard.classList.add('visible');
+      setTimeout(() => DOM.recipeCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    }
+
+    function renderAiError(msg) {
+      DOM.recipeContent.innerHTML = `
+        <div class="no-match">
+          <h3>AI generation failed</h3>
+          <p>${msg}</p>
+        </div>
+      `;
+      DOM.recipeCard.classList.add('visible');
+      setTimeout(() => DOM.recipeCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    }
+
+    function renderAiRecipe(recipe, sources) {
+      const ings = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+      const missing = ings.filter(i => !i.userHas && i.required);
+
+      const ingItems = ings.map(ing => {
+        const matchedCls = ing.userHas ? '' : ' missing';
+        const qtyDisplay = formatQty(ing.qty, ing.unit);
+        const req = ing.required ? '' : ' <span style="color:var(--ink-400);font-size:0.85em;">(optional)</span>';
+        return `
+          <li class="recipe-ing${matchedCls}">
+            <span class="ing-dot"></span>
+            <span class="ing-qty">${qtyDisplay}</span>
+            <span class="ing-name">${escapeHtml(ing.name || '')}${req}</span>
+          </li>
+        `;
+      }).join('');
+
+      const missingBox = missing.length ? `
+        <div class="missing-box">
+          <strong>You'll need to grab:</strong>
+          ${missing.map(m => escapeHtml(m.name || '')).join(', ')}.
+        </div>
+      ` : '';
+
+      const sourceBox = (sources && sources.length) ? `
+        <div class="web-sources">
+          <strong>Sources:</strong>
+          ${sources.slice(0, 5).map(s => `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join('')}
+        </div>
+      ` : '';
+
+      DOM.recipeContent.innerHTML = `
+        <div class="recipe-meta">
+          <span class="recipe-tag">${escapeHtml(recipe.cuisine || 'custom')}</span>
+          <span class="meta-item">⏱️ ${escapeHtml(recipe.time || '—')}</span>
+          <span class="meta-item">🍽️ serves ${recipe.servings || state.servings}</span>
+          <span class="meta-item ai-badge">✨ ${sources && sources.length ? 'AI + web' : 'AI-generated'}</span>
+        </div>
+        <h2 class="recipe-title">${escapeHtml(recipe.name || 'Untitled')}</h2>
+        <p class="recipe-desc">${escapeHtml(recipe.description || '')}</p>
+        <div class="recipe-section-title">Ingredients</div>
+        <ul class="recipe-ings">${ingItems}</ul>
+        <div class="recipe-section-title">Instructions</div>
+        <ol class="steps-list">
+          ${(recipe.steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+        </ol>
+        ${missingBox}
+        ${sourceBox}
+      `;
+      DOM.recipeCard.classList.add('visible');
+      setTimeout(() => DOM.recipeCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+
+    // ============================================================
+    // EVENTS + INIT
+    // ============================================================
+    DOM.customAdd.addEventListener('click', addCustom);
+    DOM.customInput.addEventListener('input', onAcInput);
+    DOM.customInput.addEventListener('keydown', onAcKeydown);
+    DOM.customInput.addEventListener('focus', () => {
+      if (DOM.customInput.value.trim()) onAcInput();
+    });
+    document.addEventListener('click', (e) => {
+      if (!DOM.autocompleteList.contains(e.target) && e.target !== DOM.customInput) {
+        DOM.autocompleteList.classList.remove('open');
+      }
+    });
+
+    DOM.editorQty.addEventListener('input', commitEditor);
+    DOM.editorUnit.addEventListener('change', commitEditor);
+    DOM.editorExp.addEventListener('click', () => {
+      DOM.editorExp.classList.toggle('on');
+      commitEditor();
+    });
+    DOM.editorClose.addEventListener('click', () => {
+      commitEditor();
+      closeEditor();
+    });
+
+    DOM.srvMinus.addEventListener('click', () => {
+      if (state.servings > 1) { state.servings--; renderServings(); }
+    });
+    DOM.srvPlus.addEventListener('click', () => {
+      if (state.servings < 12) { state.servings++; renderServings(); }
+    });
+
+    DOM.generateBtn.addEventListener('click', doGenerate);
+
+    // Settings — toggles + localStorage
+    DOM.settingsToggle.addEventListener('click', () => {
+      const collapsed = DOM.settingsCard.classList.toggle('collapsed');
+      DOM.settingsToggle.textContent = collapsed ? 'Show ▾' : 'Hide ▴';
+    });
+    DOM.aiToggle.addEventListener('change', (e) => {
+      state.settings.useAi = e.target.checked;
+      saveSettings();
+      updateGenerateLabel();
+    });
+    DOM.webToggle.addEventListener('change', (e) => {
+      state.settings.useWebSearch = e.target.checked;
+      saveSettings();
+      updateGenerateLabel();
+    });
+    DOM.apiKey.addEventListener('input', (e) => {
+      state.settings.apiKey = e.target.value.trim();
+      saveSettings();
+    });
+
+    // INIT
+    loadSettings();
+    DOM.aiToggle.checked = state.settings.useAi;
+    DOM.webToggle.checked = state.settings.useWebSearch;
+    DOM.apiKey.value = state.settings.apiKey;
+    renderIngSections();
+    renderChips();
+    renderCuisines();
+    renderServings();
+    updateGenerateButton();
+    updateGenerateLabel();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slop Shield — Options</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main class="options">
+  <header class="options-header">
+    <div class="options-title">Slop Shield</div>
+    <div class="options-subtitle">Settings</div>
+  </header>
+
+  <section class="options-section">
+    <h2>YouTube Data API v3 key</h2>
+    <p class="options-help">
+      Slop Shield uses the YouTube Data API to read channel statistics. The free tier gives 10,000 quota units
+      per day per Google Cloud project — more than enough for personal use. Create a key in the
+      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a>
+      and enable the "YouTube Data API v3". Restrict it to HTTP referrers for safety.
+    </p>
+
+    <form id="key-form" class="options-form">
+      <label for="api-key">API key</label>
+      <input type="password" id="api-key" name="apiKey" autocomplete="off" placeholder="AIza…">
+      <div class="options-actions">
+        <button type="submit" class="options-btn primary">Save</button>
+        <button type="button" id="clear-key" class="options-btn">Clear</button>
+      </div>
+      <div id="save-status" class="options-status" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <section class="options-section">
+    <h2>Cache</h2>
+    <p class="options-help">
+      Channel analyses are cached locally for 6 hours to reduce API quota usage.
+    </p>
+    <div class="options-actions">
+      <button type="button" id="clear-cache" class="options-btn">Clear cache</button>
+    </div>
+    <div id="cache-status" class="options-status" aria-live="polite"></div>
+  </section>
+
+  <section class="options-section">
+    <h2>Status of detection layers</h2>
+    <ul class="options-layers">
+      <li><strong>Channel heuristics:</strong> active (upload cadence, channel age, view:sub ratio, duration consistency, title entropy, description boilerplate).</li>
+      <li><strong>Voice / TTS:</strong> not yet implemented. Planned: AASIST-L ONNX in-browser.</li>
+      <li><strong>Transcript text:</strong> not yet implemented. Planned: Fast-DetectGPT in-browser.</li>
+      <li><strong>Face / avatar:</strong> not yet implemented. Planned: MediaPipe blink + head-pose heuristics.</li>
+    </ul>
+  </section>
+</main>
+<script src="options.js"></script>
+</body>
+</html>

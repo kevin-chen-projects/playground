@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Slop Shield",
+  "version": "0.1.0",
+  "description": "Flags AI-generated YouTube videos using layered open-source detectors. Shows per-signal breakdown, not a binary verdict.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "https://www.googleapis.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Slop Shield"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

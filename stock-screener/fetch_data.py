@@ -197,6 +197,119 @@ def filter_low_float(gainers: list[dict], max_enrich: int = 30) -> list[dict]:
     return out
 
 
+def compute_rvol(rows: list[dict]) -> None:
+    """Add rvol = today's volume / average volume. In-place."""
+    for row in rows:
+        v = row.get("volume")
+        a = row.get("avg_volume")
+        row["rvol"] = (v / a) if (v and a) else None
+
+
+def _col(df, name):
+    """Get column as fillna(0) series, or empty."""
+    if name in df.columns:
+        return df[name].fillna(0)
+    return None
+
+
+def fetch_options_summary(symbols: list[str], max_tickers: int = 20) -> list[dict]:
+    """For each symbol, summarize the nearest-expiry option chain.
+
+    Produces: call/put volume, put/call ratio, ATM IV for calls and puts,
+    IV skew, and count of strikes with volume > open interest (unusual).
+    """
+    out = []
+    for sym in symbols[:max_tickers]:
+        try:
+            t = yf.Ticker(sym)
+            expirations = t.options
+        except Exception as e:
+            print(f"  warning: options for {sym}: {e}")
+            continue
+        if not expirations:
+            continue
+        nearest = expirations[0]
+        try:
+            chain = t.option_chain(nearest)
+            calls, puts = chain.calls, chain.puts
+        except Exception as e:
+            print(f"  warning: chain for {sym}: {e}")
+            continue
+
+        if (calls is None or calls.empty) and (puts is None or puts.empty):
+            continue
+
+        c_vol = _col(calls, "volume")
+        p_vol = _col(puts, "volume")
+        c_oi = _col(calls, "openInterest")
+        p_oi = _col(puts, "openInterest")
+
+        call_volume = int(c_vol.sum()) if c_vol is not None else 0
+        put_volume = int(p_vol.sum()) if p_vol is not None else 0
+        call_oi = int(c_oi.sum()) if c_oi is not None else 0
+        put_oi = int(p_oi.sum()) if p_oi is not None else 0
+        pc_ratio = (put_volume / call_volume) if call_volume > 0 else None
+
+        # ATM IV: strike closest to current price
+        try:
+            info = t.info or {}
+            current = info.get("regularMarketPrice") or info.get("currentPrice")
+        except Exception:
+            current = None
+
+        atm_call_iv = atm_put_iv = None
+        if current:
+            if calls is not None and not calls.empty and "strike" in calls and "impliedVolatility" in calls:
+                idx = (calls["strike"] - current).abs().idxmin()
+                v = calls.loc[idx, "impliedVolatility"]
+                if pd.notna(v):
+                    atm_call_iv = float(v)
+            if puts is not None and not puts.empty and "strike" in puts and "impliedVolatility" in puts:
+                idx = (puts["strike"] - current).abs().idxmin()
+                v = puts.loc[idx, "impliedVolatility"]
+                if pd.notna(v):
+                    atm_put_iv = float(v)
+
+        # Unusual activity: volume exceeds open interest by a meaningful margin
+        unusual = 0
+        if c_vol is not None and c_oi is not None:
+            unusual += int((c_vol > c_oi + 50).sum())
+        if p_vol is not None and p_oi is not None:
+            unusual += int((p_vol > p_oi + 50).sum())
+
+        out.append({
+            "symbol": sym,
+            "price": current,
+            "expiry": nearest,
+            "call_volume": call_volume,
+            "put_volume": put_volume,
+            "put_call_ratio": pc_ratio,
+            "call_oi": call_oi,
+            "put_oi": put_oi,
+            "atm_call_iv": atm_call_iv,
+            "atm_put_iv": atm_put_iv,
+            "iv_skew": (atm_put_iv - atm_call_iv) if (atm_call_iv is not None and atm_put_iv is not None) else None,
+            "unusual_strikes": unusual,
+        })
+        time.sleep(0.15)
+    return out
+
+
+def build_options_universe(
+    gainers: list[dict], losers: list[dict], earnings: list[dict]
+) -> list[str]:
+    """Pick the tickers most likely to have interesting options flow today."""
+    syms: list[str] = []
+    seen: set[str] = set()
+    for source in (gainers[:5], losers[:5], earnings[:10]):
+        for r in source:
+            s = r.get("symbol")
+            if s and s not in seen:
+                seen.add(s)
+                syms.append(s)
+    return syms
+
+
 def main():
     print("Fetching Russell 2000 holdings (iShares IWM CSV)...")
     try:
@@ -222,6 +335,14 @@ def main():
     low_float = filter_low_float(gainers)
     print(f"  {len(low_float)} rows")
 
+    for rows in (gainers, losers, earnings, low_float):
+        compute_rvol(rows)
+
+    option_syms = build_options_universe(gainers, losers, earnings)
+    print(f"Fetching options summary for {len(option_syms)} top tickers...")
+    options = fetch_options_summary(option_syms)
+    print(f"  {len(options)} rows")
+
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "generated_at_display": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -230,6 +351,7 @@ def main():
         "losers": losers,
         "russell_earnings": earnings,
         "low_float": low_float,
+        "options": options,
     }
     DATA_PATH.write_text(json.dumps(payload, indent=2, default=str))
     print(f"Wrote {DATA_PATH}")

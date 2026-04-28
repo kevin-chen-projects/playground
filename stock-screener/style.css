@@ -133,6 +133,8 @@ td.sym a:hover {
 td.pos { color: #3fb950; }
 td.neg { color: #f85149; }
 td.muted { color: #6e7681; }
+td.hot { color: #ffa657; font-weight: 600; }
+td.warm { color: #e3b341; }
 
 tr:hover {
   background: #161b22;

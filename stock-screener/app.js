@@ -4,68 +4,87 @@ let sortKey = null;
 let sortDir = 1;
 
 const TAB_NOTES = {
-  gainers: "Yahoo Finance 'day gainers' — reflects the current session (premarket during premarket hours, intraday during market hours).",
-  losers: "Yahoo Finance 'day losers' — reflects the current session.",
+  gainers: "Yahoo Finance 'day gainers' — reflects the current session (premarket during premarket hours, intraday during market hours). RVOL = today's volume / average volume.",
+  losers: "Yahoo Finance 'day losers' — reflects the current session. RVOL = today's volume / average volume.",
   russell_earnings: "Russell 2000 constituents reporting earnings today. Includes top 2 news headlines per ticker.",
   low_float: "Gainers filtered to price $1–$20 and float under 20M — classic low-float momentum universe.",
+  options: "Nearest-expiry option chain for top movers. P/C ratio <1 is call-heavy (bullish sentiment); >1 is put-heavy (bearish). Unusual = strike count where today's volume exceeds open interest.",
 };
+
+function symCol(linkType) {
+  // linkType: "quote" or "options"
+  const suffix = linkType === "options" ? "/options" : "";
+  return {
+    key: "symbol",
+    label: "Symbol",
+    fmt: (v) => v
+      ? `<a href="https://finance.yahoo.com/quote/${encodeURIComponent(v)}${suffix}" target="_blank" rel="noopener">${v}</a>`
+      : "",
+    cls: () => "sym",
+  };
+}
 
 const COLUMNS = {
   gainers: [
-    sym(),
+    symCol("quote"),
     { key: "name", label: "Name", fmt: (v) => v || "" },
     { key: "price", label: "Price", fmt: fmtMoney },
     { key: "change_pct", label: "Change %", fmt: fmtPct, cls: clsSign },
     { key: "premarket_change_pct", label: "Pre %", fmt: fmtPct, cls: clsSign },
     { key: "volume", label: "Volume", fmt: fmtBig },
     { key: "avg_volume", label: "Avg Vol", fmt: fmtBig },
+    { key: "rvol", label: "RVOL", fmt: fmtRvol, cls: clsRvol },
     { key: "market_cap", label: "Mkt Cap", fmt: fmtBig },
   ],
   losers: [
-    sym(),
+    symCol("quote"),
     { key: "name", label: "Name", fmt: (v) => v || "" },
     { key: "price", label: "Price", fmt: fmtMoney },
     { key: "change_pct", label: "Change %", fmt: fmtPct, cls: clsSign },
     { key: "premarket_change_pct", label: "Pre %", fmt: fmtPct, cls: clsSign },
     { key: "volume", label: "Volume", fmt: fmtBig },
     { key: "avg_volume", label: "Avg Vol", fmt: fmtBig },
+    { key: "rvol", label: "RVOL", fmt: fmtRvol, cls: clsRvol },
     { key: "market_cap", label: "Mkt Cap", fmt: fmtBig },
   ],
   russell_earnings: [
-    sym(),
+    symCol("quote"),
     { key: "name", label: "Name", fmt: (v) => v || "" },
     { key: "price", label: "Price", fmt: fmtMoney },
     { key: "change_pct", label: "Change %", fmt: fmtPct, cls: clsSign },
     { key: "premarket_change_pct", label: "Pre %", fmt: fmtPct, cls: clsSign },
     { key: "volume", label: "Volume", fmt: fmtBig },
-    { key: "avg_volume", label: "Avg Vol", fmt: fmtBig },
+    { key: "rvol", label: "RVOL", fmt: fmtRvol, cls: clsRvol },
     { key: "float_shares", label: "Float", fmt: fmtBig },
     { key: "market_cap", label: "Mkt Cap", fmt: fmtBig },
     { key: "news", label: "News", fmt: fmtNews, sortable: false },
   ],
   low_float: [
-    sym(),
+    symCol("quote"),
     { key: "name", label: "Name", fmt: (v) => v || "" },
     { key: "price", label: "Price", fmt: fmtMoney },
     { key: "change_pct", label: "Change %", fmt: fmtPct, cls: clsSign },
     { key: "volume", label: "Volume", fmt: fmtBig },
-    { key: "avg_volume", label: "Avg Vol", fmt: fmtBig },
+    { key: "rvol", label: "RVOL", fmt: fmtRvol, cls: clsRvol },
     { key: "float_shares", label: "Float", fmt: fmtBig },
     { key: "market_cap", label: "Mkt Cap", fmt: fmtBig },
     { key: "sector", label: "Sector", fmt: (v) => v || "" },
   ],
+  options: [
+    symCol("options"),
+    { key: "price", label: "Stock", fmt: fmtMoney },
+    { key: "expiry", label: "Expiry", fmt: (v) => v || "" },
+    { key: "call_volume", label: "Call Vol", fmt: fmtBig },
+    { key: "put_volume", label: "Put Vol", fmt: fmtBig },
+    { key: "put_call_ratio", label: "P/C", fmt: fmtRatio2, cls: clsPCR },
+    { key: "call_oi", label: "Call OI", fmt: fmtBig },
+    { key: "put_oi", label: "Put OI", fmt: fmtBig },
+    { key: "atm_call_iv", label: "ATM Call IV", fmt: fmtIv },
+    { key: "atm_put_iv", label: "ATM Put IV", fmt: fmtIv },
+    { key: "iv_skew", label: "IV Skew", fmt: fmtIv, cls: clsSign },
+    { key: "unusual_strikes", label: "Unusual", fmt: fmtInt, cls: clsUnusual },
+  ],
 };
-
-function sym() {
-  return {
-    key: "symbol",
-    label: "Symbol",
-    fmt: (v) => v
-      ? `<a href="https://finance.yahoo.com/quote/${encodeURIComponent(v)}" target="_blank" rel="noopener">${v}</a>`
-      : "",
-    cls: () => "sym",
-  };
-}
 
 function fmtMoney(v) {
   if (v == null) return '<span class="muted">—</span>';
@@ -91,6 +110,50 @@ function fmtBig(v) {
   if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
   if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
   return String(n);
+}
+
+function fmtInt(v) {
+  if (v == null) return '<span class="muted">—</span>';
+  return String(Math.round(Number(v)));
+}
+
+function fmtRvol(v) {
+  if (v == null) return '<span class="muted">—</span>';
+  return Number(v).toFixed(2) + "×";
+}
+
+function clsRvol(v) {
+  if (v == null) return "muted";
+  const n = Number(v);
+  if (n >= 3) return "hot";
+  if (n >= 1.5) return "warm";
+  return "";
+}
+
+function fmtRatio2(v) {
+  if (v == null) return '<span class="muted">—</span>';
+  return Number(v).toFixed(2);
+}
+
+function clsPCR(v) {
+  // <0.7 = call-heavy (bullish) green; >1.3 = put-heavy (bearish) red
+  if (v == null) return "muted";
+  const n = Number(v);
+  if (n < 0.7) return "pos";
+  if (n > 1.3) return "neg";
+  return "";
+}
+
+function fmtIv(v) {
+  if (v == null) return '<span class="muted">—</span>';
+  const n = Number(v);
+  // Skew is sometimes a diff; keep sign for context.
+  return (n * 100).toFixed(1) + "%";
+}
+
+function clsUnusual(v) {
+  if (v == null || Number(v) === 0) return "muted";
+  return Number(v) >= 5 ? "hot" : "warm";
 }
 
 function fmtNews(items) {

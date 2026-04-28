@@ -764,7 +764,198 @@
       .topic-grid { grid-template-columns: 1fr; }
       .results-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
       .result-stat .n { font-size: 22px; }
+      .ld-house { font-size: 40px !important; }
+      .walk-input { width: 120px; font-size: 22px; }
     }
+
+    /* ============================================================
+       LONG DIVISION HOUSE
+       ============================================================ */
+    .ld-house {
+      display: inline-flex;
+      align-items: flex-end;
+      font: 900 clamp(40px, 8vw, 60px) 'Courier New', 'Menlo', monospace;
+      letter-spacing: 0.2em;
+      color: var(--ink-900);
+      margin: 8px 0;
+      user-select: none;
+      line-height: 1;
+    }
+    .ld-house .ld-divisor { padding: 0 8px 5px 0; }
+    .ld-house .ld-dividend {
+      border-top: 4px solid var(--ink-900);
+      border-left: 4px solid var(--ink-900);
+      border-top-left-radius: 18px;
+      padding: 12px 16px 5px 18px;
+    }
+    /* hide empty problem question so the house can stand on its own */
+    .problem-q:empty { display: none; margin: 0; }
+
+    /* ============================================================
+       WRONG-ANSWER FEEDBACK ACTIONS
+       ============================================================ */
+    .fb-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .fb-btn {
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      border: 2px solid var(--violet-200);
+      background: var(--paper);
+      color: var(--violet-600);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s;
+      font-family: inherit;
+    }
+    .fb-btn:hover { background: var(--violet-50); transform: translateY(-1px); }
+    .fb-btn.primary {
+      background: var(--violet-500);
+      color: white;
+      border-color: var(--violet-500);
+    }
+    .fb-btn.primary:hover { background: var(--violet-600); }
+
+    /* ============================================================
+       INTERACTIVE WALKTHROUGH (step-by-step after wrong answer)
+       ============================================================ */
+    .walkthrough {
+      background: var(--paper);
+      border: 2px solid var(--violet-200);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-top: 20px;
+      text-align: left;
+      animation: fade-in 0.3s ease;
+    }
+    .walk-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--violet-100);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .walk-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--violet-700);
+      margin: 0;
+    }
+    .walk-title::before { content: '🧭 '; }
+    .walk-progress {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--violet-600);
+      background: var(--violet-50);
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+    .walk-body { min-height: 60px; }
+    .walk-step-text {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--ink-900);
+      margin: 0 0 14px;
+    }
+    .walk-step-text strong { color: var(--violet-600); }
+    .walk-visual {
+      margin: 12px 0;
+      text-align: center;
+    }
+    .walk-question {
+      background: var(--violet-50);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      margin: 14px 0 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .walk-prompt {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink-700);
+      text-align: center;
+    }
+    .walk-prompt strong { color: var(--violet-600); }
+    .walk-input-row { display: flex; gap: 8px; align-items: center; }
+    .walk-input {
+      width: 140px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 800;
+      padding: 10px 12px;
+      border: 3px solid var(--ink-100);
+      border-radius: var(--radius-sm);
+      outline: none;
+      background: var(--paper);
+      color: var(--ink-900);
+      transition: border-color 0.18s, background 0.18s;
+      font-family: var(--font-body);
+    }
+    .walk-input:focus { border-color: var(--violet-400); }
+    .walk-input.ok { border-color: var(--teal-400); background: #ebfaf6; }
+    .walk-input.bad { border-color: var(--coral-400); background: #fff0f0; }
+    .walk-check {
+      background: var(--violet-500);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      transition: background 0.15s;
+      font-family: inherit;
+    }
+    .walk-check:hover { background: var(--violet-600); }
+    .walk-check:disabled { opacity: 0.5; cursor: not-allowed; }
+    .walk-feedback {
+      font-size: 13px;
+      font-weight: 700;
+      min-height: 18px;
+      text-align: center;
+    }
+    .walk-feedback.ok { color: var(--teal-500); }
+    .walk-feedback.bad { color: var(--coral-500); }
+    .walk-reveal {
+      background: none;
+      color: var(--violet-500);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: underline;
+      padding: 2px 6px;
+      font-family: inherit;
+    }
+    .walk-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .walk-btn {
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      transition: transform 0.15s, background 0.15s;
+      font-family: inherit;
+    }
+    .walk-btn.primary { background: var(--violet-500); color: white; }
+    .walk-btn.primary:hover { background: var(--violet-600); transform: translateY(-1px); }
+    .walk-btn.ghost { background: var(--violet-100); color: var(--violet-600); }
+    .walk-btn.ghost:hover { background: var(--violet-200); }
+    .walk-btn.finish { background: var(--teal-400); color: white; }
+    .walk-btn.finish:hover { background: var(--teal-500); transform: translateY(-1px); }
   </style>
 </head>
 <body>
@@ -944,8 +1135,342 @@
       return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${parts}</svg>`;
     };
 
+    // Long-division "house" format: divisor on the left, dividend under the overline.
+    const longDivHouse = (dividend, divisor) =>
+      `<div class="ld-house">
+        <span class="ld-divisor">${divisor}</span>
+        <span class="ld-dividend">${dividend}</span>
+      </div>`;
+
     // ============================================================
-    // CURRICULUM
+    // WALKTHROUGH FACTORIES
+    // Each returns an array of step objects. Each step is:
+    //   { text: 'HTML', visual?: 'HTML', question?: { prompt, answer, type } }
+    // 'question' type: 'int' | 'fraction' | 'text' — reuses the main answer checker.
+    // ============================================================
+    const PLACES = ['ones', 'tens', 'hundreds', 'thousands', 'ten-thousands', 'hundred-thousands'];
+    const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    // Narrative step (no question).
+    const note = (text, visual) => visual ? { text, visual } : { text };
+    // Interactive step.
+    const ask = (text, prompt, answer, type) => ({ text, question: { prompt, answer: String(answer), type: type || 'int' } });
+
+    // Column addition walkthrough — handles carrying.
+    function walkAddCols(a, b) {
+      const steps = [note(`Let's add <strong>${a} + ${b}</strong>. Stack the numbers so the ones digits line up, then add <strong>right to left</strong>, one column at a time.`)];
+      const maxLen = Math.max(String(a).length, String(b).length);
+      const pa = String(a).padStart(maxLen, '0');
+      const pb = String(b).padStart(maxLen, '0');
+      let carry = 0;
+      for (let i = 0; i < maxLen; i++) {
+        const idx = maxLen - 1 - i;
+        const dA = +pa[idx], dB = +pb[idx];
+        const colName = PLACES[i] || 'next';
+        const sum = dA + dB + carry;
+        const digit = sum % 10;
+        const newCarry = Math.floor(sum / 10);
+        const carryBit = carry > 0 ? ` + <strong>${carry}</strong> (carried)` : '';
+        steps.push(ask(
+          `<strong>${cap(colName)} column:</strong> ${dA} + ${dB}${carryBit}?`,
+          `${dA} + ${dB}${carry > 0 ? ` + ${carry}` : ''} =`, sum
+        ));
+        if (newCarry > 0) {
+          steps.push(note(`That's ${sum} — 10 or more! Write <strong>${digit}</strong> in the ${colName} place, and <strong>carry ${newCarry}</strong> into the next column.`));
+        }
+        carry = newCarry;
+      }
+      if (carry > 0) steps.push(note(`Don't forget the last <strong>${carry}</strong> — write it in the next column up.`));
+      steps.push(note(`🎉 Put it together: <strong>${a} + ${b} = ${a + b}</strong>.`));
+      return steps;
+    }
+
+    // Column subtraction walkthrough — handles borrowing (across zeros too).
+    function walkSubCols(a, b) {
+      const steps = [note(`Let's subtract <strong>${a} − ${b}</strong>. Stack with ones digits lined up, then work <strong>right to left</strong>.`)];
+      const maxLen = String(a).length;
+      const pb = String(b).padStart(maxLen, '0');
+      const digs = String(a).split('').map(Number);
+      const bDigs = pb.split('').map(Number);
+      for (let i = 0; i < maxLen; i++) {
+        const idx = maxLen - 1 - i;
+        const colName = PLACES[i] || 'next';
+        let top = digs[idx];
+        const bot = bDigs[idx];
+        if (top < bot) {
+          let borrowIdx = idx - 1;
+          while (borrowIdx >= 0 && digs[borrowIdx] === 0) borrowIdx--;
+          steps.push(note(`<strong>${cap(colName)} column:</strong> ${top} − ${bot}? We can't — ${top} is smaller than ${bot}. <strong>Borrow 1</strong> from the left, turning the ${top} into <strong>${top + 10}</strong>.`));
+          if (borrowIdx >= 0) digs[borrowIdx]--;
+          for (let j = borrowIdx + 1; j < idx; j++) digs[j] = 9;
+          digs[idx] += 10;
+          top = digs[idx];
+          steps.push(ask(`Now subtract: ${top} − ${bot} = ?`, `${top} − ${bot} =`, top - bot));
+        } else {
+          steps.push(ask(`<strong>${cap(colName)} column:</strong> ${top} − ${bot} = ?`, `${top} − ${bot} =`, top - bot));
+        }
+      }
+      steps.push(note(`🎉 Stack the column answers: <strong>${a} − ${b} = ${a - b}</strong>.`));
+      return steps;
+    }
+
+    // Partial-products multiplication walkthrough (a × b).
+    function walkMultPartial(a, b) {
+      const steps = [];
+      const aStr = String(a), bStr = String(b);
+      const useB = bStr.length >= aStr.length && bStr.length > 1;
+      const [outer, inner] = useB ? [a, b] : [b, a];
+      const outerStr = String(outer);
+      steps.push(note(`Let's multiply <strong>${a} × ${b}</strong>. Break <strong>${outer}</strong> into place-value pieces, multiply each by <strong>${inner}</strong>, then add.`));
+      const parts = [];
+      for (let i = 0; i < outerStr.length; i++) {
+        const d = +outerStr[i];
+        if (d === 0) continue;
+        const chunk = d * Math.pow(10, outerStr.length - 1 - i);
+        const piece = chunk * inner;
+        parts.push(piece);
+        steps.push(ask(`What is <strong>${chunk} × ${inner}</strong>?`, `${chunk} × ${inner} =`, piece));
+      }
+      if (parts.length > 1) {
+        steps.push(ask(`Now add the pieces: ${parts.join(' + ')} = ?`, `${parts.join(' + ')} =`, a * b));
+      }
+      steps.push(note(`🎉 So <strong>${a} × ${b} = ${a * b}</strong>.`));
+      return steps;
+    }
+
+    // Basic times-table walkthrough.
+    function walkTimesFact(a, b) {
+      const ans = a * b;
+      const steps = [note(`<strong>${a} × ${b}</strong> means <strong>${a}</strong> groups of <strong>${b}</strong> — or skip-count by ${b}, ${a} times.`)];
+      if (a <= 6) {
+        const chain = Array(a).fill(b).join(' + ');
+        steps.push(ask(`Add ${b} up ${a} times: ${chain} = ?`, `${chain} =`, ans));
+      } else if (b <= 6) {
+        const chain = Array(b).fill(a).join(' + ');
+        steps.push(ask(`Or ${b} groups of ${a}: ${chain} = ?`, `${chain} =`, ans));
+      } else {
+        steps.push(ask(`What is ${a} × ${b}?`, `${a} × ${b} =`, ans));
+      }
+      steps.push(note(`🎉 <strong>${a} × ${b} = ${ans}</strong>. Memorizing this one saves time later!`));
+      return steps;
+    }
+
+    // Basic division walkthrough — find the factor.
+    function walkDivSimple(dividend, divisor) {
+      const q = dividend / divisor;
+      return [
+        note(`<strong>${dividend} ÷ ${divisor}</strong> asks: how many groups of ${divisor} make ${dividend}?`),
+        note(`Flip it: ask <strong>${divisor} × ? = ${dividend}</strong>.`),
+        ask(`${divisor} times what gives ${dividend}?`, `${divisor} × ? = ${dividend}`, q),
+        note(`🎉 So <strong>${dividend} ÷ ${divisor} = ${q}</strong>.`)
+      ];
+    }
+
+    // Long-division walkthrough (DMSB — Divide, Multiply, Subtract, Bring down).
+    function walkLongDiv(dividend, divisor) {
+      const dStr = String(dividend);
+      const steps = [note(
+        `Let's divide <strong>${dividend} ÷ ${divisor}</strong> in the house. Repeat four steps: <strong>Divide · Multiply · Subtract · Bring Down</strong>.`,
+        longDivHouse(dividend, divisor)
+      )];
+      let acc = 0, started = false;
+      for (let i = 0; i < dStr.length; i++) {
+        const d = +dStr[i];
+        acc = acc * 10 + d;
+        const isLast = (i === dStr.length - 1);
+        if (acc < divisor) {
+          if (started) {
+            steps.push(ask(
+              `${divisor} doesn't fit into ${acc}. Write a <strong>0</strong> in the quotient, then bring down the next digit.`,
+              `${divisor} goes into ${acc}:`, 0
+            ));
+          }
+          if (!isLast) continue;
+        }
+        if (acc >= divisor) {
+          started = true;
+          const qd = Math.floor(acc / divisor);
+          const prod = qd * divisor;
+          const rem = acc - prod;
+          steps.push(ask(`<strong>Divide:</strong> how many ${divisor}s fit into <strong>${acc}</strong>?`, `${divisor} goes into ${acc}:`, qd));
+          steps.push(ask(`<strong>Multiply:</strong> ${qd} × ${divisor} = ?`, `${qd} × ${divisor} =`, prod));
+          steps.push(ask(`<strong>Subtract:</strong> ${acc} − ${prod} = ?`, `${acc} − ${prod} =`, rem));
+          if (!isLast) {
+            const nd = +dStr[i + 1];
+            steps.push(note(`<strong>Bring down:</strong> bring down the <strong>${nd}</strong> next to the ${rem} to get <strong>${rem * 10 + nd}</strong>.`));
+          }
+          acc = rem;
+        }
+      }
+      const q = Math.floor(dividend / divisor);
+      const r = dividend - q * divisor;
+      const ans = r === 0 ? `<strong>${q}</strong>` : `<strong>${q} remainder ${r}</strong>`;
+      steps.push(note(`🎉 Nothing left to bring down. The answer is ${ans}.`));
+      return steps;
+    }
+
+    // Fraction add/subtract, same denominator.
+    function walkFracSame(n1, n2, d, op) {
+      const result = op === '+' ? n1 + n2 : n1 - n2;
+      const [sn, sd] = simplify(result, d);
+      const sign = op === '+' ? '+' : '−';
+      const steps = [
+        note(`Both fractions have the same bottom (<strong>${d}</strong>). Just ${op === '+' ? 'add' : 'subtract'} the tops — keep the bottom the same.`),
+        ask(`Tops: ${n1} ${sign} ${n2} = ?`, `${n1} ${sign} ${n2} =`, result),
+        note(`Keep the bottom: <strong>${result}/${d}</strong>.`)
+      ];
+      if (sn !== result || sd !== d) {
+        const g = gcd(Math.abs(result), d) || 1;
+        steps.push(note(`Simplify by dividing top and bottom by <strong>${g}</strong>. 🎉 Final answer: <strong>${sn}/${sd}</strong>.`));
+      } else {
+        steps.push(note(`🎉 Already in simplest form: <strong>${result}/${d}</strong>.`));
+      }
+      return steps;
+    }
+
+    // Fraction add/subtract, unlike denominators.
+    function walkFracUnlike(n1, d1, n2, d2, op) {
+      const sign = op === '+' ? '+' : '−';
+      const commonD = d1 * d2;
+      const new1 = n1 * d2;
+      const new2 = n2 * d1;
+      const resultNum = op === '+' ? new1 + new2 : new1 - new2;
+      const result = Math.abs(resultNum);
+      const [sn, sd] = simplify(result, commonD);
+      const steps = [
+        note(`To ${op === '+' ? 'add' : 'subtract'} with <strong>different</strong> bottoms, first give them the <strong>same</strong> bottom.`),
+        ask(`A common bottom is ${d1} × ${d2}. What is ${d1} × ${d2}?`, `${d1} × ${d2} =`, commonD),
+        ask(`Rewrite <strong>${n1}/${d1}</strong> with bottom ${commonD} — multiply top and bottom by ${d2}. ${n1} × ${d2} = ?`, `${n1} × ${d2} =`, new1),
+        ask(`Rewrite <strong>${n2}/${d2}</strong> with bottom ${commonD} — multiply top and bottom by ${d1}. ${n2} × ${d1} = ?`, `${n2} × ${d1} =`, new2),
+        note(`Now the fractions have the same bottom: ${new1}/${commonD} ${sign} ${new2}/${commonD}.`),
+        ask(`Combine the tops: ${new1} ${sign} ${new2} = ?`, `${new1} ${sign} ${new2} =`, resultNum)
+      ];
+      steps.push(note(`So far: <strong>${resultNum}/${commonD}</strong>.`));
+      if (sn !== result || sd !== commonD) {
+        const g = gcd(result, commonD) || 1;
+        steps.push(note(`Simplify by dividing top and bottom by <strong>${g}</strong>. 🎉 Final: <strong>${sn}/${sd}</strong>.`));
+      } else {
+        steps.push(note(`🎉 Already simplified: <strong>${result}/${commonD}</strong>.`));
+      }
+      return steps;
+    }
+
+    // Fraction × fraction.
+    function walkFracMult(n1, d1, n2, d2) {
+      const num = n1 * n2;
+      const den = d1 * d2;
+      const [sn, sd] = simplify(num, den);
+      const steps = [
+        note(`To multiply fractions: multiply the <strong>tops</strong>, multiply the <strong>bottoms</strong>, then simplify.`),
+        ask(`Tops: ${n1} × ${n2} = ?`, `${n1} × ${n2} =`, num),
+        ask(`Bottoms: ${d1} × ${d2} = ?`, `${d1} × ${d2} =`, den),
+        note(`That gives <strong>${num}/${den}</strong>.`)
+      ];
+      if (sn !== num || sd !== den) {
+        const g = gcd(num, den) || 1;
+        steps.push(note(`Simplify by dividing top and bottom by <strong>${g}</strong>. 🎉 Final: <strong>${sn}/${sd}</strong>.`));
+      } else {
+        steps.push(note(`🎉 Already simplified: <strong>${num}/${den}</strong>.`));
+      }
+      return steps;
+    }
+
+    // Fraction × whole number.
+    function walkFracTimesWhole(w, n, d) {
+      const num = w * n;
+      const [sn, sd] = simplify(num, d);
+      const steps = [
+        note(`<strong>${w} × ${n}/${d}</strong> means ${w} copies of ${n}/${d}. Multiply the whole number by the top. Keep the bottom.`),
+        ask(`Top: ${w} × ${n} = ?`, `${w} × ${n} =`, num),
+        note(`Bottom stays ${d}. That gives <strong>${num}/${d}</strong>.`)
+      ];
+      if (sn !== num || sd !== d) {
+        const g = gcd(num, d) || 1;
+        steps.push(note(`Simplify by ${g}. 🎉 Final: <strong>${sd === 1 ? sn : sn + '/' + sd}</strong>.`));
+      } else {
+        steps.push(note(`🎉 <strong>${num}/${d}</strong>.`));
+      }
+      return steps;
+    }
+
+    // Simplify a fraction.
+    function walkSimplify(n, d) {
+      const g = gcd(n, d) || 1;
+      const sn = n / g, sd = d / g;
+      if (g === 1) return [note(`<strong>${n}/${d}</strong> is already in simplest form — the top and bottom share no common factor greater than 1.`)];
+      return [
+        note(`To simplify <strong>${n}/${d}</strong>, find the greatest common factor (GCF) of the top and bottom.`),
+        ask(`What's the greatest number that divides both ${n} and ${d}?`, `GCF of ${n} and ${d} =`, g),
+        ask(`Divide the top by ${g}: ${n} ÷ ${g} = ?`, `${n} ÷ ${g} =`, sn),
+        ask(`Divide the bottom by ${g}: ${d} ÷ ${g} = ?`, `${d} ÷ ${g} =`, sd),
+        note(`🎉 Simplest form: <strong>${sn}/${sd}</strong>.`)
+      ];
+    }
+
+    // Decimal operations.
+    function walkDecAdd(a, b) {
+      const r = Math.round((a + b) * 100) / 100;
+      return [
+        note(`To add decimals, <strong>line up the decimal points</strong>, then add column by column like whole numbers.`),
+        ask(`${a} + ${b} = ?`, `${a} + ${b} =`, fmtDec(r), 'decimal'),
+        note(`🎉 Answer: <strong>${fmtDec(r)}</strong>.`)
+      ];
+    }
+    function walkDecSub(a, b) {
+      const r = Math.round((a - b) * 100) / 100;
+      return [
+        note(`Subtract decimals the same way you add them — <strong>line up the dots</strong>, then subtract column by column.`),
+        ask(`${a} − ${b} = ?`, `${a} − ${b} =`, fmtDec(r), 'decimal'),
+        note(`🎉 Answer: <strong>${fmtDec(r)}</strong>.`)
+      ];
+    }
+    function walkDecMult(a, b) {
+      const aStr = String(a);
+      const bStr = String(b);
+      const aDec = (aStr.split('.')[1] || '').length;
+      const bDec = (bStr.split('.')[1] || '').length;
+      const aWhole = Math.round(a * Math.pow(10, aDec));
+      const bWhole = Math.round(b * Math.pow(10, bDec));
+      const product = aWhole * bWhole;
+      const places = aDec + bDec;
+      const result = a * b;
+      return [
+        note(`To multiply decimals: ignore the dots first and multiply as whole numbers, then place the dot at the end.`),
+        ask(`Without the dot: ${aWhole} × ${bWhole} = ?`, `${aWhole} × ${bWhole} =`, product),
+        note(`Count decimal places in the originals: ${a} has ${aDec}, ${b} has ${bDec} → total <strong>${places}</strong> places.`),
+        note(`Move the dot ${places} place${places === 1 ? '' : 's'} from the right of ${product}. 🎉 Answer: <strong>${fmtDec(result)}</strong>.`)
+      ];
+    }
+    function walkDecDivByInt(a, b) {
+      const r = Math.round((a / b) * 100) / 100;
+      return [
+        note(`To divide a decimal by a whole number, do the division as usual — the decimal point in the answer sits <strong>directly above</strong> the one in the dividend.`),
+        ask(`${a} ÷ ${b} = ?`, `${a} ÷ ${b} =`, fmtDec(r), 'decimal'),
+        note(`🎉 Answer: <strong>${fmtDec(r)}</strong>.`)
+      ];
+    }
+
+    // Powers of 10.
+    function walkPower10(base, p, mul) {
+      const zeros = String(p).length - 1;
+      const dir = mul ? 'right' : 'left';
+      const result = mul ? base * p : base / p;
+      return [
+        note(`${p.toLocaleString()} has <strong>${zeros}</strong> zero${zeros === 1 ? '' : 's'}.`),
+        note(`${mul ? 'Multiplying' : 'Dividing'} by a power of 10 moves the decimal point <strong>${zeros} place${zeros === 1 ? '' : 's'} to the ${dir}</strong>.`),
+        ask(`Slide the dot: ${base} ${mul ? '×' : '÷'} ${p.toLocaleString()} = ?`, `${base} ${mul ? '×' : '÷'} ${p.toLocaleString()} =`, fmtDec(result), 'decimal'),
+        note(`🎉 Answer: <strong>${fmtDec(result)}</strong>.`)
+      ];
+    }
+
+    // Order of operations walkthrough.
+    function walkPEMDAS(expression, steps) {
+      const outSteps = [
+        note(`Remember <strong>PEMDAS</strong>: Parentheses → Exponents → Multiply & Divide (left to right) → Add & Subtract (left to right).`)
+      ];
+      for (const s of steps) outSteps.push(s);
+      return outSteps;
+    }
     // Each topic: { id, name, icon, blurb, lesson (HTML), examples: [{q,steps,a}], gen() → {display, answer, inputType, visual?, hint?} }
     // inputType: 'int' | 'fraction' | 'text' | 'decimal' | 'division'  ('division' expects "N" or "N r M")
     // ============================================================
@@ -979,7 +1504,13 @@
                 display: 'How many?',
                 visual: `<div style="font-size:34px;line-height:1.3">${repeatEmoji(emoji, n)}</div>`,
                 answer: String(n),
-                inputType: 'int'
+                inputType: 'int',
+                walkthrough: [
+                  note(`Let's count together. Point to each ${emoji} and say the next number.`,
+                    `<div style="font-size:34px;line-height:1.3">${repeatEmoji(emoji, n)}</div>`),
+                  note(`Counted all: ${Array.from({ length: n }, (_, i) => i + 1).join(', ')}.`),
+                  ask(`So how many ${emoji} are there?`, `How many?`, n)
+                ]
               };
             }
           },
@@ -1002,14 +1533,42 @@
               if (style === 1) {
                 const n = rand(10, 20);
                 const emoji = pick(['🍓','🎾','🟣','🐟','🌻']);
-                return { display: 'How many?', visual: `<div style="font-size:28px;line-height:1.4">${repeatEmoji(emoji, n)}</div>`, answer: String(n), inputType: 'int' };
+                return {
+                  display: 'How many?',
+                  visual: `<div style="font-size:28px;line-height:1.4">${repeatEmoji(emoji, n)}</div>`,
+                  answer: String(n),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`Let's count! Point to each ${emoji} one at a time. Remember — after ten, keep going: eleven, twelve, thirteen...`),
+                    note(`You should get: ${Array.from({ length: n }, (_, i) => i + 1).join(', ')}.`),
+                    ask(`How many ${emoji} in total?`, `How many?`, n)
+                  ]
+                };
               }
               if (style === 2) {
                 const n = rand(1, 19);
-                return { display: `What comes after <span style="color:var(--violet-500)">${n}</span>?`, answer: String(n + 1), inputType: 'int' };
+                return {
+                  display: `What comes after <span style="color:var(--violet-500)">${n}</span>?`,
+                  answer: String(n + 1),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`"After ${n}" means the <strong>next</strong> number when counting up.`),
+                    note(`Count: …${Math.max(n - 1, 0)}, <strong>${n}</strong>, then comes…`),
+                    ask(`What comes right after ${n}?`, `After ${n}:`, n + 1)
+                  ]
+                };
               }
               const n = rand(2, 20);
-              return { display: `What comes before <span style="color:var(--violet-500)">${n}</span>?`, answer: String(n - 1), inputType: 'int' };
+              return {
+                display: `What comes before <span style="color:var(--violet-500)">${n}</span>?`,
+                answer: String(n - 1),
+                inputType: 'int',
+                walkthrough: [
+                  note(`"Before ${n}" means the number you say <strong>just before</strong> it when counting up.`),
+                  note(`Count: …${Math.max(n - 2, 0)}, <em>then</em>, <strong>${n}</strong>. What's in between?`),
+                  ask(`What comes right before ${n}?`, `Before ${n}:`, n - 1)
+                ]
+              };
             }
           },
           {
@@ -1029,7 +1588,18 @@
             ],
             gen: () => {
               const n = rand(1, 20);
-              return { display: `Write the number:<br/><span style="color:var(--violet-500);font-size:0.85em">"${NUMBER_WORDS[n]}"</span>`, answer: String(n), inputType: 'int' };
+              return {
+                display: `Write the number:<br/><span style="color:var(--violet-500);font-size:0.85em">"${NUMBER_WORDS[n]}"</span>`,
+                answer: String(n),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Every number has a word name. Let's figure out "<strong>${NUMBER_WORDS[n]}</strong>".`),
+                  note(n <= 10
+                    ? `Count up on your fingers: ${Array.from({length: n}, (_, i) => NUMBER_WORDS[i+1]).join(', ')}. That's ${n} fingers!`
+                    : `${NUMBER_WORDS[n]} is a teen-ish number. Think: 10 + ${n - 10} = <strong>${n}</strong>.`),
+                  ask(`What number is "${NUMBER_WORDS[n]}"?`, `"${NUMBER_WORDS[n]}" =`, n)
+                ]
+              };
             }
           },
           {
@@ -1054,7 +1624,14 @@
                 display: `${a} + ${b} = ?`,
                 visual: `<div style="font-size:30px;line-height:1.4">${repeatEmoji(e, a)} <span style="color:var(--violet-500);font-weight:900">+</span> ${repeatEmoji(e, b)}</div>`,
                 answer: String(a + b),
-                inputType: 'int'
+                inputType: 'int',
+                walkthrough: [
+                  note(`Adding means <strong>putting the groups together</strong>. Count all the ${e}s.`,
+                    `<div style="font-size:30px;line-height:1.4">${repeatEmoji(e, a)} <span style="color:var(--violet-500);font-weight:900">+</span> ${repeatEmoji(e, b)}</div>`),
+                  note(`First group has <strong>${a}</strong>. Second group has <strong>${b}</strong>.`),
+                  note(`Start at ${a}, then keep counting: ${Array.from({ length: b }, (_, i) => a + i + 1).join(', ')}.`),
+                  ask(`What is ${a} + ${b}?`, `${a} + ${b} =`, a + b)
+                ]
               };
             }
           },
@@ -1080,12 +1657,27 @@
             ],
             gen: () => {
               const shape = pick(['circle','square','triangle','rectangle','star','heart','oval','diamond']);
+              const hints = {
+                circle: 'a round shape with no sides at all — just a smooth curve',
+                square: 'a shape with 4 equal sides and 4 corners',
+                triangle: 'a shape with exactly 3 straight sides',
+                rectangle: 'a shape with 4 sides — 2 long, 2 short',
+                star: 'a shape with 5 sharp points',
+                heart: 'a shape with 2 curves on top and a point on the bottom',
+                oval: 'a stretched-out circle, like an egg',
+                diamond: 'a square tipped on its corner (4 sides, 4 pointy corners)'
+              };
               return {
                 display: 'What shape is this?',
                 visual: shapeSvg(shape),
                 answer: shape,
                 inputType: 'text',
-                hint: 'Type the name, like "circle"'
+                hint: 'Type the name, like "circle"',
+                walkthrough: [
+                  note(`Look carefully at the shape.`, shapeSvg(shape)),
+                  note(`Clue: this is <strong>${hints[shape]}</strong>.`),
+                  ask(`What's the shape called?`, `Shape:`, shape, 'text')
+                ]
               };
             }
           },
@@ -1109,10 +1701,17 @@
               while (a === b) b = rand(0, 20);
               const askBigger = Math.random() < 0.5;
               const answer = askBigger ? Math.max(a, b) : Math.min(a, b);
+              const big = Math.max(a, b), small = Math.min(a, b);
               return {
                 display: `Which is <strong>${askBigger ? 'bigger' : 'smaller'}</strong>: ${a} or ${b}?`,
                 answer: String(answer),
-                inputType: 'int'
+                inputType: 'int',
+                walkthrough: [
+                  note(`When we <strong>count up</strong>, the number that comes <em>later</em> is bigger.`),
+                  note(`Between ${a} and ${b}: if we count up, <strong>${small}</strong> comes first, then later comes <strong>${big}</strong>.`),
+                  note(`So <strong>${big}</strong> is bigger and <strong>${small}</strong> is smaller.`),
+                  ask(`Which is ${askBigger ? 'bigger' : 'smaller'}: ${a} or ${b}?`, `${askBigger ? 'Bigger' : 'Smaller'}:`, answer)
+                ]
               };
             }
           }
@@ -1141,7 +1740,17 @@
             gen: () => {
               const a = rand(0, 9);
               const b = rand(0, 10 - a);
-              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+              const countUp = b > 0 ? Array.from({ length: b }, (_, i) => a + i + 1).join(', ') : `(nothing — you stay at ${a})`;
+              return {
+                display: `${a} + ${b} = ?`,
+                answer: String(a + b),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Start at <strong>${a}</strong>, then count up <strong>${b}</strong> more.`),
+                  note(`Counting up from ${a}: ${countUp}.`),
+                  ask(`What is ${a} + ${b}?`, `${a} + ${b} =`, a + b)
+                ]
+              };
             }
           },
           {
@@ -1162,7 +1771,17 @@
             gen: () => {
               const a = rand(1, 10);
               const b = rand(0, a);
-              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+              const countDown = b > 0 ? Array.from({ length: b }, (_, i) => a - i - 1).join(', ') : `(nothing — you stay at ${a})`;
+              return {
+                display: `${a} − ${b} = ?`,
+                answer: String(a - b),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Subtract means <strong>take away</strong>. Start at <strong>${a}</strong> and count back <strong>${b}</strong>.`),
+                  note(`Counting back from ${a}: ${countDown}.`),
+                  ask(`What is ${a} − ${b}?`, `${a} − ${b} =`, a - b)
+                ]
+              };
             }
           },
           {
@@ -1183,7 +1802,32 @@
             gen: () => {
               const a = rand(4, 15);
               const b = rand(4, 20 - a);
-              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+              return {
+                display: `${a} + ${b} = ?`,
+                answer: String(a + b),
+                inputType: 'int',
+                walkthrough: (() => {
+                  const sum = a + b;
+                  if (sum <= 10) {
+                    const chain = Array.from({ length: b }, (_, i) => a + i + 1).join(', ');
+                    return [
+                      note(`Start at <strong>${a}</strong> and count up <strong>${b}</strong> more.`),
+                      note(`Count: ${chain}.`),
+                      ask(`What is ${a} + ${b}?`, `${a} + ${b} =`, sum)
+                    ];
+                  }
+                  // "Make a 10" strategy
+                  const need = 10 - a;
+                  const rem = b - need;
+                  return [
+                    note(`Use the <strong>make-a-10</strong> trick. Split ${b} into two pieces so one piece gets ${a} up to 10.`),
+                    ask(`How much does ${a} need to reach 10?`, `${a} + ? = 10`, need),
+                    note(`Split ${b} into ${need} + ${rem}. First, ${a} + ${need} = 10.`),
+                    ask(`Now add what's left: 10 + ${rem} = ?`, `10 + ${rem} =`, sum),
+                    note(`🎉 So <strong>${a} + ${b} = ${sum}</strong>.`)
+                  ];
+                })()
+              };
             }
           },
           {
@@ -1203,7 +1847,32 @@
             gen: () => {
               const a = rand(10, 20);
               const b = rand(2, Math.min(a, 12));
-              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+              return {
+                display: `${a} − ${b} = ?`,
+                answer: String(a - b),
+                inputType: 'int',
+                walkthrough: (() => {
+                  const diff = a - b;
+                  if (a <= 10 || b <= a - 10) {
+                    const chain = Array.from({ length: b }, (_, i) => a - i - 1).join(', ');
+                    return [
+                      note(`Start at <strong>${a}</strong>, count back <strong>${b}</strong>.`),
+                      note(`Count back: ${chain}.`),
+                      ask(`What is ${a} − ${b}?`, `${a} − ${b} =`, diff)
+                    ];
+                  }
+                  // Go-down-to-10 strategy
+                  const toTen = a - 10;
+                  const leftover = b - toTen;
+                  return [
+                    note(`Use the <strong>go down to 10</strong> trick. Split ${b} so one piece brings ${a} down to 10.`),
+                    ask(`${a} minus what equals 10?`, `${a} − ? = 10`, toTen),
+                    note(`Split ${b} into ${toTen} + ${leftover}. First, ${a} − ${toTen} = 10.`),
+                    ask(`Now subtract what's left: 10 − ${leftover} = ?`, `10 − ${leftover} =`, diff),
+                    note(`🎉 So <strong>${a} − ${b} = ${diff}</strong>.`)
+                  ];
+                })()
+              };
             }
           },
           {
@@ -1230,7 +1899,19 @@
               const missIdx = rand(1, 3);
               const seq = [start, start + step, start + 2 * step, start + 3 * step, start + 4 * step];
               const shown = seq.map((v, i) => i === missIdx ? '?' : v).join(', ');
-              return { display: `Fill in:<br/><span style="color:var(--violet-500)">${shown}</span>`, answer: String(seq[missIdx]), inputType: 'int' };
+              const before = seq[missIdx - 1];
+              const after = seq[missIdx + 1];
+              return {
+                display: `Fill in:<br/><span style="color:var(--violet-500)">${shown}</span>`,
+                answer: String(seq[missIdx]),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Each number jumps by <strong>${step}</strong> — we're counting by ${step}s.`),
+                  note(`To find the missing number, take <strong>${before}</strong> and add <strong>${step}</strong>.`),
+                  ask(`What is ${before} + ${step}?`, `${before} + ${step} =`, seq[missIdx]),
+                  note(`Check: ${seq[missIdx]} + ${step} = ${after}. ✓ The missing number is <strong>${seq[missIdx]}</strong>.`)
+                ]
+              };
             }
           },
           {
@@ -1255,7 +1936,12 @@
               return {
                 display: `In <span style="color:var(--violet-500)">${n}</span>, how many <strong>${askTens ? 'tens' : 'ones'}</strong>?`,
                 answer: String(askTens ? tens : ones),
-                inputType: 'int'
+                inputType: 'int',
+                walkthrough: [
+                  note(`A 2-digit number is made of <strong>tens</strong> and <strong>ones</strong>. The FIRST digit tells the tens; the SECOND digit tells the ones.`),
+                  note(`<strong>${n}</strong> = <strong>${tens}</strong> tens + <strong>${ones}</strong> ones.`),
+                  ask(`How many <strong>${askTens ? 'tens' : 'ones'}</strong> does ${n} have?`, `${askTens ? 'Tens' : 'Ones'}:`, askTens ? tens : ones)
+                ]
               };
             }
           }
@@ -1286,7 +1972,12 @@
                 a = rand(10, 89);
                 b = rand(10, 89);
               } while ((a % 10) + (b % 10) >= 10 || Math.floor(a / 10) + Math.floor(b / 10) >= 10);
-              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+              return {
+                display: `${a} + ${b} = ?`,
+                answer: String(a + b),
+                inputType: 'int',
+                walkthrough: walkAddCols(a, b)
+              };
             }
           },
           {
@@ -1313,7 +2004,12 @@
                 a = rand(15, 89);
                 b = rand(15, 89);
               } while ((a % 10) + (b % 10) < 10 || a + b > 99);
-              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+              return {
+                display: `${a} + ${b} = ?`,
+                answer: String(a + b),
+                inputType: 'int',
+                walkthrough: walkAddCols(a, b)
+              };
             }
           },
           {
@@ -1336,7 +2032,12 @@
                 a = rand(20, 99);
                 b = rand(10, 98);
               } while (b > a || (a % 10) < (b % 10));
-              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+              return {
+                display: `${a} − ${b} = ?`,
+                answer: String(a - b),
+                inputType: 'int',
+                walkthrough: walkSubCols(a, b)
+              };
             }
           },
           {
@@ -1363,7 +2064,12 @@
                 a = rand(21, 99);
                 b = rand(10, a - 5);
               } while ((a % 10) >= (b % 10));
-              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+              return {
+                display: `${a} − ${b} = ?`,
+                answer: String(a - b),
+                inputType: 'int',
+                walkthrough: walkSubCols(a, b)
+              };
             }
           },
           {
@@ -1384,12 +2090,20 @@
               const h = rand(1, 12);
               const m = pick([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
               const answer = `${h}:${String(m).padStart(2, '0')}`;
+              const mPosition = m / 5; // which number the long hand points to (0-11)
               return {
                 display: 'What time is this?',
                 visual: clockSvg(h, m),
                 answer,
                 inputType: 'text',
-                hint: 'Type like 3:45'
+                hint: 'Type like 3:45',
+                walkthrough: [
+                  note(`Look at the clock. The <strong>short</strong> hand is the HOUR; the <strong>long</strong> hand is the MINUTES.`, clockSvg(h, m)),
+                  ask(`What number is the short hand pointing to (the hour)?`, `Hour:`, h),
+                  note(`Each number on the clock is <strong>5 minutes</strong>. 12 = 0 min, 1 = 5 min, 2 = 10 min, ..., ${mPosition} = ${m} min.`),
+                  ask(`The long hand points to ${mPosition === 0 ? 12 : mPosition}, so how many minutes?`, `Minutes:`, m),
+                  note(`🎉 Write it as hours:minutes → <strong>${answer}</strong>.`)
+                ]
               };
             }
           },
@@ -1414,13 +2128,38 @@
             gen: () => {
               const q = rand(0, 3), d = rand(0, 4), n = rand(0, 4), p = rand(0, 5);
               const total = q * 25 + d * 10 + n * 5 + p;
-              if (total === 0) return { display: '1 quarter = ? cents', answer: '25', inputType: 'int' };
+              if (total === 0) return {
+                display: '1 quarter = ? cents',
+                answer: '25',
+                inputType: 'int',
+                walkthrough: [
+                  note(`A quarter is worth <strong>25¢</strong>.`),
+                  ask(`How many cents is 1 quarter?`, `1 quarter =`, 25)
+                ]
+              };
               const parts = [];
               if (q) parts.push(`${q} quarter${q > 1 ? 's' : ''}`);
               if (d) parts.push(`${d} dime${d > 1 ? 's' : ''}`);
               if (n) parts.push(`${n} nickel${n > 1 ? 's' : ''}`);
               if (p) parts.push(`${p} penn${p > 1 ? 'ies' : 'y'}`);
-              return { display: `${parts.join(' + ')} = ? cents`, answer: String(total), inputType: 'int' };
+              const walk = [
+                note(`Coin values: <strong>Penny=1¢</strong>, <strong>Nickel=5¢</strong>, <strong>Dime=10¢</strong>, <strong>Quarter=25¢</strong>. Find the value of each group, then add.`)
+              ];
+              let running = 0;
+              if (q) { const v = q * 25; walk.push(ask(`${q} quarter${q > 1 ? 's' : ''} at 25¢ each. What's the value?`, `${q} × 25 =`, v)); running += v; }
+              if (d) { const v = d * 10; walk.push(ask(`${d} dime${d > 1 ? 's' : ''} at 10¢ each. What's the value?`, `${d} × 10 =`, v)); running += v; }
+              if (n) { const v = n * 5; walk.push(ask(`${n} nickel${n > 1 ? 's' : ''} at 5¢ each. What's the value?`, `${n} × 5 =`, v)); running += v; }
+              if (p) { const v = p * 1; walk.push(ask(`${p} penn${p > 1 ? 'ies' : 'y'} at 1¢ each.`, `${p} × 1 =`, v)); running += v; }
+              if ([q, d, n, p].filter(Boolean).length > 1) {
+                const bits = [];
+                if (q) bits.push(q * 25);
+                if (d) bits.push(d * 10);
+                if (n) bits.push(n * 5);
+                if (p) bits.push(p);
+                walk.push(ask(`Add all the coin values: ${bits.join(' + ')} = ?`, `${bits.join(' + ')} =`, total));
+              }
+              walk.push(note(`🎉 Total: <strong>${total}¢</strong>.`));
+              return { display: `${parts.join(' + ')} = ? cents`, answer: String(total), inputType: 'int', walkthrough: walk };
             }
           }
         ]
@@ -1446,7 +2185,12 @@
             ],
             gen: () => {
               const a = rand(2, 12), b = rand(2, 12);
-              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+              return {
+                display: `${a} × ${b} = ?`,
+                answer: String(a * b),
+                inputType: 'int',
+                walkthrough: walkTimesFact(a, b)
+              };
             }
           },
           {
@@ -1465,7 +2209,12 @@
             ],
             gen: () => {
               const b = rand(2, 10), q = rand(2, 10);
-              return { display: `${b * q} ÷ ${b} = ?`, answer: String(q), inputType: 'int' };
+              return {
+                display: `${b * q} ÷ ${b} = ?`,
+                answer: String(q),
+                inputType: 'int',
+                walkthrough: walkDivSimple(b * q, b)
+              };
             }
           },
           {
@@ -1489,7 +2238,13 @@
                 display: 'What fraction is shaded?',
                 visual: fractionBar(p, n),
                 answer: `${p}/${n}`,
-                inputType: 'fraction'
+                inputType: 'fraction',
+                walkthrough: [
+                  note(`A fraction is <strong>shaded ÷ total</strong>: the top tells shaded parts, the bottom tells total parts.`, fractionBar(p, n)),
+                  ask(`How many parts are there in all?`, `Total parts:`, n),
+                  ask(`How many of those parts are shaded?`, `Shaded parts:`, p),
+                  note(`🎉 So the fraction shaded is <strong>${p}/${n}</strong> — that's <strong>${p}</strong> on top, <strong>${n}</strong> on the bottom.`)
+                ]
               };
             }
           },
@@ -1514,7 +2269,12 @@
             gen: () => {
               const a = rand(100, 800);
               const b = rand(100, 999 - a);
-              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+              return {
+                display: `${a} + ${b} = ?`,
+                answer: String(a + b),
+                inputType: 'int',
+                walkthrough: walkAddCols(a, b)
+              };
             }
           },
           {
@@ -1539,11 +2299,37 @@
               if (to10) {
                 const n = rand(11, 199);
                 const r = Math.round(n / 10) * 10;
-                return { display: `Round <span style="color:var(--violet-500)">${n}</span> to the nearest <strong>10</strong>.`, answer: String(r), inputType: 'int' };
+                const onesD = n % 10;
+                const isUp = onesD >= 5;
+                return {
+                  display: `Round <span style="color:var(--violet-500)">${n}</span> to the nearest <strong>10</strong>.`,
+                  answer: String(r),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`To round to the nearest 10, look at the <strong>ones</strong> digit of ${n}.`),
+                    ask(`What's the ones digit of ${n}?`, `Ones digit:`, onesD),
+                    note(`Rule: <strong>0–4 rounds DOWN</strong> (keep the tens). <strong>5–9 rounds UP</strong> (add 1 to the tens).`),
+                    note(`The ones digit is <strong>${onesD}</strong>, so we round <strong>${isUp ? 'UP' : 'DOWN'}</strong>.`),
+                    ask(`${n} rounded to the nearest 10 is?`, `${n} →`, r)
+                  ]
+                };
               } else {
                 const n = rand(120, 950);
                 const r = Math.round(n / 100) * 100;
-                return { display: `Round <span style="color:var(--violet-500)">${n}</span> to the nearest <strong>100</strong>.`, answer: String(r), inputType: 'int' };
+                const tensD = Math.floor(n / 10) % 10;
+                const isUp = tensD >= 5;
+                return {
+                  display: `Round <span style="color:var(--violet-500)">${n}</span> to the nearest <strong>100</strong>.`,
+                  answer: String(r),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`To round to the nearest 100, look at the <strong>tens</strong> digit of ${n}.`),
+                    ask(`What's the tens digit of ${n}?`, `Tens digit:`, tensD),
+                    note(`Rule: <strong>0–4 rounds DOWN</strong>. <strong>5–9 rounds UP</strong>.`),
+                    note(`The tens digit is <strong>${tensD}</strong>, so round <strong>${isUp ? 'UP' : 'DOWN'}</strong> to the nearest 100.`),
+                    ask(`${n} rounded to the nearest 100 is?`, `${n} →`, r)
+                  ]
+                };
               }
             }
           },
@@ -1570,18 +2356,54 @@
               const name = pick(['Sam','Mia','Leo','Ava','Jack','Zoe','Kai','Lily']);
               if (type === 1) {
                 const a = rand(3, 8), b = rand(3, 8);
-                return { display: `${name} has ${a} bags with <strong>${b}</strong> marbles in each. How many marbles altogether?`, answer: String(a * b), inputType: 'int' };
+                return {
+                  display: `${name} has ${a} bags with <strong>${b}</strong> marbles in each. How many marbles altogether?`,
+                  answer: String(a * b),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`Clue word: "<strong>each</strong>" means <strong>multiply</strong>.`),
+                    note(`${a} bags, with ${b} marbles per bag. Find ${a} × ${b}.`),
+                    ask(`What is ${a} × ${b}?`, `${a} × ${b} =`, a * b)
+                  ]
+                };
               }
               if (type === 2) {
                 const a = rand(15, 40), b = rand(3, a - 5);
-                return { display: `${name} had <strong>${a}</strong> stickers and gave <strong>${b}</strong> to a friend. How many are left?`, answer: String(a - b), inputType: 'int' };
+                return {
+                  display: `${name} had <strong>${a}</strong> stickers and gave <strong>${b}</strong> to a friend. How many are left?`,
+                  answer: String(a - b),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`Clue: "<strong>how many left</strong>" means <strong>subtract</strong>.`),
+                    note(`${name} started with ${a} and gave away ${b}. Find ${a} − ${b}.`),
+                    ask(`What is ${a} − ${b}?`, `${a} − ${b} =`, a - b)
+                  ]
+                };
               }
               if (type === 3) {
                 const a = rand(10, 30), b = rand(10, 30);
-                return { display: `${name} read <strong>${a}</strong> pages on Monday and <strong>${b}</strong> pages on Tuesday. How many in total?`, answer: String(a + b), inputType: 'int' };
+                return {
+                  display: `${name} read <strong>${a}</strong> pages on Monday and <strong>${b}</strong> pages on Tuesday. How many in total?`,
+                  answer: String(a + b),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`Clue: "<strong>in total</strong>" means <strong>add</strong>.`),
+                    note(`Add Monday + Tuesday: ${a} + ${b}.`),
+                    ask(`What is ${a} + ${b}?`, `${a} + ${b} =`, a + b)
+                  ]
+                };
               }
               const groups = rand(3, 6), per = rand(3, 6);
-              return { display: `${name} shared <strong>${groups * per}</strong> cookies equally among <strong>${groups}</strong> friends. How many did each friend get?`, answer: String(per), inputType: 'int' };
+              return {
+                display: `${name} shared <strong>${groups * per}</strong> cookies equally among <strong>${groups}</strong> friends. How many did each friend get?`,
+                answer: String(per),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Clue: "<strong>shared equally</strong>" means <strong>divide</strong>.`),
+                  note(`Split ${groups * per} cookies into ${groups} equal groups: ${groups * per} ÷ ${groups}.`),
+                  ask(`What is ${groups * per} ÷ ${groups}?`, `${groups * per} ÷ ${groups} =`, per)
+                ]
+              };
             }
           }
         ]
@@ -1617,14 +2439,14 @@
               const type = rand(1, 3);
               if (type === 1) {
                 const a = rand(12, 99), b = rand(3, 9);
-                return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+                return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int', walkthrough: walkMultPartial(a, b) };
               }
               if (type === 2) {
                 const a = rand(100, 999), b = rand(2, 9);
-                return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+                return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int', walkthrough: walkMultPartial(a, b) };
               }
               const a = rand(11, 49), b = rand(11, 29);
-              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int', walkthrough: walkMultPartial(a, b) };
             }
           },
           {
@@ -1655,7 +2477,14 @@
               const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
               const q = Math.floor(dividend / divisor), r = dividend % divisor;
               const answer = r === 0 ? String(q) : `${q} r ${r}`;
-              return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 127, or "127 r 2" if there is a remainder.' };
+              return {
+                display: '',
+                visual: longDivHouse(dividend, divisor),
+                answer,
+                inputType: 'division',
+                hint: 'Type like 127, or "127 r 2" if there is a remainder.',
+                walkthrough: walkLongDiv(dividend, divisor)
+              };
             }
           },
           {
@@ -1683,26 +2512,70 @@
               if (type === 1) {
                 const nums = [6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 24, 25, 28, 30, 36];
                 const n = pick(nums);
-                let count = 0;
-                for (let i = 1; i <= n; i++) if (n % i === 0) count++;
-                return { display: `How many factors does <span style="color:var(--violet-500)">${n}</span> have?`, answer: String(count), inputType: 'int' };
+                const factors = [];
+                for (let i = 1; i <= n; i++) if (n % i === 0) factors.push(i);
+                return {
+                  display: `How many factors does <span style="color:var(--violet-500)">${n}</span> have?`,
+                  answer: String(factors.length),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`A <strong>factor</strong> of ${n} is any number that divides it evenly. Test 1, 2, 3, ... up to ${n}.`),
+                    note(`Factors of ${n}: <strong>${factors.join(', ')}</strong>.`),
+                    ask(`Count them — how many factors does ${n} have?`, `Count:`, factors.length)
+                  ]
+                };
               }
               if (type === 2) {
                 const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
                 const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 27, 28, 32];
                 const isPrime = Math.random() < 0.5;
                 const n = isPrime ? pick(primes) : pick(composites);
-                return { display: `Is <span style="color:var(--violet-500)">${n}</span> prime or composite?`, answer: isPrime ? 'prime' : 'composite', inputType: 'text', hint: 'Type "prime" or "composite".' };
+                const factors = [];
+                for (let i = 1; i <= n; i++) if (n % i === 0) factors.push(i);
+                return {
+                  display: `Is <span style="color:var(--violet-500)">${n}</span> prime or composite?`,
+                  answer: isPrime ? 'prime' : 'composite',
+                  inputType: 'text',
+                  hint: 'Type "prime" or "composite".',
+                  walkthrough: [
+                    note(`<strong>Prime</strong> = only 2 factors (1 and itself). <strong>Composite</strong> = more than 2 factors.`),
+                    note(`Factors of ${n}: <strong>${factors.join(', ')}</strong>. That's ${factors.length} factor${factors.length === 1 ? '' : 's'}.`),
+                    ask(`Is ${n} prime or composite?`, `${n} is:`, isPrime ? 'prime' : 'composite', 'text')
+                  ]
+                };
               }
               if (type === 3) {
                 const base = rand(2, 9);
                 const n = rand(3, 8);
-                return { display: `What is the <strong>${n}th</strong> multiple of <strong>${base}</strong>?`, answer: String(base * n), inputType: 'int' };
+                const chain = Array.from({ length: n }, (_, i) => base * (i + 1)).join(', ');
+                return {
+                  display: `What is the <strong>${n}th</strong> multiple of <strong>${base}</strong>?`,
+                  answer: String(base * n),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`The multiples of ${base} are its times table — ${base}, ${base * 2}, ${base * 3}, and so on.`),
+                    note(`Count up: ${chain}.`),
+                    ask(`So what's the ${n}th multiple of ${base}?`, `${n} × ${base} =`, base * n)
+                  ]
+                };
               }
               const base = rand(2, 9);
               const isMult = Math.random() < 0.5;
               const n = isMult ? base * rand(3, 10) : (base * rand(3, 10) + rand(1, base - 1));
-              return { display: `Is <strong>${n}</strong> a multiple of <strong>${base}</strong>?`, answer: isMult ? 'yes' : 'no', inputType: 'text', hint: 'Type "yes" or "no".' };
+              return {
+                display: `Is <strong>${n}</strong> a multiple of <strong>${base}</strong>?`,
+                answer: isMult ? 'yes' : 'no',
+                inputType: 'text',
+                hint: 'Type "yes" or "no".',
+                walkthrough: [
+                  note(`${n} is a multiple of ${base} if ${n} ÷ ${base} has no remainder.`),
+                  ask(`What is ${n} ÷ ${base}?`, `${n} ÷ ${base} = (whole part)`, Math.floor(n / base)),
+                  note(isMult
+                    ? `That division is exact — no remainder. So YES, ${n} is a multiple of ${base}.`
+                    : `There's a remainder of ${n % base}. So NO, ${n} is not a multiple of ${base}.`),
+                  ask(`Is ${n} a multiple of ${base}?`, `yes or no:`, isMult ? 'yes' : 'no', 'text')
+                ]
+              };
             }
           },
           {
@@ -1729,8 +2602,18 @@
                 const base = simplify(rand(1, 5), rand(2, 8));
                 const mult = rand(2, 6);
                 const n = base[0] * mult, d = base[1] * mult;
-                if (n === 0 || n >= d) return { display: 'Simplify <span style="color:var(--violet-500)">6/8</span>', answer: '3/4', inputType: 'fraction' };
-                return { display: `Simplify <span style="color:var(--violet-500)">${n}/${d}</span>`, answer: `${base[0]}/${base[1]}`, inputType: 'fraction' };
+                if (n === 0 || n >= d) return {
+                  display: 'Simplify <span style="color:var(--violet-500)">6/8</span>',
+                  answer: '3/4',
+                  inputType: 'fraction',
+                  walkthrough: walkSimplify(6, 8)
+                };
+                return {
+                  display: `Simplify <span style="color:var(--violet-500)">${n}/${d}</span>`,
+                  answer: `${base[0]}/${base[1]}`,
+                  inputType: 'fraction',
+                  walkthrough: walkSimplify(n, d)
+                };
               }
               const b = rand(2, 6);
               const a = rand(1, b - 1);
@@ -1738,7 +2621,14 @@
               return {
                 display: `Fill in the blank:<br/><span style="color:var(--violet-500);font-size:0.85em">${a}/${b} = ?/${b * mult}</span>`,
                 answer: String(a * mult),
-                inputType: 'int'
+                inputType: 'int',
+                walkthrough: [
+                  note(`To make the bottom change from <strong>${b}</strong> to <strong>${b * mult}</strong>, we multiplied by ${mult}.`),
+                  ask(`What is ${b} × ${mult}?`, `${b} × ${mult} =`, b * mult),
+                  note(`To keep the fraction equal, multiply the <strong>top</strong> by the same number.`),
+                  ask(`What is ${a} × ${mult}?`, `${a} × ${mult} =`, a * mult),
+                  note(`🎉 So ${a}/${b} = <strong>${a * mult}/${b * mult}</strong>.`)
+                ]
               };
             }
           },
@@ -1765,9 +2655,32 @@
               while (d2 === d1) d2 = pick(denoms);
               const n1 = rand(1, d1 - 1);
               const n2 = rand(1, d2 - 1);
-              if (n1 * d2 === n2 * d1) return { display: 'Which is bigger: 3/4 or 1/2?', answer: '3/4', inputType: 'fraction', hint: 'Type the bigger fraction.' };
-              const bigger = n1 * d2 > n2 * d1 ? `${n1}/${d1}` : `${n2}/${d2}`;
-              return { display: `Which is <strong>bigger</strong>: ${n1}/${d1} or ${n2}/${d2}?`, answer: bigger, inputType: 'fraction', hint: 'Type the bigger fraction (top and bottom).' };
+              if (n1 * d2 === n2 * d1) return {
+                display: 'Which is bigger: 3/4 or 1/2?',
+                answer: '3/4',
+                inputType: 'fraction',
+                hint: 'Type the bigger fraction.',
+                walkthrough: [
+                  note(`Cross-multiply: 3 × 2 = 6 and 1 × 4 = 4. 6 > 4, so 3/4 is bigger.`),
+                  ask(`Which is bigger: 3/4 or 1/2?`, `Bigger:`, '3/4', 'fraction')
+                ]
+              };
+              const cross1 = n1 * d2;
+              const cross2 = n2 * d1;
+              const bigger = cross1 > cross2 ? `${n1}/${d1}` : `${n2}/${d2}`;
+              return {
+                display: `Which is <strong>bigger</strong>: ${n1}/${d1} or ${n2}/${d2}?`,
+                answer: bigger,
+                inputType: 'fraction',
+                hint: 'Type the bigger fraction (top and bottom).',
+                walkthrough: [
+                  note(`Shortcut: <strong>cross-multiply</strong>. The bigger product sits next to the bigger fraction.`),
+                  ask(`Multiply across ↘: ${n1} × ${d2} = ?`, `${n1} × ${d2} =`, cross1),
+                  ask(`Multiply across ↙: ${n2} × ${d1} = ?`, `${n2} × ${d1} =`, cross2),
+                  note(`${cross1} ${cross1 > cross2 ? '>' : '<'} ${cross2}, so the bigger fraction is <strong>${bigger}</strong>.`),
+                  ask(`Which is bigger?`, `Bigger:`, bigger, 'fraction')
+                ]
+              };
             }
           },
           {
@@ -1798,7 +2711,12 @@
               }
               const n = plus ? a + b : a - b;
               const [sn, sd] = simplify(n, d);
-              return { display: `${a}/${d} ${plus ? '+' : '−'} ${b}/${d} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+              return {
+                display: `${a}/${d} ${plus ? '+' : '−'} ${b}/${d} = ?`,
+                answer: `${sn}/${sd}`,
+                inputType: 'fraction',
+                walkthrough: walkFracSame(a, b, d, plus ? '+' : '-')
+              };
             }
           },
           {
@@ -1822,7 +2740,12 @@
               const d = rand(3, 8);
               const n = rand(1, d - 1);
               const [sn, sd] = simplify(w * n, d);
-              return { display: `${w} × ${n}/${d} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+              return {
+                display: `${w} × ${n}/${d} = ?`,
+                answer: `${sn}/${sd}`,
+                inputType: 'fraction',
+                walkthrough: walkFracTimesWhole(w, n, d)
+              };
             }
           },
           {
@@ -1847,11 +2770,30 @@
               const type = rand(1, 4);
               if (type === 1) {
                 const n = rand(1, 9);
-                return { display: `Write <span style="color:var(--violet-500)">${n}/10</span> as a decimal.`, answer: fmtDec(n / 10), inputType: 'decimal' };
+                return {
+                  display: `Write <span style="color:var(--violet-500)">${n}/10</span> as a decimal.`,
+                  answer: fmtDec(n / 10),
+                  inputType: 'decimal',
+                  walkthrough: [
+                    note(`The first place after the decimal dot is <strong>tenths</strong> (the "1/10" place).`),
+                    note(`So ${n}/10 = <strong>0.${n}</strong> — ${n} in the tenths place.`),
+                    ask(`Write ${n}/10 as a decimal:`, `${n}/10 =`, fmtDec(n / 10), 'decimal')
+                  ]
+                };
               }
               if (type === 2) {
                 const n = rand(1, 99);
-                return { display: `Write <span style="color:var(--violet-500)">${n}/100</span> as a decimal.`, answer: fmtDec(n / 100), inputType: 'decimal' };
+                const nStr = String(n).padStart(2, '0');
+                return {
+                  display: `Write <span style="color:var(--violet-500)">${n}/100</span> as a decimal.`,
+                  answer: fmtDec(n / 100),
+                  inputType: 'decimal',
+                  walkthrough: [
+                    note(`The <strong>second</strong> place after the dot is <strong>hundredths</strong> (the "1/100" place).`),
+                    note(`${n}/100 = <strong>0.${nStr}</strong> — two places after the dot.`),
+                    ask(`Write ${n}/100 as a decimal:`, `${n}/100 =`, fmtDec(n / 100), 'decimal')
+                  ]
+                };
               }
               if (type === 3) {
                 const aTenths = rand(1, 9);
@@ -1860,12 +2802,28 @@
                 const b = bHundredths / 100;
                 const as = a.toFixed(1), bs = b.toFixed(2);
                 const answer = a > b ? as : bs;
-                return { display: `Which is <strong>bigger</strong>: ${as} or ${bs}?`, answer, inputType: 'decimal' };
+                const aHundredths = aTenths * 10;
+                return {
+                  display: `Which is <strong>bigger</strong>: ${as} or ${bs}?`,
+                  answer,
+                  inputType: 'decimal',
+                  walkthrough: [
+                    note(`Line up the decimal points and add a zero so both have the same number of places.`),
+                    note(`${as} = ${a.toFixed(2)} (that's ${aHundredths} hundredths). ${bs} is ${bHundredths} hundredths.`),
+                    ask(`Which is bigger: ${aHundredths} or ${bHundredths}?`, `Bigger count:`, Math.max(aHundredths, bHundredths)),
+                    ask(`Which decimal is bigger: ${as} or ${bs}?`, `Bigger:`, answer, 'decimal')
+                  ]
+                };
               }
               const aH = rand(1, 99) / 100;
               const bT = rand(1, 9) / 10;
               const r = Math.round((aH + bT) * 100) / 100;
-              return { display: `${aH.toFixed(2)} + ${bT.toFixed(1)} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+              return {
+                display: `${aH.toFixed(2)} + ${bT.toFixed(1)} = ?`,
+                answer: fmtDec(r),
+                inputType: 'decimal',
+                walkthrough: walkDecAdd(+aH.toFixed(2), +bT.toFixed(1))
+              };
             }
           },
           {
@@ -1886,10 +2844,21 @@
             gen: () => {
               const l = rand(3, 12), w = rand(2, 9);
               const askArea = Math.random() < 0.5;
+              const answer = askArea ? l * w : 2 * (l + w);
               return {
                 display: `Rectangle <strong>${l} × ${w}</strong> — find the <strong>${askArea ? 'area' : 'perimeter'}</strong>.`,
-                answer: String(askArea ? l * w : 2 * (l + w)),
-                inputType: 'int'
+                answer: String(answer),
+                inputType: 'int',
+                walkthrough: askArea ? [
+                  note(`Area of a rectangle = <strong>length × width</strong>.`),
+                  ask(`What is ${l} × ${w}?`, `${l} × ${w} =`, l * w),
+                  note(`🎉 Area = <strong>${l * w} square units</strong>.`)
+                ] : [
+                  note(`Perimeter is the distance around the outside. A rectangle has 2 lengths and 2 widths, so perimeter = <strong>2 × (length + width)</strong>.`),
+                  ask(`First, ${l} + ${w} = ?`, `${l} + ${w} =`, l + w),
+                  ask(`Now double it: 2 × ${l + w} = ?`, `2 × ${l + w} =`, 2 * (l + w)),
+                  note(`🎉 Perimeter = <strong>${2 * (l + w)} units</strong>.`)
+                ]
               };
             }
           },
@@ -1931,7 +2900,14 @@
                 const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
                 const q = Math.floor(dividend / divisor), r = dividend % divisor;
                 const answer = r === 0 ? String(q) : `${q} r ${r}`;
-                return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 23, or "23 r 5" if there is a remainder.' };
+                return {
+                  display: '',
+                  visual: longDivHouse(dividend, divisor),
+                  answer,
+                  inputType: 'division',
+                  hint: 'Type like 23, or "23 r 5" if there is a remainder.',
+                  walkthrough: walkLongDiv(dividend, divisor)
+                };
               }
               const divisor = rand(100, 499);
               const withRem = Math.random() < 0.25;
@@ -1939,7 +2915,14 @@
               const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
               const q = Math.floor(dividend / divisor), r = dividend % divisor;
               const answer = r === 0 ? String(q) : `${q} r ${r}`;
-              return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 20, or "20 r 7" if there is a remainder.' };
+              return {
+                display: '',
+                visual: longDivHouse(dividend, divisor),
+                answer,
+                inputType: 'division',
+                hint: 'Type like 20, or "20 r 7" if there is a remainder.',
+                walkthrough: walkLongDiv(dividend, divisor)
+              };
             }
           }
         ]
@@ -1971,7 +2954,12 @@
             gen: () => {
               const a = rand(100, 999);
               const b = rand(11, 49);
-              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+              return {
+                display: `${a} × ${b} = ?`,
+                answer: String(a * b),
+                inputType: 'int',
+                walkthrough: walkMultPartial(a, b)
+              };
             }
           },
           {
@@ -2004,7 +2992,14 @@
               const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
               const q = Math.floor(dividend / divisor), r = dividend % divisor;
               const answer = r === 0 ? String(q) : `${q} r ${r}`;
-              return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 28, or "28 r 5" if there is a remainder.' };
+              return {
+                display: '',
+                visual: longDivHouse(dividend, divisor),
+                answer,
+                inputType: 'division',
+                hint: 'Type like 28, or "28 r 5" if there is a remainder.',
+                walkthrough: walkLongDiv(dividend, divisor)
+              };
             }
           },
           {
@@ -2039,16 +3034,36 @@
               if (plus) {
                 const num = n1 * d2 + n2 * d1;
                 const [sn, sd] = simplify(num, commonD);
-                return { display: `${n1}/${d1} + ${n2}/${d2} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+                return {
+                  display: `${n1}/${d1} + ${n2}/${d2} = ?`,
+                  answer: `${sn}/${sd}`,
+                  inputType: 'fraction',
+                  walkthrough: walkFracUnlike(n1, d1, n2, d2, '+')
+                };
               }
               const v1 = n1 * d2, v2 = n2 * d1;
-              if (v1 === v2) return { display: '3/4 − 1/2 = ?', answer: '1/4', inputType: 'fraction' };
+              if (v1 === v2) return {
+                display: '3/4 − 1/2 = ?',
+                answer: '1/4',
+                inputType: 'fraction',
+                walkthrough: walkFracUnlike(3, 4, 1, 2, '-')
+              };
               if (v1 > v2) {
                 const [sn, sd] = simplify(v1 - v2, commonD);
-                return { display: `${n1}/${d1} − ${n2}/${d2} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+                return {
+                  display: `${n1}/${d1} − ${n2}/${d2} = ?`,
+                  answer: `${sn}/${sd}`,
+                  inputType: 'fraction',
+                  walkthrough: walkFracUnlike(n1, d1, n2, d2, '-')
+                };
               }
               const [sn, sd] = simplify(v2 - v1, commonD);
-              return { display: `${n2}/${d2} − ${n1}/${d1} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+              return {
+                display: `${n2}/${d2} − ${n1}/${d1} = ?`,
+                answer: `${sn}/${sd}`,
+                inputType: 'fraction',
+                walkthrough: walkFracUnlike(n2, d2, n1, d1, '-')
+              };
             }
           },
           {
@@ -2072,7 +3087,12 @@
               const a = rand(1, b - 1);
               const c = rand(1, d - 1);
               const [sn, sd] = simplify(a * c, b * d);
-              return { display: `${a}/${b} × ${c}/${d} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+              return {
+                display: `${a}/${b} × ${c}/${d} = ?`,
+                answer: `${sn}/${sd}`,
+                inputType: 'fraction',
+                walkthrough: walkFracMult(a, b, c, d)
+              };
             }
           },
           {
@@ -2101,11 +3121,32 @@
               if (type === 1) {
                 const d = rand(2, 6);
                 const w = rand(2, 6);
-                return { display: `1/${d} ÷ ${w} = ?`, answer: `1/${d * w}`, inputType: 'fraction' };
+                return {
+                  display: `1/${d} ÷ ${w} = ?`,
+                  answer: `1/${d * w}`,
+                  inputType: 'fraction',
+                  walkthrough: [
+                    note(`<strong>Keep, Change, Flip</strong>: keep the first (1/${d}), change ÷ to ×, flip the whole number (${w} becomes 1/${w}).`),
+                    note(`So 1/${d} ÷ ${w} = 1/${d} × 1/${w}.`),
+                    ask(`Multiply tops: 1 × 1 = ?`, `1 × 1 =`, 1),
+                    ask(`Multiply bottoms: ${d} × ${w} = ?`, `${d} × ${w} =`, d * w),
+                    note(`🎉 Answer: <strong>1/${d * w}</strong>.`)
+                  ]
+                };
               }
               const w = rand(2, 8);
               const d = rand(2, 6);
-              return { display: `${w} ÷ 1/${d} = ?`, answer: String(w * d), inputType: 'int' };
+              return {
+                display: `${w} ÷ 1/${d} = ?`,
+                answer: String(w * d),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Think: "<strong>how many ${d}ths fit in ${w}?</strong>" Each whole has ${d} of them, so ${w} wholes has ${w} × ${d}.`),
+                  note(`Keep-Change-Flip: ${w} ÷ 1/${d} = ${w} × ${d}.`),
+                  ask(`What is ${w} × ${d}?`, `${w} × ${d} =`, w * d),
+                  note(`🎉 Answer: <strong>${w * d}</strong>.`)
+                ]
+              };
             }
           },
           {
@@ -2130,23 +3171,43 @@
               if (type === 1) {
                 const a = rand(10, 99) / 100, b = rand(10, 99) / 100;
                 const r = Math.round((a + b) * 100) / 100;
-                return { display: `${a.toFixed(2)} + ${b.toFixed(2)} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+                return {
+                  display: `${a.toFixed(2)} + ${b.toFixed(2)} = ?`,
+                  answer: fmtDec(r),
+                  inputType: 'decimal',
+                  walkthrough: walkDecAdd(+a.toFixed(2), +b.toFixed(2))
+                };
               }
               if (type === 2) {
                 let a = rand(50, 99) / 10, b = rand(10, 40) / 10;
                 const r = Math.round((a - b) * 10) / 10;
-                return { display: `${a.toFixed(1)} − ${b.toFixed(1)} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+                return {
+                  display: `${a.toFixed(1)} − ${b.toFixed(1)} = ?`,
+                  answer: fmtDec(r),
+                  inputType: 'decimal',
+                  walkthrough: walkDecSub(+a.toFixed(1), +b.toFixed(1))
+                };
               }
               if (type === 3) {
                 const a = rand(11, 49) / 10, b = rand(2, 9);
                 const r = Math.round(a * b * 10) / 10;
-                return { display: `${a.toFixed(1)} × ${b} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+                return {
+                  display: `${a.toFixed(1)} × ${b} = ?`,
+                  answer: fmtDec(r),
+                  inputType: 'decimal',
+                  walkthrough: walkDecMult(+a.toFixed(1), b)
+                };
               }
               const divisor = rand(2, 6);
               let qTenths;
               do { qTenths = rand(11, 99); } while (qTenths % 10 === 0);
               const dividend = (divisor * qTenths) / 10;
-              return { display: `${dividend.toFixed(1)} ÷ ${divisor} = ?`, answer: fmtDec(qTenths / 10), inputType: 'decimal' };
+              return {
+                display: `${dividend.toFixed(1)} ÷ ${divisor} = ?`,
+                answer: fmtDec(qTenths / 10),
+                inputType: 'decimal',
+                walkthrough: walkDecDivByInt(+dividend.toFixed(1), divisor)
+              };
             }
           },
           {
@@ -2172,11 +3233,21 @@
               if (mul) {
                 const base = rand(10, 999) / 100;
                 const r = Math.round(base * p * 100) / 100;
-                return { display: `${base} × ${p.toLocaleString()} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+                return {
+                  display: `${base} × ${p.toLocaleString()} = ?`,
+                  answer: fmtDec(r),
+                  inputType: 'decimal',
+                  walkthrough: walkPower10(base, p, true)
+                };
               }
               const base = rand(10, 9999);
               const r = Math.round((base / p) * 1000) / 1000;
-              return { display: `${base.toLocaleString()} ÷ ${p.toLocaleString()} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+              return {
+                display: `${base.toLocaleString()} ÷ ${p.toLocaleString()} = ?`,
+                answer: fmtDec(r),
+                inputType: 'decimal',
+                walkthrough: walkPower10(base, p, false)
+              };
             }
           },
           {
@@ -2204,22 +3275,62 @@
               const type = rand(1, 4);
               if (type === 1) {
                 const a = rand(2, 9), b = rand(2, 6), c = rand(2, 6);
-                return { display: `${a} + ${b} × ${c} = ?`, answer: String(a + b * c), inputType: 'int' };
+                return {
+                  display: `${a} + ${b} × ${c} = ?`,
+                  answer: String(a + b * c),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`PEMDAS: do <strong>Multiplication before Addition</strong>. Handle ${b} × ${c} first.`),
+                    ask(`What is ${b} × ${c}?`, `${b} × ${c} =`, b * c),
+                    ask(`Now add: ${a} + ${b * c} = ?`, `${a} + ${b * c} =`, a + b * c),
+                    note(`🎉 ${a} + ${b} × ${c} = <strong>${a + b * c}</strong>.`)
+                  ]
+                };
               }
               if (type === 2) {
                 const b = rand(2, 5), c = rand(2, 5);
                 const a = rand(b * c + 1, b * c + 10);
-                return { display: `${a} − ${b} × ${c} = ?`, answer: String(a - b * c), inputType: 'int' };
+                return {
+                  display: `${a} − ${b} × ${c} = ?`,
+                  answer: String(a - b * c),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`PEMDAS: <strong>Multiplication before Subtraction</strong>. Handle ${b} × ${c} first.`),
+                    ask(`What is ${b} × ${c}?`, `${b} × ${c} =`, b * c),
+                    ask(`Now subtract: ${a} − ${b * c} = ?`, `${a} − ${b * c} =`, a - b * c),
+                    note(`🎉 Answer: <strong>${a - b * c}</strong>.`)
+                  ]
+                };
               }
               if (type === 3) {
                 const a = rand(2, 6), b = rand(2, 6), c = rand(2, 6);
-                return { display: `(${a} + ${b}) × ${c} = ?`, answer: String((a + b) * c), inputType: 'int' };
+                return {
+                  display: `(${a} + ${b}) × ${c} = ?`,
+                  answer: String((a + b) * c),
+                  inputType: 'int',
+                  walkthrough: [
+                    note(`PEMDAS: <strong>Parentheses first</strong>. Do ${a} + ${b} before multiplying by ${c}.`),
+                    ask(`What is ${a} + ${b}?`, `${a} + ${b} =`, a + b),
+                    ask(`Now multiply: ${a + b} × ${c} = ?`, `${a + b} × ${c} =`, (a + b) * c),
+                    note(`🎉 Answer: <strong>${(a + b) * c}</strong>.`)
+                  ]
+                };
               }
               const d = rand(2, 5);
               const quotient = rand(2, 9);
               const extra = rand(1, 4);
               const dividend = d * quotient;
-              return { display: `${dividend} ÷ (${d + extra} − ${extra}) = ?`, answer: String(quotient), inputType: 'int' };
+              return {
+                display: `${dividend} ÷ (${d + extra} − ${extra}) = ?`,
+                answer: String(quotient),
+                inputType: 'int',
+                walkthrough: [
+                  note(`PEMDAS: <strong>Parentheses first</strong>. Simplify ${d + extra} − ${extra} before dividing.`),
+                  ask(`What is ${d + extra} − ${extra}?`, `${d + extra} − ${extra} =`, d),
+                  ask(`Now divide: ${dividend} ÷ ${d} = ?`, `${dividend} ÷ ${d} =`, quotient),
+                  note(`🎉 Answer: <strong>${quotient}</strong>.`)
+                ]
+              };
             }
           },
           {
@@ -2242,10 +3353,38 @@
             ],
             gen: () => {
               const x = rand(0, 9), y = rand(0, 9);
-              const ask = rand(1, 3);
-              if (ask === 1) return { display: `For point <strong>(${x}, ${y})</strong> — what is the <strong>x</strong>-coordinate?`, answer: String(x), inputType: 'int' };
-              if (ask === 2) return { display: `For point <strong>(${x}, ${y})</strong> — what is the <strong>y</strong>-coordinate?`, answer: String(y), inputType: 'int' };
-              return { display: `A bug walks <strong>${x} right</strong> and <strong>${y} up</strong>. Write the point as (x, y).`, answer: `(${x},${y})`, inputType: 'text', hint: 'Type like (3,4).' };
+              const kind = rand(1, 3);
+              if (kind === 1) return {
+                display: `For point <strong>(${x}, ${y})</strong> — what is the <strong>x</strong>-coordinate?`,
+                answer: String(x),
+                inputType: 'int',
+                walkthrough: [
+                  note(`In <strong>(x, y)</strong>, the <strong>first</strong> number is x (how far right), and the <strong>second</strong> is y (how far up). Alphabetical: x comes before y.`),
+                  note(`For (${x}, ${y}), the first number is ${x}.`),
+                  ask(`What is the x-coordinate of (${x}, ${y})?`, `x =`, x)
+                ]
+              };
+              if (kind === 2) return {
+                display: `For point <strong>(${x}, ${y})</strong> — what is the <strong>y</strong>-coordinate?`,
+                answer: String(y),
+                inputType: 'int',
+                walkthrough: [
+                  note(`In (x, y), the <strong>second</strong> number is y — how far UP from the origin.`),
+                  note(`For (${x}, ${y}), the second number is ${y}.`),
+                  ask(`What is the y-coordinate of (${x}, ${y})?`, `y =`, y)
+                ]
+              };
+              return {
+                display: `A bug walks <strong>${x} right</strong> and <strong>${y} up</strong>. Write the point as (x, y).`,
+                answer: `(${x},${y})`,
+                inputType: 'text',
+                hint: 'Type like (3,4).',
+                walkthrough: [
+                  note(`Every point is <strong>(x, y)</strong> — x is right, y is up.`),
+                  note(`Right ${x}, up ${y}. So x = ${x}, y = ${y}.`),
+                  ask(`Write the point as (x,y):`, `Point:`, `(${x},${y})`, 'text')
+                ]
+              };
             }
           },
           {
@@ -2267,7 +3406,17 @@
             ],
             gen: () => {
               const l = rand(2, 9), w = rand(2, 9), h = rand(2, 9);
-              return { display: `Rectangular prism <strong>${l} × ${w} × ${h}</strong> — find the <strong>volume</strong>.`, answer: String(l * w * h), inputType: 'int' };
+              return {
+                display: `Rectangular prism <strong>${l} × ${w} × ${h}</strong> — find the <strong>volume</strong>.`,
+                answer: String(l * w * h),
+                inputType: 'int',
+                walkthrough: [
+                  note(`Volume of a box = <strong>length × width × height</strong>.`),
+                  ask(`First: ${l} × ${w} = ?`, `${l} × ${w} =`, l * w),
+                  ask(`Now multiply by the height: ${l * w} × ${h} = ?`, `${l * w} × ${h} =`, l * w * h),
+                  note(`🎉 Volume = <strong>${l * w * h} cubic units</strong>.`)
+                ]
+              };
             }
           }
         ]
@@ -2593,7 +3742,9 @@
       }
       showFeedback(ok, p.current.answer, p.current.inputType);
       $('practiceStreak').textContent = p.streak;
-      setTimeout(nextProblem, ok ? 950 : 1800);
+      // Auto-advance only on correct; wrong answers wait for a button press so the
+      // child can review the answer or open the walkthrough.
+      if (ok) setTimeout(nextProblem, 950);
     }
 
     function prettyAnswer(ans, inputType) {
@@ -2625,13 +3776,139 @@
         card.classList.add('pulse');
         setTimeout(() => card.classList.remove('pulse'), 550);
       } else {
-        fb.innerHTML = `<span>Not quite.</span><small>The answer is <strong>${prettyAnswer(correctAnswer, inputType)}</strong>.</small>`;
+        const walk = state.practice.current.walkthrough;
+        const hasWalk = Array.isArray(walk) && walk.length > 0;
+        fb.innerHTML = `
+          <span>Not quite.</span>
+          <small>The answer is <strong>${prettyAnswer(correctAnswer, inputType)}</strong>.</small>
+          <div class="fb-actions">
+            ${hasWalk ? `<button type="button" class="fb-btn" id="walkBtn">🧭 Show me how</button>` : ''}
+            <button type="button" class="fb-btn primary" id="nextBtn">Next problem →</button>
+          </div>
+        `;
         card.classList.add('shake');
         setTimeout(() => card.classList.remove('shake'), 450);
+        if (hasWalk) {
+          $('walkBtn').addEventListener('click', () => startWalkthrough(walk));
+        }
+        $('nextBtn').addEventListener('click', nextProblem);
       }
       // disable input/submit
       document.querySelectorAll('.answer-input').forEach(i => i.disabled = true);
       const sb = $('submitBtn'); if (sb) sb.disabled = true;
+      const skip = $('skipBtn'); if (skip) skip.style.display = 'none';
+    }
+
+    // ============================================================
+    // INTERACTIVE WALKTHROUGH (step-by-step teacher after a wrong answer)
+    // ============================================================
+    function startWalkthrough(steps) {
+      const p = state.practice;
+      p.walk = { steps, idx: 0 };
+      // Clear the wrong-answer feedback actions and inject the walkthrough UI below.
+      const fb = $('feedback');
+      fb.classList.remove('show');
+      fb.innerHTML = '';
+      let host = document.getElementById('walkHost');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'walkHost';
+        $('problemCard').appendChild(host);
+      }
+      renderWalkStep();
+      host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderWalkStep() {
+      const p = state.practice;
+      const w = p.walk;
+      if (!w) return;
+      const step = w.steps[w.idx];
+      const isLast = w.idx === w.steps.length - 1;
+      const hasQ = !!step.question;
+      const host = $('walkHost');
+      host.innerHTML = `
+        <div class="walkthrough">
+          <div class="walk-head">
+            <h3 class="walk-title">Let's work it out</h3>
+            <div class="walk-progress">Step ${w.idx + 1} of ${w.steps.length}</div>
+          </div>
+          <div class="walk-body">
+            <p class="walk-step-text">${step.text}</p>
+            ${step.visual ? `<div class="walk-visual">${step.visual}</div>` : ''}
+            ${hasQ ? `
+              <form class="walk-question" id="walkForm">
+                <div class="walk-prompt">${step.question.prompt}</div>
+                <div class="walk-input-row">
+                  <input class="walk-input" id="walkInput" type="text"
+                    inputmode="${step.question.type === 'int' ? 'numeric' : (step.question.type === 'decimal' ? 'decimal' : 'text')}"
+                    autocomplete="off" autocapitalize="off" spellcheck="false"/>
+                  <button type="submit" class="walk-check" id="walkCheckBtn">Check</button>
+                </div>
+                <div class="walk-feedback" id="walkFb"></div>
+                <button type="button" class="walk-reveal" id="walkRevealBtn">Show the answer</button>
+              </form>
+            ` : ''}
+          </div>
+          <div class="walk-actions">
+            <button type="button" class="walk-btn ghost" id="walkSkipBtn" ${isLast ? 'style="display:none"' : ''}>Skip step →</button>
+            <button type="button" class="walk-btn ${isLast ? 'finish' : 'primary'}" id="walkNextBtn">
+              ${isLast ? '✓ Got it — next problem' : 'Next step →'}
+            </button>
+          </div>
+        </div>
+      `;
+
+      if (hasQ) {
+        const input = $('walkInput');
+        const form = $('walkForm');
+        form.addEventListener('submit', (e) => { e.preventDefault(); checkWalkAnswer(); });
+        $('walkRevealBtn').addEventListener('click', () => {
+          input.value = step.question.answer;
+          input.classList.remove('bad');
+          input.classList.add('ok');
+          $('walkFb').textContent = `The answer is ${step.question.answer}.`;
+          $('walkFb').className = 'walk-feedback';
+        });
+        setTimeout(() => input.focus(), 80);
+      }
+
+      $('walkNextBtn').addEventListener('click', () => {
+        if (isLast) finishWalkthrough();
+        else { w.idx++; renderWalkStep(); }
+      });
+      const skipBtn = $('walkSkipBtn');
+      if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+          if (w.idx < w.steps.length - 1) { w.idx++; renderWalkStep(); }
+          else finishWalkthrough();
+        });
+      }
+    }
+
+    function checkWalkAnswer() {
+      const w = state.practice.walk;
+      const step = w.steps[w.idx];
+      const input = $('walkInput');
+      const fb = $('walkFb');
+      const v = (input.value || '').trim();
+      if (!v) { input.focus(); return; }
+      const ok = answersEqual(v, step.question.answer, step.question.type || 'int');
+      if (ok) {
+        input.classList.remove('bad');
+        input.classList.add('ok');
+        fb.textContent = '🎉 Nice — that’s right!';
+        fb.className = 'walk-feedback ok';
+      } else {
+        input.classList.add('bad');
+        fb.textContent = 'Not quite — try again, or tap "Show the answer".';
+        fb.className = 'walk-feedback bad';
+      }
+    }
+
+    function finishWalkthrough() {
+      state.practice.walk = null;
+      nextProblem();
     }
 
     function nextProblem() {

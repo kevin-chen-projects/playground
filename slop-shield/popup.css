@@ -1,0 +1,72 @@
+/* popup.css */
+
+body {
+  margin: 0;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  background: #121214;
+  color: #f5f5f7;
+}
+
+.popup {
+  width: 340px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.popup-header { margin-bottom: 12px; }
+.popup-title { font-size: 16px; font-weight: 700; }
+.popup-subtitle { font-size: 11px; color: rgba(245, 245, 247, 0.55); margin-top: 2px; }
+
+.popup-status {
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(245, 245, 247, 0.82);
+}
+.popup-status[data-state="error"] {
+  background: rgba(120, 40, 40, 0.25);
+  border-color: rgba(200, 80, 80, 0.35);
+}
+
+.popup-result-header { margin-bottom: 10px; }
+.popup-result-title { font-weight: 600; font-size: 14px; }
+.popup-result-subtitle { font-size: 11px; color: rgba(245, 245, 247, 0.65); margin-top: 2px; }
+
+.popup-signals { list-style: none; margin: 0; padding: 0; }
+.popup-signal { padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.popup-signal:first-child { border-top: none; }
+.popup-signal-name {
+  text-transform: capitalize;
+  font-weight: 500;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.popup-signal-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.popup-signal-bar span { display: block; height: 100%; background: #888; }
+.popup-signal[data-tier="low"]    .popup-signal-bar span { background: #3fae6a; }
+.popup-signal[data-tier="medium"] .popup-signal-bar span { background: #e2a13a; }
+.popup-signal[data-tier="high"]   .popup-signal-bar span { background: #e45858; }
+
+.popup-signal-detail { color: rgba(245, 245, 247, 0.6); font-size: 11px; }
+
+.popup-footer { margin-top: 14px; display: flex; justify-content: flex-end; }
+.popup-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.popup-btn:hover { background: rgba(255, 255, 255, 0.08); }

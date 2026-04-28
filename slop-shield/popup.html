@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slop Shield</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main class="popup">
+  <header class="popup-header">
+    <div class="popup-title">Slop Shield</div>
+    <div class="popup-subtitle">AI-content detector for YouTube</div>
+  </header>
+
+  <section id="status" class="popup-status" data-state="loading">
+    <div class="popup-status-message">Checking current tab…</div>
+  </section>
+
+  <section id="result" class="popup-result" hidden>
+    <div class="popup-result-header">
+      <div class="popup-result-title"></div>
+      <div class="popup-result-subtitle"></div>
+    </div>
+    <ul class="popup-signals"></ul>
+  </section>
+
+  <footer class="popup-footer">
+    <button id="open-options" type="button" class="popup-btn">Options &amp; API key</button>
+  </footer>
+</main>
+<script src="popup.js"></script>
+</body>
+</html>

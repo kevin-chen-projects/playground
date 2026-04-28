@@ -1,0 +1,89 @@
+/* content.css — styles for the floating Slop Shield badge. Kept specific to avoid YouTube style clashes. */
+
+.slop-shield-root {
+  position: fixed !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  z-index: 2147483000 !important;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  color: #f5f5f7 !important;
+  pointer-events: auto !important;
+}
+
+.slop-shield-pill {
+  appearance: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(24, 24, 27, 0.92) !important;
+  color: inherit !important;
+  padding: 8px 14px !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35) !important;
+  backdrop-filter: blur(8px) !important;
+  transition: transform 120ms ease, background 120ms ease !important;
+}
+.slop-shield-pill:hover { transform: translateY(-1px) !important; }
+
+.slop-shield-pill[data-state="loading"] { background: rgba(59, 59, 70, 0.92) !important; }
+.slop-shield-pill[data-state="error"]   { background: rgba(120, 40, 40, 0.92) !important; }
+.slop-shield-pill[data-state="unknown"] { background: rgba(59, 59, 70, 0.92) !important; }
+.slop-shield-pill[data-state="low"]     { background: rgba(30, 90, 55, 0.92) !important; }
+.slop-shield-pill[data-state="medium"]  { background: rgba(130, 90, 30, 0.92) !important; }
+.slop-shield-pill[data-state="high"]    { background: rgba(130, 40, 40, 0.92) !important; }
+
+.slop-shield-panel {
+  position: absolute !important;
+  right: 0 !important;
+  bottom: calc(100% + 8px) !important;
+  width: 320px !important;
+  max-height: 440px !important;
+  overflow-y: auto !important;
+  background: rgba(18, 18, 20, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  padding: 14px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+.slop-shield-panel-header { margin-bottom: 10px !important; }
+.slop-shield-panel-title { font-weight: 600 !important; font-size: 14px !important; }
+.slop-shield-panel-subtitle { color: rgba(245, 245, 247, 0.65) !important; font-size: 11px !important; margin-top: 2px !important; }
+
+.slop-shield-signals { list-style: none !important; margin: 0 !important; padding: 0 !important; }
+.slop-shield-signal { padding: 8px 0 !important; border-top: 1px solid rgba(255, 255, 255, 0.06) !important; }
+.slop-shield-signal:first-child { border-top: none !important; }
+.slop-shield-signal-name {
+  text-transform: capitalize !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  margin-bottom: 4px !important;
+}
+.slop-shield-signal-bar {
+  height: 4px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  margin-bottom: 4px !important;
+}
+.slop-shield-signal-bar span { display: block !important; height: 100% !important; background: #888 !important; }
+.slop-shield-signal[data-tier="low"]    .slop-shield-signal-bar span { background: #3fae6a !important; }
+.slop-shield-signal[data-tier="medium"] .slop-shield-signal-bar span { background: #e2a13a !important; }
+.slop-shield-signal[data-tier="high"]   .slop-shield-signal-bar span { background: #e45858 !important; }
+
+.slop-shield-signal-detail { color: rgba(245, 245, 247, 0.6) !important; font-size: 11px !important; }
+.slop-shield-signal-empty { color: rgba(245, 245, 247, 0.5) !important; font-style: italic !important; padding: 6px 0 !important; }
+
+.slop-shield-panel-footer {
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  font-size: 10px !important;
+  color: rgba(245, 245, 247, 0.45) !important;
+}
+
+.slop-shield-panel-body { color: rgba(245, 245, 247, 0.75) !important; font-size: 12px !important; }

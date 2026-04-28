@@ -1,0 +1,2765 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================
+  MATH ACE — Kumon-style math tutor for K–5 elementary
+  Sequential problem practice + lesson/examples per topic.
+
+  Views: Landing → Grade Select → Topic → Learn | Practice
+  Grades: K, 1, 2, 3, 4, 5 (6 total)
+  Topics: K/1/2/3 = 6 each; 4 = 10; 5 = 10   (44 topics total)
+
+  Curriculum alignment: California Common Core State Standards
+    for Mathematics (CA-CCSS-M). Standards codes appear in
+    topic blurbs (e.g. "4.NBT.6", "5.NF.7").
+
+  Grade 4 & 5 have extra coverage of fractions and long division,
+  including an "Advanced" long-division topic with 2- and 3-digit
+  divisors that goes beyond the standard 4th grade scope.
+
+  Deps: none. Single file. Vanilla HTML/CSS/JS.
+  No build step — open directly in any modern browser.
+
+  FILE INDEX (approximate)
+    10    <style>
+    20      :root vars (palette, radius, shadow)
+    60      reset + layout base
+    90      header / breadcrumb
+    130     landing view
+    200     grade select view
+    250     topic grid view
+    320     topic detail view (tabs)
+    380     lesson pane (explanation + examples)
+    440     practice pane (problem card, keypad, progress, feedback)
+    560     results screen + confetti
+    620     small / mobile tweaks
+    660   </style>
+    662   <body>
+    665     landing section
+    685     grade-select section
+    700     topic-grid section
+    720     topic-detail section (lesson + practice)
+    770   <script>
+    772     HELPERS (random, shuffle, gcd, simplify, fmtDec, shapes, clock, fraction bar)
+    930     CURRICULUM DATA (44 topics)
+    935       Grade K (counting, number words, picture +, shapes, compare)   — 6 topics
+    1100      Grade 1 (add/sub 10, add/sub 20, skip count, place value)       — 6 topics
+    1250      Grade 2 (2-digit +/-, regrouping, time, money)                  — 6 topics
+    1420      Grade 3 (× tables, ÷, fractions intro, 3-digit, rounding, word) — 6 topics
+    1580      Grade 4 (multi-× , long div, factors, equiv/compare frac,
+                addSubFrac, frac×whole, decimals, area, adv long div ★)      — 10 topics
+    1900      Grade 5 (3×2 mult, div 2-dig, unlike frac, mult/div frac,
+                decimal ops, powers of 10, PEMDAS, coords, volume)           — 10 topics
+    2150    STATE (view, grade, topic, practice session)
+    2170    VIEW SWITCHING (renderLanding, renderGrade, renderTopic, renderTopicDetail)
+    2260    LESSON RENDERING (lesson HTML, examples list)
+    2290    PRACTICE ENGINE
+    2290      startPractice(), renderProblem(), submitAnswer()
+    2400      nextProblem(), endSet(), showResults()
+    2450    FEEDBACK / CONFETTI / TIMER
+    2490    EVENT WIRING + INIT
+    2530  </script>
+  ============================================================
+-->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>Math Ace · Elementary Math Tutor</title>
+  <style>
+    /* ============================================================
+       VARIABLES
+       ============================================================ */
+    :root {
+      --violet-50:  #f5f1ff;
+      --violet-100: #ebe3ff;
+      --violet-200: #d7c7ff;
+      --violet-300: #b89bff;
+      --violet-400: #9570ff;
+      --violet-500: #6d4ae0;
+      --violet-600: #5835c4;
+      --violet-700: #422890;
+
+      --sun-300:    #ffe27a;
+      --sun-400:    #ffd23f;
+      --sun-500:    #f5b500;
+
+      --teal-300:   #7ee0d2;
+      --teal-400:   #2ec4b6;
+      --teal-500:   #1fa89b;
+
+      --coral-400:  #ff8787;
+      --coral-500:  #ff6b6b;
+      --coral-600:  #e04848;
+
+      --ink-900:    #1e1b3a;
+      --ink-700:    #3a355f;
+      --ink-500:    #6b6690;
+      --ink-300:    #aca8c4;
+      --ink-100:    #e4e1f3;
+
+      --cream:      #fef6e4;
+      --paper:      #ffffff;
+
+      --radius-sm: 10px;
+      --radius:    16px;
+      --radius-lg: 24px;
+
+      --shadow-sm: 0 2px 6px rgba(30, 20, 60, 0.06);
+      --shadow-md: 0 10px 28px rgba(40, 25, 90, 0.10);
+      --shadow-lg: 0 22px 60px rgba(50, 30, 100, 0.16);
+
+      --font-body: 'Nunito', 'Baloo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* ============================================================
+       RESET + BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background: var(--cream);
+      background-image:
+        radial-gradient(circle at 10% 0%, var(--violet-100) 0, transparent 40%),
+        radial-gradient(circle at 95% 20%, #ffe9f1 0, transparent 45%),
+        radial-gradient(circle at 50% 100%, #e4f8f4 0, transparent 50%);
+      color: var(--ink-900);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    input { font-family: inherit; }
+
+    #app { max-width: 1080px; margin: 0 auto; padding: 20px 24px 80px; }
+
+    .view { display: none; animation: fade-in 0.25s ease; }
+    .view.active { display: block; }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       HEADER / BREADCRUMB
+       ============================================================ */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .brand-logo {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--violet-500), var(--violet-400));
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 900; font-size: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink-900); }
+    .brand-name span { color: var(--violet-500); }
+
+    .breadcrumb {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+      color: var(--ink-500);
+      flex-wrap: wrap;
+    }
+    .breadcrumb button {
+      color: var(--violet-500);
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      transition: background 0.15s;
+    }
+    .breadcrumb button:hover { background: var(--violet-100); }
+    .breadcrumb .sep { color: var(--ink-300); }
+    .breadcrumb .current { color: var(--ink-900); font-weight: 700; padding: 4px 10px; }
+
+    /* ============================================================
+       LANDING
+       ============================================================ */
+    .landing-hero {
+      text-align: center;
+      padding: 40px 20px 60px;
+    }
+    .landing-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--sun-400);
+      color: var(--ink-900);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .landing-title {
+      font-size: clamp(40px, 7vw, 68px);
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin: 0 0 18px;
+      color: var(--ink-900);
+    }
+    .landing-title .accent { color: var(--violet-500); }
+    .landing-subtitle {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--ink-500);
+      max-width: 640px;
+      margin: 0 auto 32px;
+      line-height: 1.5;
+    }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      background: var(--violet-500);
+      color: white;
+      font-weight: 800;
+      font-size: 18px;
+      border-radius: 999px;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .cta:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+    .cta:active { transform: translateY(0); }
+
+    .landing-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 60px;
+    }
+    .feature-card {
+      background: var(--paper);
+      padding: 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      border: 2px solid transparent;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { border-color: var(--violet-200); transform: translateY(-2px); }
+    .feature-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: var(--violet-100);
+      color: var(--violet-500);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      margin-bottom: 14px;
+    }
+    .feature-title { font-size: 17px; font-weight: 800; margin: 0 0 6px; }
+    .feature-desc { font-size: 14px; color: var(--ink-500); line-height: 1.5; margin: 0; }
+
+    /* ============================================================
+       GRADE SELECT
+       ============================================================ */
+    .section-title {
+      font-size: clamp(24px, 4vw, 36px);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin: 0 0 8px;
+    }
+    .section-sub {
+      font-size: 16px;
+      color: var(--ink-500);
+      margin: 0 0 32px;
+    }
+
+    .grade-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+    }
+    .grade-card {
+      background: var(--paper);
+      padding: 26px 20px;
+      border-radius: var(--radius);
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      border: 3px solid transparent;
+      transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+      cursor: pointer;
+    }
+    .grade-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--violet-200);
+    }
+    .grade-badge {
+      width: 64px; height: 64px;
+      border-radius: 20px;
+      margin: 0 auto 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      font-weight: 900;
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+    .grade-K .grade-badge { background: linear-gradient(135deg, #ff7eb6, #ff9ec4); }
+    .grade-1 .grade-badge { background: linear-gradient(135deg, #ff9e50, #ffb87a); }
+    .grade-2 .grade-badge { background: linear-gradient(135deg, #ffd23f, #ffe27a); color: var(--ink-900); }
+    .grade-3 .grade-badge { background: linear-gradient(135deg, #6dd57e, #9be6a7); }
+    .grade-4 .grade-badge { background: linear-gradient(135deg, #3bb6e8, #6dd0f2); }
+    .grade-5 .grade-badge { background: linear-gradient(135deg, var(--violet-400), var(--violet-300)); }
+
+    .grade-name { font-weight: 800; font-size: 18px; margin: 0 0 4px; }
+    .grade-desc { font-size: 13px; color: var(--ink-500); margin: 0; }
+
+    /* ============================================================
+       TOPIC GRID
+       ============================================================ */
+    .topic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .topic-card {
+      background: var(--paper);
+      padding: 22px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+      position: relative;
+      overflow: hidden;
+    }
+    .topic-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--violet-200);
+    }
+    .topic-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: var(--violet-100);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      margin-bottom: 14px;
+    }
+    .topic-name { font-size: 17px; font-weight: 800; margin: 0 0 4px; color: var(--ink-900); }
+    .topic-blurb { font-size: 13px; color: var(--ink-500); margin: 0 0 16px; line-height: 1.4; min-height: 36px; }
+    .topic-stars {
+      display: flex;
+      gap: 3px;
+      font-size: 14px;
+      color: var(--sun-400);
+    }
+    .topic-stars .star { color: var(--ink-100); }
+    .topic-stars .star.earned { color: var(--sun-400); }
+    .topic-best {
+      font-size: 12px;
+      color: var(--ink-500);
+      margin-top: 6px;
+    }
+
+    /* ============================================================
+       TOPIC DETAIL (LEARN / PRACTICE TABS)
+       ============================================================ */
+    .topic-head {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+    .topic-head .topic-icon { width: 56px; height: 56px; font-size: 30px; margin-bottom: 0; background: var(--violet-100); border-radius: 14px; }
+    .topic-head h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 32px);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .tab-bar {
+      display: flex;
+      background: var(--paper);
+      padding: 5px;
+      border-radius: 999px;
+      box-shadow: var(--shadow-sm);
+      width: fit-content;
+      margin-bottom: 22px;
+    }
+    .tab {
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--ink-500);
+      transition: background 0.18s, color 0.18s;
+    }
+    .tab.active { background: var(--violet-500); color: white; }
+    .tab:not(.active):hover { color: var(--violet-500); }
+
+    .pane { display: none; }
+    .pane.active { display: block; animation: fade-in 0.25s ease; }
+
+    /* ============================================================
+       LESSON PANE
+       ============================================================ */
+    .lesson-card {
+      background: var(--paper);
+      padding: 28px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+    }
+    .lesson-card h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--violet-700);
+    }
+    .lesson-card h3 {
+      margin: 20px 0 8px;
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--ink-900);
+    }
+    .lesson-card p { margin: 0 0 12px; line-height: 1.6; font-size: 15px; color: var(--ink-700); }
+    .lesson-card ul, .lesson-card ol { line-height: 1.7; padding-left: 22px; color: var(--ink-700); }
+    .lesson-card strong { color: var(--violet-600); }
+    .lesson-card .big-example {
+      display: inline-block;
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--ink-900);
+      padding: 8px 18px;
+      background: var(--violet-50);
+      border-radius: var(--radius-sm);
+      margin: 6px 0;
+    }
+    .lesson-card .tip {
+      background: var(--sun-300);
+      color: var(--ink-900);
+      padding: 14px 18px;
+      border-radius: var(--radius-sm);
+      margin: 16px 0;
+      font-weight: 600;
+    }
+    .lesson-card .tip::before { content: '💡 '; }
+
+    .examples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .example {
+      background: #f8f5ff;
+      border: 2px solid var(--violet-100);
+      padding: 18px;
+      border-radius: var(--radius-sm);
+    }
+    .example-q {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--ink-900);
+      margin: 0 0 12px;
+    }
+    .example-steps {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 12px;
+    }
+    .example-steps li {
+      padding: 6px 0;
+      color: var(--ink-700);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .example-steps li::before { content: '→ '; color: var(--violet-500); font-weight: 900; }
+    .example-ans {
+      display: inline-block;
+      background: var(--teal-400);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+    .example-ans::before { content: '✓ '; }
+
+    .goto-practice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, var(--violet-500), var(--violet-400));
+      color: white;
+      padding: 24px 28px;
+      border-radius: var(--radius);
+      margin-top: 20px;
+      box-shadow: var(--shadow-md);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .goto-practice .text { font-size: 18px; font-weight: 700; }
+    .goto-practice button {
+      background: white;
+      color: var(--violet-600);
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-weight: 800;
+      transition: transform 0.15s;
+    }
+    .goto-practice button:hover { transform: scale(1.04); }
+
+    /* ============================================================
+       PRACTICE PANE
+       ============================================================ */
+    .practice-wrap { max-width: 680px; margin: 0 auto; }
+
+    .practice-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      font-weight: 700;
+      color: var(--ink-700);
+    }
+    .practice-stats { display: flex; gap: 18px; font-size: 14px; }
+    .practice-stats .stat { display: flex; align-items: center; gap: 6px; }
+    .practice-stats .stat-icon { font-size: 16px; }
+
+    .progress-track {
+      background: var(--ink-100);
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--violet-400), var(--teal-400));
+      width: 0%;
+      transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 999px;
+    }
+
+    .problem-card {
+      background: var(--paper);
+      padding: 36px 28px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .problem-card.shake { animation: shake 0.4s; }
+    .problem-card.pulse { animation: pulse-success 0.5s; }
+    @keyframes shake {
+      0%,100%{ transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+    @keyframes pulse-success {
+      0%   { transform: scale(1); box-shadow: var(--shadow-md); }
+      50%  { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(46, 196, 182, 0.25), var(--shadow-md); }
+      100% { transform: scale(1); box-shadow: var(--shadow-md); }
+    }
+
+    .problem-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--violet-500);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0 0 10px;
+    }
+    .problem-q {
+      font-size: clamp(36px, 7vw, 64px);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--ink-900);
+      margin: 0 0 24px;
+      word-break: break-word;
+    }
+    .problem-q .op { color: var(--violet-500); margin: 0 10px; }
+    .problem-q .eq { color: var(--ink-300); }
+    .problem-q .blank {
+      display: inline-block;
+      min-width: 90px;
+      border-bottom: 4px solid var(--violet-300);
+      padding: 0 8px;
+      color: var(--violet-500);
+    }
+    .problem-visual { margin: 18px 0 24px; min-height: 10px; }
+
+    /* input forms */
+    .answer-form { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center; }
+    .answer-input {
+      width: 180px;
+      text-align: center;
+      font-size: 32px;
+      font-weight: 800;
+      padding: 14px 18px;
+      border: 3px solid var(--ink-100);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      color: var(--ink-900);
+      background: var(--cream);
+    }
+    .answer-input:focus {
+      border-color: var(--violet-400);
+      box-shadow: 0 0 0 4px var(--violet-100);
+    }
+    .answer-input.small { width: 100px; font-size: 26px; }
+
+    .answer-frac {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .answer-frac .bar { width: 100px; height: 3px; background: var(--ink-700); }
+
+    .submit-btn {
+      background: var(--violet-500);
+      color: white;
+      padding: 14px 30px;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 999px;
+      transition: transform 0.15s, background 0.15s;
+      box-shadow: var(--shadow-sm);
+    }
+    .submit-btn:hover { transform: translateY(-2px); background: var(--violet-600); }
+    .submit-btn:active { transform: translateY(0); }
+    .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .feedback {
+      margin-top: 22px;
+      padding: 14px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 16px;
+      display: none;
+    }
+    .feedback.show { display: block; animation: fade-in 0.2s; }
+    .feedback.correct { background: #def7f1; color: var(--teal-500); }
+    .feedback.wrong { background: #ffe4e4; color: var(--coral-600); }
+    .feedback small { display: block; margin-top: 4px; font-weight: 500; color: var(--ink-700); font-size: 14px; }
+
+    .problem-hint {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--ink-500);
+      font-style: italic;
+    }
+
+    .skip-link {
+      display: block;
+      margin: 12px auto 0;
+      color: var(--ink-500);
+      font-size: 14px;
+      text-decoration: underline;
+      background: none;
+    }
+
+    /* on-screen keypad (optional, used for younger grades) */
+    .keypad {
+      margin: 22px auto 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-width: 340px;
+    }
+    .keypad button {
+      background: var(--paper);
+      padding: 16px 0;
+      font-size: 22px;
+      font-weight: 800;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      transition: background 0.12s, transform 0.12s;
+      color: var(--ink-900);
+    }
+    .keypad button:hover { background: var(--violet-100); }
+    .keypad button:active { transform: scale(0.96); }
+    .keypad button.util { background: var(--violet-500); color: white; }
+    .keypad button.util:hover { background: var(--violet-600); }
+
+    /* ============================================================
+       RESULTS
+       ============================================================ */
+    .results-card {
+      background: var(--paper);
+      padding: 40px 28px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+      max-width: 560px;
+      margin: 20px auto;
+    }
+    .results-emoji { font-size: 72px; line-height: 1; margin-bottom: 12px; }
+    .results-title { font-size: 28px; font-weight: 900; margin: 0 0 4px; color: var(--ink-900); }
+    .results-sub { color: var(--ink-500); margin: 0 0 26px; font-size: 15px; }
+    .results-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .result-stat { background: var(--violet-50); padding: 18px 10px; border-radius: var(--radius-sm); }
+    .result-stat .n { font-size: 28px; font-weight: 900; color: var(--violet-600); }
+    .result-stat .l { font-size: 12px; color: var(--ink-500); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; margin-top: 2px; }
+
+    .stars-earned { font-size: 42px; margin: 4px 0 22px; letter-spacing: 8px; }
+    .stars-earned .s { color: var(--sun-400); }
+    .stars-earned .s.empty { color: var(--ink-100); }
+
+    .results-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .results-actions button {
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 15px;
+      transition: transform 0.15s;
+    }
+    .results-actions button:hover { transform: translateY(-2px); }
+    .btn-primary { background: var(--violet-500); color: white; box-shadow: var(--shadow-sm); }
+    .btn-ghost { background: var(--paper); color: var(--violet-500); border: 2px solid var(--violet-200); }
+
+    /* confetti */
+    .confetti-layer {
+      position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 100;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 10px; height: 14px;
+      top: -20px;
+      animation: confetti-fall 2.8s ease-out forwards;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(0) rotate(0); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ============================================================
+       MOBILE / COMPACT
+       ============================================================ */
+    @media (max-width: 640px) {
+      #app { padding: 16px 14px 60px; }
+      .top-bar { flex-direction: column; gap: 12px; align-items: flex-start; }
+      .landing-hero { padding: 20px 0 40px; }
+      .problem-card { padding: 26px 16px; }
+      .answer-input { width: 140px; font-size: 26px; }
+      .grade-grid { grid-template-columns: repeat(2, 1fr); }
+      .topic-grid { grid-template-columns: 1fr; }
+      .results-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .result-stat .n { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="top-bar">
+      <div class="brand" id="brandHome">
+        <div class="brand-logo">M</div>
+        <div class="brand-name">Math<span>Ace</span></div>
+      </div>
+      <nav class="breadcrumb" id="breadcrumb"></nav>
+    </div>
+
+    <!-- LANDING -->
+    <section class="view active" id="view-landing">
+      <div class="landing-hero">
+        <div class="landing-pill">★ Kumon-style math practice</div>
+        <h1 class="landing-title">Master math, <span class="accent">one problem at a time.</span></h1>
+        <p class="landing-subtitle">
+          A friendly tutor for grades K–5. Short lessons, worked examples, and timed sequential practice so skills stick.
+        </p>
+        <button class="cta" id="startBtn">Choose a grade →</button>
+
+        <div class="landing-features">
+          <div class="feature-card">
+            <div class="feature-icon">📚</div>
+            <h3 class="feature-title">Learn the method</h3>
+            <p class="feature-desc">Each topic starts with a clear explanation and step-by-step worked examples.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">✏️</div>
+            <h3 class="feature-title">Practice in a row</h3>
+            <p class="feature-desc">Work through 15 problems back-to-back, just like a Kumon worksheet. Pacing builds mastery.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⭐</div>
+            <h3 class="feature-title">Instant feedback</h3>
+            <p class="feature-desc">Correct answers earn stars. Wrong ones show the right answer so you can try again.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3 class="feature-title">44 topics, K–5</h3>
+            <p class="feature-desc">Counting and shapes all the way through fractions, long division, decimals, and PEMDAS. 4th and 5th grade go deep, aligned to California Common Core.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GRADE SELECT -->
+    <section class="view" id="view-grade">
+      <h2 class="section-title">Pick your grade</h2>
+      <p class="section-sub">Choose the level that feels right. You can switch anytime.</p>
+      <div class="grade-grid" id="gradeGrid"></div>
+    </section>
+
+    <!-- TOPIC GRID -->
+    <section class="view" id="view-topic">
+      <h2 class="section-title" id="topicGridTitle">Topics</h2>
+      <p class="section-sub" id="topicGridSub">Pick a topic to learn the method or jump into practice.</p>
+      <div class="topic-grid" id="topicGrid"></div>
+    </section>
+
+    <!-- TOPIC DETAIL -->
+    <section class="view" id="view-detail">
+      <div class="topic-head">
+        <div class="topic-icon" id="detailIcon">📐</div>
+        <h1 id="detailTitle">Topic</h1>
+      </div>
+      <div class="tab-bar">
+        <button class="tab active" data-tab="learn">📖 Learn</button>
+        <button class="tab" data-tab="practice">✏️ Practice</button>
+      </div>
+
+      <div class="pane active" id="pane-learn">
+        <div class="lesson-card" id="lessonCard"></div>
+        <div class="goto-practice">
+          <div class="text">Got it? Try 15 problems.</div>
+          <button id="toPracticeBtn">Start Practice →</button>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-practice">
+        <div class="practice-wrap" id="practiceWrap"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="confetti-layer" id="confetti"></div>
+
+  <script>
+  /* ============================================================
+     MATH ACE — logic
+     State machine + problem generators + practice engine.
+     ============================================================ */
+  (() => {
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    const $ = (id) => document.getElementById(id);
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const shuffle = (arr) => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+    const gcd = (a, b) => b ? gcd(b, a % b) : a;
+    const simplify = (n, d) => { const g = gcd(Math.abs(n), Math.abs(d)) || 1; return [n / g, d / g]; };
+    const fmtTime = (s) => {
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return m > 0 ? `${m}:${String(r).padStart(2, '0')}` : `${r}s`;
+    };
+    const repeatEmoji = (e, n) => Array(n).fill(e).join(' ');
+    // Format a number for decimal answer display: round to 5 places, strip trailing zeros.
+    const fmtDec = (x) => {
+      const rounded = Math.round(x * 100000) / 100000;
+      return String(rounded);
+    };
+
+    // build inline SVG shape
+    const shapeSvg = (name) => {
+      const stroke = '#6d4ae0', fill = '#ebe3ff';
+      const common = `stroke="${stroke}" fill="${fill}" stroke-width="4" stroke-linejoin="round"`;
+      if (name === 'circle') return `<svg viewBox="0 0 100 100" width="120" height="120"><circle cx="50" cy="50" r="42" ${common}/></svg>`;
+      if (name === 'square') return `<svg viewBox="0 0 100 100" width="120" height="120"><rect x="12" y="12" width="76" height="76" ${common}/></svg>`;
+      if (name === 'triangle') return `<svg viewBox="0 0 100 100" width="120" height="120"><polygon points="50,10 92,86 8,86" ${common}/></svg>`;
+      if (name === 'rectangle') return `<svg viewBox="0 0 120 80" width="140" height="94"><rect x="8" y="12" width="104" height="56" ${common}/></svg>`;
+      if (name === 'star') return `<svg viewBox="0 0 100 100" width="120" height="120"><polygon points="50,8 61,38 93,38 67,58 76,90 50,70 24,90 33,58 7,38 39,38" ${common}/></svg>`;
+      if (name === 'heart') return `<svg viewBox="0 0 100 100" width="120" height="120"><path d="M50,86 C12,60 8,32 28,22 C40,16 50,26 50,36 C50,26 60,16 72,22 C92,32 88,60 50,86Z" ${common}/></svg>`;
+      if (name === 'oval') return `<svg viewBox="0 0 120 80" width="140" height="94"><ellipse cx="60" cy="40" rx="52" ry="30" ${common}/></svg>`;
+      if (name === 'diamond') return `<svg viewBox="0 0 100 100" width="120" height="120"><polygon points="50,8 92,50 50,92 8,50" ${common}/></svg>`;
+      if (name === 'pentagon') return `<svg viewBox="0 0 100 100" width="120" height="120"><polygon points="50,8 92,38 76,88 24,88 8,38" ${common}/></svg>`;
+      if (name === 'hexagon') return `<svg viewBox="0 0 100 100" width="120" height="120"><polygon points="25,12 75,12 95,50 75,88 25,88 5,50" ${common}/></svg>`;
+      return '';
+    };
+
+    // SVG analog clock
+    const clockSvg = (h, m) => {
+      const hr = (h % 12) + m / 60;
+      const hAng = hr * 30 - 90;
+      const mAng = m * 6 - 90;
+      const rad = (deg) => (deg * Math.PI) / 180;
+      const hx = 50 + 24 * Math.cos(rad(hAng));
+      const hy = 50 + 24 * Math.sin(rad(hAng));
+      const mx = 50 + 34 * Math.cos(rad(mAng));
+      const my = 50 + 34 * Math.sin(rad(mAng));
+      let ticks = '';
+      for (let i = 0; i < 12; i++) {
+        const a = i * 30 - 90;
+        const x1 = 50 + 38 * Math.cos(rad(a));
+        const y1 = 50 + 38 * Math.sin(rad(a));
+        const x2 = 50 + 42 * Math.cos(rad(a));
+        const y2 = 50 + 42 * Math.sin(rad(a));
+        ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#3a355f" stroke-width="2" stroke-linecap="round"/>`;
+      }
+      return `<svg viewBox="0 0 100 100" width="170" height="170">
+        <circle cx="50" cy="50" r="46" fill="#fff" stroke="#6d4ae0" stroke-width="3"/>
+        ${ticks}
+        <line x1="50" y1="50" x2="${hx}" y2="${hy}" stroke="#1e1b3a" stroke-width="4" stroke-linecap="round"/>
+        <line x1="50" y1="50" x2="${mx}" y2="${my}" stroke="#6d4ae0" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="3" fill="#1e1b3a"/>
+      </svg>`;
+    };
+
+    // SVG fraction bar (shaded p out of n)
+    const fractionBar = (p, n) => {
+      const w = 240, h = 44;
+      const cell = w / n;
+      let parts = '';
+      for (let i = 0; i < n; i++) {
+        const fill = i < p ? '#9570ff' : '#fff';
+        parts += `<rect x="${i * cell}" y="0" width="${cell}" height="${h}" fill="${fill}" stroke="#3a355f" stroke-width="2"/>`;
+      }
+      return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${parts}</svg>`;
+    };
+
+    // ============================================================
+    // CURRICULUM
+    // Each topic: { id, name, icon, blurb, lesson (HTML), examples: [{q,steps,a}], gen() → {display, answer, inputType, visual?, hint?} }
+    // inputType: 'int' | 'fraction' | 'text' | 'decimal' | 'division'  ('division' expects "N" or "N r M")
+    // ============================================================
+
+    const NUMBER_WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+
+    const CURRICULUM = {
+      K: {
+        label: 'Kindergarten',
+        tagline: 'Counting, shapes, and first numbers',
+        topics: [
+          {
+            id: 'counting10',
+            name: 'Counting to 10',
+            icon: '🔢',
+            blurb: 'Count objects up to 10',
+            lesson: `
+              <h2>How to count</h2>
+              <p>Counting tells us <strong>how many</strong> of something we have. Touch each object once and say the next number: <strong>one, two, three…</strong></p>
+              <h3>The numbers 1 to 10</h3>
+              <p class="big-example">1 &nbsp; 2 &nbsp; 3 &nbsp; 4 &nbsp; 5 &nbsp; 6 &nbsp; 7 &nbsp; 8 &nbsp; 9 &nbsp; 10</p>
+              <div class="tip">Count slowly — one number for each thing. Not faster, not slower!</div>`,
+            examples: [
+              { q: '🍎 🍎 🍎 🍎 — How many apples?', steps: ['Point to each apple and say a number.', '"One… two… three… four."'], a: '4' },
+              { q: '⭐ ⭐ ⭐ ⭐ ⭐ ⭐ ⭐ — How many stars?', steps: ['Count each star as you point.', '"1, 2, 3, 4, 5, 6, 7."'], a: '7' }
+            ],
+            gen: () => {
+              const n = rand(2, 10);
+              const emoji = pick(['🍎','🐸','🌼','⭐','🐠','🍊','🚗','🎈','🐞','🍇']);
+              return {
+                display: 'How many?',
+                visual: `<div style="font-size:34px;line-height:1.3">${repeatEmoji(emoji, n)}</div>`,
+                answer: String(n),
+                inputType: 'int'
+              };
+            }
+          },
+          {
+            id: 'counting20',
+            name: 'Counting to 20',
+            icon: '🔟',
+            blurb: 'Count objects up to 20',
+            lesson: `
+              <h2>Counting past 10</h2>
+              <p>After <strong>ten</strong>, keep going: <strong>eleven, twelve, thirteen…</strong> all the way to <strong>twenty</strong>.</p>
+              <p class="big-example">11, 12, 13, 14, 15, 16, 17, 18, 19, 20</p>
+              <div class="tip">Group objects in rows of 5 or 10 to make counting faster!</div>`,
+            examples: [
+              { q: 'Count to 13 out loud.', steps: ['1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13.'], a: '13' },
+              { q: 'What number comes after 15?', steps: ['Think: 14, 15, then…', 'The next number is 16.'], a: '16' }
+            ],
+            gen: () => {
+              const style = rand(1, 3);
+              if (style === 1) {
+                const n = rand(10, 20);
+                const emoji = pick(['🍓','🎾','🟣','🐟','🌻']);
+                return { display: 'How many?', visual: `<div style="font-size:28px;line-height:1.4">${repeatEmoji(emoji, n)}</div>`, answer: String(n), inputType: 'int' };
+              }
+              if (style === 2) {
+                const n = rand(1, 19);
+                return { display: `What comes after <span style="color:var(--violet-500)">${n}</span>?`, answer: String(n + 1), inputType: 'int' };
+              }
+              const n = rand(2, 20);
+              return { display: `What comes before <span style="color:var(--violet-500)">${n}</span>?`, answer: String(n - 1), inputType: 'int' };
+            }
+          },
+          {
+            id: 'numberWords',
+            name: 'Number Words',
+            icon: '🔡',
+            blurb: 'Match numbers to their written word',
+            lesson: `
+              <h2>Number names</h2>
+              <p>Every number has a <strong>word name</strong> we can spell out.</p>
+              <p class="big-example">1 = one · 2 = two · 3 = three</p>
+              <h3>Tricky ones to remember</h3>
+              <ul><li><strong>11</strong> = eleven</li><li><strong>12</strong> = twelve</li><li><strong>20</strong> = twenty</li></ul>`,
+            examples: [
+              { q: 'Write the number: "seven"', steps: ['Think what "seven" looks like.', 'Seven is 7.'], a: '7' },
+              { q: 'Write the number: "thirteen"', steps: ['Thirteen is a tricky teen number.', 'Thirteen = 13.'], a: '13' }
+            ],
+            gen: () => {
+              const n = rand(1, 20);
+              return { display: `Write the number:<br/><span style="color:var(--violet-500);font-size:0.85em">"${NUMBER_WORDS[n]}"</span>`, answer: String(n), inputType: 'int' };
+            }
+          },
+          {
+            id: 'addPics',
+            name: 'Picture Addition',
+            icon: '➕',
+            blurb: 'Add using pictures (0–5)',
+            lesson: `
+              <h2>Adding with pictures</h2>
+              <p>When we <strong>add</strong>, we put two groups together and count <em>all</em> of them.</p>
+              <p class="big-example">🐝🐝 + 🐝🐝🐝 = 🐝🐝🐝🐝🐝</p>
+              <p>So <strong>2 + 3 = 5</strong>.</p>
+              <div class="tip">Count the first group, then keep counting into the second group.</div>`,
+            examples: [
+              { q: '🍎🍎 + 🍎 = ?', steps: ['First group: 2 apples.', 'Second group: 1 apple.', '2 + 1 = 3.'], a: '3' },
+              { q: '🌟🌟🌟 + 🌟🌟 = ?', steps: ['3 stars and 2 more stars.', '3 + 2 = 5.'], a: '5' }
+            ],
+            gen: () => {
+              const a = rand(1, 5), b = rand(1, 5);
+              const e = pick(['🍎','⭐','🐝','🍓','🐟']);
+              return {
+                display: `${a} + ${b} = ?`,
+                visual: `<div style="font-size:30px;line-height:1.4">${repeatEmoji(e, a)} <span style="color:var(--violet-500);font-weight:900">+</span> ${repeatEmoji(e, b)}</div>`,
+                answer: String(a + b),
+                inputType: 'int'
+              };
+            }
+          },
+          {
+            id: 'shapes',
+            name: 'Shapes',
+            icon: '🔷',
+            blurb: 'Name basic 2D shapes',
+            lesson: `
+              <h2>Shapes all around us</h2>
+              <p>Shapes are flat drawings with different <strong>sides</strong> and <strong>corners</strong>.</p>
+              <ul>
+                <li><strong>Circle</strong> — round, no sides</li>
+                <li><strong>Square</strong> — 4 equal sides</li>
+                <li><strong>Rectangle</strong> — 4 sides, 2 long and 2 short</li>
+                <li><strong>Triangle</strong> — 3 sides</li>
+                <li><strong>Star</strong> — 5 points</li>
+                <li><strong>Heart</strong> — 2 curves on top, pointed bottom</li>
+              </ul>`,
+            examples: [
+              { q: 'A shape with 3 sides is a…', steps: ['Count the sides: 1, 2, 3.', 'That is a triangle.'], a: 'triangle' },
+              { q: 'A round shape with no sides is a…', steps: ['Round and smooth.', 'That is a circle.'], a: 'circle' }
+            ],
+            gen: () => {
+              const shape = pick(['circle','square','triangle','rectangle','star','heart','oval','diamond']);
+              return {
+                display: 'What shape is this?',
+                visual: shapeSvg(shape),
+                answer: shape,
+                inputType: 'text',
+                hint: 'Type the name, like "circle"'
+              };
+            }
+          },
+          {
+            id: 'compare',
+            name: 'Bigger or Smaller',
+            icon: '⚖️',
+            blurb: 'Compare two numbers',
+            lesson: `
+              <h2>Which number is bigger?</h2>
+              <p>When comparing numbers, the <strong>bigger</strong> one is the one that comes <em>later</em> when we count up.</p>
+              <p class="big-example">7 &nbsp; > &nbsp; 3</p>
+              <p>7 is bigger because if we count 1, 2, 3, 4, 5, 6, 7 — we say 7 after 3.</p>
+              <div class="tip">Type the BIGGER number as your answer.</div>`,
+            examples: [
+              { q: 'Which is bigger: 4 or 9?', steps: ['Count: 1…4…9. 9 is later.', 'So 9 is bigger.'], a: '9' },
+              { q: 'Which is smaller: 6 or 2?', steps: ['Count up: 1, 2, then later 6.', '2 comes first so it is smaller.'], a: '2' }
+            ],
+            gen: () => {
+              let a = rand(0, 20), b = rand(0, 20);
+              while (a === b) b = rand(0, 20);
+              const askBigger = Math.random() < 0.5;
+              const answer = askBigger ? Math.max(a, b) : Math.min(a, b);
+              return {
+                display: `Which is <strong>${askBigger ? 'bigger' : 'smaller'}</strong>: ${a} or ${b}?`,
+                answer: String(answer),
+                inputType: 'int'
+              };
+            }
+          }
+        ]
+      },
+
+      '1': {
+        label: 'Grade 1',
+        tagline: 'Addition, subtraction, and place value',
+        topics: [
+          {
+            id: 'add10',
+            name: 'Add within 10',
+            icon: '➕',
+            blurb: 'Sums up to 10',
+            lesson: `
+              <h2>Adding to 10</h2>
+              <p>We add by starting at the first number and <strong>counting up</strong> the second.</p>
+              <p class="big-example">4 + 3 = 7</p>
+              <p>Start at 4. Count up 3 more: <strong>5, 6, 7</strong>. So 4 + 3 = 7.</p>
+              <div class="tip">Learn doubles first — 1+1=2, 2+2=4, 3+3=6, 4+4=8, 5+5=10.</div>`,
+            examples: [
+              { q: '6 + 3 = ?', steps: ['Start at 6.', 'Count up 3: 7, 8, 9.'], a: '9' },
+              { q: '4 + 4 = ?', steps: ['This is a double!', '4 + 4 = 8.'], a: '8' }
+            ],
+            gen: () => {
+              const a = rand(0, 9);
+              const b = rand(0, 10 - a);
+              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'sub10',
+            name: 'Subtract within 10',
+            icon: '➖',
+            blurb: 'Differences up to 10',
+            lesson: `
+              <h2>Subtracting</h2>
+              <p>Subtract means <strong>take away</strong>. We start with a number and <em>count back</em>.</p>
+              <p class="big-example">8 − 3 = 5</p>
+              <p>Start at 8. Count back 3: <strong>7, 6, 5</strong>. So 8 − 3 = 5.</p>
+              <div class="tip">Subtracting 0 gives the same number. Subtracting the same number gives 0.</div>`,
+            examples: [
+              { q: '9 − 4 = ?', steps: ['Start at 9.', 'Count back 4: 8, 7, 6, 5.'], a: '5' },
+              { q: '7 − 7 = ?', steps: ['Take away all of them.', '7 − 7 = 0.'], a: '0' }
+            ],
+            gen: () => {
+              const a = rand(1, 10);
+              const b = rand(0, a);
+              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'add20',
+            name: 'Add within 20',
+            icon: '✨',
+            blurb: 'Sums up to 20, including teens',
+            lesson: `
+              <h2>Adding bigger numbers</h2>
+              <p>When the answer is bigger than 10, think: <strong>make a 10</strong>, then add what is left over.</p>
+              <p class="big-example">8 + 5 = 13</p>
+              <p>Split 5 into 2 and 3. Then 8 + 2 = 10, and 10 + 3 = <strong>13</strong>.</p>
+              <div class="tip">Making a 10 is your superpower for adding fast!</div>`,
+            examples: [
+              { q: '9 + 6 = ?', steps: ['Split 6 into 1 + 5.', '9 + 1 = 10.', '10 + 5 = 15.'], a: '15' },
+              { q: '7 + 8 = ?', steps: ['Split 8 into 3 + 5.', '7 + 3 = 10.', '10 + 5 = 15.'], a: '15' }
+            ],
+            gen: () => {
+              const a = rand(4, 15);
+              const b = rand(4, 20 - a);
+              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'sub20',
+            name: 'Subtract within 20',
+            icon: '🔻',
+            blurb: 'Differences from teens',
+            lesson: `
+              <h2>Subtracting from teens</h2>
+              <p>Subtracting from a teen number? Try <strong>going down to 10 first</strong>.</p>
+              <p class="big-example">14 − 6 = 8</p>
+              <p>Split 6 into 4 + 2. Then 14 − 4 = 10, and 10 − 2 = <strong>8</strong>.</p>`,
+            examples: [
+              { q: '13 − 5 = ?', steps: ['Split 5 into 3 + 2.', '13 − 3 = 10.', '10 − 2 = 8.'], a: '8' },
+              { q: '17 − 9 = ?', steps: ['Split 9 into 7 + 2.', '17 − 7 = 10.', '10 − 2 = 8.'], a: '8' }
+            ],
+            gen: () => {
+              const a = rand(10, 20);
+              const b = rand(2, Math.min(a, 12));
+              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'skipCount',
+            name: 'Skip Counting',
+            icon: '🦘',
+            blurb: 'Count by 2s, 5s, and 10s',
+            lesson: `
+              <h2>Skip counting</h2>
+              <p>Skip counting is counting by jumps — 2s, 5s, or 10s — instead of 1s.</p>
+              <ul>
+                <li><strong>By 2s:</strong> 2, 4, 6, 8, 10, 12…</li>
+                <li><strong>By 5s:</strong> 5, 10, 15, 20, 25…</li>
+                <li><strong>By 10s:</strong> 10, 20, 30, 40, 50…</li>
+              </ul>
+              <div class="tip">Skip counting by 5s? All the numbers end in 5 or 0.</div>`,
+            examples: [
+              { q: 'Fill in: 2, 4, 6, ?, 10', steps: ['Count by 2s: 2, 4, 6, then 8, then 10.'], a: '8' },
+              { q: 'Fill in: 5, 10, 15, ?, 25', steps: ['Count by 5s.', 'After 15 comes 20.'], a: '20' }
+            ],
+            gen: () => {
+              const step = pick([2, 5, 10]);
+              const start = step * rand(1, 4);
+              const missIdx = rand(1, 3);
+              const seq = [start, start + step, start + 2 * step, start + 3 * step, start + 4 * step];
+              const shown = seq.map((v, i) => i === missIdx ? '?' : v).join(', ');
+              return { display: `Fill in:<br/><span style="color:var(--violet-500)">${shown}</span>`, answer: String(seq[missIdx]), inputType: 'int' };
+            }
+          },
+          {
+            id: 'placeValue1',
+            name: 'Tens & Ones',
+            icon: '🏠',
+            blurb: 'Break numbers into tens and ones',
+            lesson: `
+              <h2>Tens and ones</h2>
+              <p>Any 2-digit number is made of <strong>tens</strong> and <strong>ones</strong>.</p>
+              <p class="big-example">47 = 4 tens + 7 ones</p>
+              <p>The <strong>first</strong> digit tells us the number of tens. The <strong>last</strong> digit tells us the number of ones.</p>`,
+            examples: [
+              { q: 'In 63, how many tens?', steps: ['First digit is 6.', 'So 63 has 6 tens (and 3 ones).'], a: '6' },
+              { q: 'In 29, how many ones?', steps: ['Last digit is 9.', 'So 29 has 9 ones.'], a: '9' }
+            ],
+            gen: () => {
+              const n = rand(10, 99);
+              const tens = Math.floor(n / 10);
+              const ones = n % 10;
+              const askTens = Math.random() < 0.5;
+              return {
+                display: `In <span style="color:var(--violet-500)">${n}</span>, how many <strong>${askTens ? 'tens' : 'ones'}</strong>?`,
+                answer: String(askTens ? tens : ones),
+                inputType: 'int'
+              };
+            }
+          }
+        ]
+      },
+
+      '2': {
+        label: 'Grade 2',
+        tagline: '2-digit math, time, and money',
+        topics: [
+          {
+            id: 'add2dig',
+            name: '2-Digit Addition',
+            icon: '📊',
+            blurb: 'Add 2-digit numbers (no regrouping)',
+            lesson: `
+              <h2>Adding 2-digit numbers</h2>
+              <p>Stack the numbers so <strong>ones line up with ones</strong> and <strong>tens with tens</strong>. Add the ones first, then the tens.</p>
+              <p class="big-example">34 + 52 = 86</p>
+              <p>Ones: 4 + 2 = <strong>6</strong>. Tens: 3 + 5 = <strong>8</strong>. Answer: 86.</p>`,
+            examples: [
+              { q: '23 + 45 = ?', steps: ['Ones: 3 + 5 = 8.', 'Tens: 2 + 4 = 6.', 'Answer: 68.'], a: '68' },
+              { q: '51 + 36 = ?', steps: ['Ones: 1 + 6 = 7.', 'Tens: 5 + 3 = 8.', 'Answer: 87.'], a: '87' }
+            ],
+            gen: () => {
+              let a, b;
+              do {
+                a = rand(10, 89);
+                b = rand(10, 89);
+              } while ((a % 10) + (b % 10) >= 10 || Math.floor(a / 10) + Math.floor(b / 10) >= 10);
+              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'add2digRegroup',
+            name: 'Add with Regrouping',
+            icon: '🔁',
+            blurb: 'Carry the 1 when ones ≥ 10',
+            lesson: `
+              <h2>Regrouping (carrying)</h2>
+              <p>When ones add up to <strong>10 or more</strong>, we <em>carry</em> a ten over.</p>
+              <p class="big-example">27 + 48 = 75</p>
+              <ol>
+                <li>Ones: 7 + 8 = 15 → write <strong>5</strong>, carry <strong>1</strong>.</li>
+                <li>Tens: 2 + 4 + 1 (carried) = <strong>7</strong>.</li>
+                <li>Answer: <strong>75</strong>.</li>
+              </ol>`,
+            examples: [
+              { q: '36 + 29 = ?', steps: ['6 + 9 = 15 → write 5, carry 1.', '3 + 2 + 1 = 6.', 'Answer: 65.'], a: '65' },
+              { q: '47 + 38 = ?', steps: ['7 + 8 = 15 → write 5, carry 1.', '4 + 3 + 1 = 8.', 'Answer: 85.'], a: '85' }
+            ],
+            gen: () => {
+              let a, b;
+              do {
+                a = rand(15, 89);
+                b = rand(15, 89);
+              } while ((a % 10) + (b % 10) < 10 || a + b > 99);
+              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'sub2dig',
+            name: '2-Digit Subtraction',
+            icon: '➖',
+            blurb: 'Subtract 2-digit numbers',
+            lesson: `
+              <h2>Subtracting 2-digit numbers</h2>
+              <p>Line up ones with ones and tens with tens. Subtract the ones first, then the tens.</p>
+              <p class="big-example">58 − 23 = 35</p>
+              <p>Ones: 8 − 3 = <strong>5</strong>. Tens: 5 − 2 = <strong>3</strong>. Answer: 35.</p>`,
+            examples: [
+              { q: '76 − 41 = ?', steps: ['Ones: 6 − 1 = 5.', 'Tens: 7 − 4 = 3.', 'Answer: 35.'], a: '35' },
+              { q: '89 − 34 = ?', steps: ['Ones: 9 − 4 = 5.', 'Tens: 8 − 3 = 5.', 'Answer: 55.'], a: '55' }
+            ],
+            gen: () => {
+              let a, b;
+              do {
+                a = rand(20, 99);
+                b = rand(10, 98);
+              } while (b > a || (a % 10) < (b % 10));
+              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'sub2digRegroup',
+            name: 'Subtract w/ Regrouping',
+            icon: '↩️',
+            blurb: 'Borrow from the tens place',
+            lesson: `
+              <h2>Borrowing (regrouping)</h2>
+              <p>If the top ones digit is <strong>smaller</strong> than the bottom one, <em>borrow</em> a ten.</p>
+              <p class="big-example">52 − 28 = 24</p>
+              <ol>
+                <li>Ones: 2 − 8 — can't! Borrow 1 ten → 12 − 8 = <strong>4</strong>.</li>
+                <li>Tens: (5 − 1) − 2 = <strong>2</strong>.</li>
+                <li>Answer: <strong>24</strong>.</li>
+              </ol>`,
+            examples: [
+              { q: '63 − 27 = ?', steps: ['3 − 7? borrow. 13 − 7 = 6.', '(6 − 1) − 2 = 3.', 'Answer: 36.'], a: '36' },
+              { q: '81 − 45 = ?', steps: ['1 − 5? borrow. 11 − 5 = 6.', '(8 − 1) − 4 = 3.', 'Answer: 36.'], a: '36' }
+            ],
+            gen: () => {
+              let a, b;
+              do {
+                a = rand(21, 99);
+                b = rand(10, a - 5);
+              } while ((a % 10) >= (b % 10));
+              return { display: `${a} − ${b} = ?`, answer: String(a - b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'time',
+            name: 'Telling Time',
+            icon: '⏰',
+            blurb: 'Read analog clocks to the 5 minutes',
+            lesson: `
+              <h2>Reading a clock</h2>
+              <p>The <strong>short hand</strong> points to the <strong>hour</strong>. The <strong>long hand</strong> points to the <strong>minutes</strong>.</p>
+              <p>Each number on the clock counts <strong>5 minutes</strong>: 12 = 0 min, 1 = 5 min, 2 = 10 min, 3 = 15 min…</p>
+              <div class="tip">Write time as hours:minutes, like <strong>3:45</strong>.</div>`,
+            examples: [
+              { q: 'Short hand on 4, long hand on 6 — what time?', steps: ['Hour = 4.', 'Long hand at 6 = 30 min.', 'Time: 4:30.'], a: '4:30' },
+              { q: 'Short hand on 9, long hand on 12 — what time?', steps: ['Hour = 9.', 'Long hand at 12 = 0 min.', 'Time: 9:00.'], a: '9:00' }
+            ],
+            gen: () => {
+              const h = rand(1, 12);
+              const m = pick([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
+              const answer = `${h}:${String(m).padStart(2, '0')}`;
+              return {
+                display: 'What time is this?',
+                visual: clockSvg(h, m),
+                answer,
+                inputType: 'text',
+                hint: 'Type like 3:45'
+              };
+            }
+          },
+          {
+            id: 'money',
+            name: 'Counting Money',
+            icon: '💰',
+            blurb: 'Add coins to find the total cents',
+            lesson: `
+              <h2>Coin values</h2>
+              <ul>
+                <li><strong>Penny</strong> = 1¢</li>
+                <li><strong>Nickel</strong> = 5¢</li>
+                <li><strong>Dime</strong> = 10¢</li>
+                <li><strong>Quarter</strong> = 25¢</li>
+              </ul>
+              <p>To find the total, <strong>add up</strong> the values of all the coins.</p>`,
+            examples: [
+              { q: '2 quarters + 1 dime = ? cents', steps: ['2 × 25 = 50.', '50 + 10 = 60.'], a: '60' },
+              { q: '3 nickels + 4 pennies = ? cents', steps: ['3 × 5 = 15.', '15 + 4 = 19.'], a: '19' }
+            ],
+            gen: () => {
+              const q = rand(0, 3), d = rand(0, 4), n = rand(0, 4), p = rand(0, 5);
+              const total = q * 25 + d * 10 + n * 5 + p;
+              if (total === 0) return { display: '1 quarter = ? cents', answer: '25', inputType: 'int' };
+              const parts = [];
+              if (q) parts.push(`${q} quarter${q > 1 ? 's' : ''}`);
+              if (d) parts.push(`${d} dime${d > 1 ? 's' : ''}`);
+              if (n) parts.push(`${n} nickel${n > 1 ? 's' : ''}`);
+              if (p) parts.push(`${p} penn${p > 1 ? 'ies' : 'y'}`);
+              return { display: `${parts.join(' + ')} = ? cents`, answer: String(total), inputType: 'int' };
+            }
+          }
+        ]
+      },
+
+      '3': {
+        label: 'Grade 3',
+        tagline: 'Times tables, fractions, and rounding',
+        topics: [
+          {
+            id: 'multTables',
+            name: 'Multiplication Tables',
+            icon: '✖️',
+            blurb: 'Master ×2 through ×12',
+            lesson: `
+              <h2>Multiplication is fast adding</h2>
+              <p><strong>3 × 4</strong> means "3 groups of 4" — or <strong>4 + 4 + 4 = 12</strong>.</p>
+              <p class="big-example">3 × 4 = 12</p>
+              <div class="tip">Tricks: ×0 is always 0. ×1 is itself. ×10 adds a 0. ×5 ends in 0 or 5. ×9: fingers trick!</div>`,
+            examples: [
+              { q: '7 × 8 = ?', steps: ['Think of the 7s table.', '7, 14, 21, 28, 35, 42, 49, 56.', '8th step is 56.'], a: '56' },
+              { q: '6 × 9 = ?', steps: ['9 × 6 = 54.', 'Multiplication works either way.'], a: '54' }
+            ],
+            gen: () => {
+              const a = rand(2, 12), b = rand(2, 12);
+              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'division',
+            name: 'Division Basics',
+            icon: '➗',
+            blurb: 'Share into equal groups',
+            lesson: `
+              <h2>Dividing</h2>
+              <p><strong>12 ÷ 3</strong> means "split 12 into 3 equal groups" — how many in each group?</p>
+              <p class="big-example">12 ÷ 3 = 4</p>
+              <p>Every division has a matching multiplication: if 12 ÷ 3 = 4, then 3 × 4 = 12.</p>`,
+            examples: [
+              { q: '24 ÷ 6 = ?', steps: ['Think: 6 × ? = 24.', '6 × 4 = 24.', 'Answer: 4.'], a: '4' },
+              { q: '35 ÷ 5 = ?', steps: ['Think: 5 × ? = 35.', '5 × 7 = 35.', 'Answer: 7.'], a: '7' }
+            ],
+            gen: () => {
+              const b = rand(2, 10), q = rand(2, 10);
+              return { display: `${b * q} ÷ ${b} = ?`, answer: String(q), inputType: 'int' };
+            }
+          },
+          {
+            id: 'fractionsIntro',
+            name: 'Fractions Intro',
+            icon: '🍕',
+            blurb: 'Parts of a whole',
+            lesson: `
+              <h2>What is a fraction?</h2>
+              <p>A fraction tells us how many <strong>parts</strong> of a <strong>whole</strong> we have.</p>
+              <p class="big-example">3<br/>—<br/>4</p>
+              <p>The <strong>top</strong> (numerator) = how many parts we have. The <strong>bottom</strong> (denominator) = how many parts the whole is split into.</p>`,
+            examples: [
+              { q: '3 out of 4 pieces shaded — write as a fraction.', steps: ['3 shaded out of 4 total.', 'Fraction: 3/4.'], a: '3/4' },
+              { q: '2 out of 5 pieces shaded — write as a fraction.', steps: ['2 shaded out of 5.', 'Fraction: 2/5.'], a: '2/5' }
+            ],
+            gen: () => {
+              const n = rand(2, 8);
+              const p = rand(1, n - 1);
+              return {
+                display: 'What fraction is shaded?',
+                visual: fractionBar(p, n),
+                answer: `${p}/${n}`,
+                inputType: 'fraction'
+              };
+            }
+          },
+          {
+            id: 'add3dig',
+            name: '3-Digit Addition',
+            icon: '🧮',
+            blurb: 'Add bigger numbers with carries',
+            lesson: `
+              <h2>Adding 3-digit numbers</h2>
+              <p>Same method as 2-digit addition, now with <strong>hundreds</strong> too. Stack, add ones, then tens, then hundreds — carrying when needed.</p>
+              <p class="big-example">245 + 378 = 623</p>
+              <ol>
+                <li>Ones: 5 + 8 = 13 → 3, carry 1.</li>
+                <li>Tens: 4 + 7 + 1 = 12 → 2, carry 1.</li>
+                <li>Hundreds: 2 + 3 + 1 = 6.</li>
+              </ol>`,
+            examples: [
+              { q: '342 + 215 = ?', steps: ['2 + 5 = 7.', '4 + 1 = 5.', '3 + 2 = 5.', 'Answer: 557.'], a: '557' },
+              { q: '489 + 234 = ?', steps: ['9 + 4 = 13 → 3, carry 1.', '8 + 3 + 1 = 12 → 2, carry 1.', '4 + 2 + 1 = 7.', 'Answer: 723.'], a: '723' }
+            ],
+            gen: () => {
+              const a = rand(100, 800);
+              const b = rand(100, 999 - a);
+              return { display: `${a} + ${b} = ?`, answer: String(a + b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'rounding',
+            name: 'Rounding',
+            icon: '🎯',
+            blurb: 'Round to the nearest 10 or 100',
+            lesson: `
+              <h2>Rounding to the nearest 10</h2>
+              <p>Look at the <strong>ones</strong> digit.</p>
+              <ul>
+                <li>If it's <strong>0–4</strong>: round <em>down</em> (keep the tens).</li>
+                <li>If it's <strong>5–9</strong>: round <em>up</em> (add 1 to the tens).</li>
+              </ul>
+              <p class="big-example">47 → 50 &nbsp;&nbsp; 42 → 40</p>`,
+            examples: [
+              { q: 'Round 68 to the nearest 10.', steps: ['Ones is 8 → round up.', '68 → 70.'], a: '70' },
+              { q: 'Round 253 to the nearest 100.', steps: ['Tens is 5 → round up.', '253 → 300.'], a: '300' }
+            ],
+            gen: () => {
+              const to10 = Math.random() < 0.6;
+              if (to10) {
+                const n = rand(11, 199);
+                const r = Math.round(n / 10) * 10;
+                return { display: `Round <span style="color:var(--violet-500)">${n}</span> to the nearest <strong>10</strong>.`, answer: String(r), inputType: 'int' };
+              } else {
+                const n = rand(120, 950);
+                const r = Math.round(n / 100) * 100;
+                return { display: `Round <span style="color:var(--violet-500)">${n}</span> to the nearest <strong>100</strong>.`, answer: String(r), inputType: 'int' };
+              }
+            }
+          },
+          {
+            id: 'wordProblems',
+            name: 'Word Problems',
+            icon: '📖',
+            blurb: 'Turn stories into math',
+            lesson: `
+              <h2>Solving word problems</h2>
+              <p>Word problems hide math inside a story. Look for <strong>clue words</strong>.</p>
+              <ul>
+                <li><strong>Total, altogether, in all</strong> → add</li>
+                <li><strong>How many left, how many more</strong> → subtract</li>
+                <li><strong>Groups of, each, per</strong> → multiply</li>
+                <li><strong>Share equally, split</strong> → divide</li>
+              </ul>`,
+            examples: [
+              { q: 'Sam has 4 boxes with 6 crayons each. How many crayons total?', steps: ['"Each" → multiply.', '4 × 6 = 24.'], a: '24' },
+              { q: 'Mia had 20 stickers and gave away 7. How many left?', steps: ['"How many left" → subtract.', '20 − 7 = 13.'], a: '13' }
+            ],
+            gen: () => {
+              const type = rand(1, 4);
+              const name = pick(['Sam','Mia','Leo','Ava','Jack','Zoe','Kai','Lily']);
+              if (type === 1) {
+                const a = rand(3, 8), b = rand(3, 8);
+                return { display: `${name} has ${a} bags with <strong>${b}</strong> marbles in each. How many marbles altogether?`, answer: String(a * b), inputType: 'int' };
+              }
+              if (type === 2) {
+                const a = rand(15, 40), b = rand(3, a - 5);
+                return { display: `${name} had <strong>${a}</strong> stickers and gave <strong>${b}</strong> to a friend. How many are left?`, answer: String(a - b), inputType: 'int' };
+              }
+              if (type === 3) {
+                const a = rand(10, 30), b = rand(10, 30);
+                return { display: `${name} read <strong>${a}</strong> pages on Monday and <strong>${b}</strong> pages on Tuesday. How many in total?`, answer: String(a + b), inputType: 'int' };
+              }
+              const groups = rand(3, 6), per = rand(3, 6);
+              return { display: `${name} shared <strong>${groups * per}</strong> cookies equally among <strong>${groups}</strong> friends. How many did each friend get?`, answer: String(per), inputType: 'int' };
+            }
+          }
+        ]
+      },
+
+      '4': {
+        label: 'Grade 4',
+        tagline: 'Long division, fractions, and decimals · CA-CCSS 4.OA, 4.NBT, 4.NF, 4.MD',
+        topics: [
+          {
+            id: 'multiDigMult',
+            name: 'Multi-Digit ×',
+            icon: '🧮',
+            blurb: '2×2 and up to 4-digit × 1-digit (4.NBT.5)',
+            lesson: `
+              <h2>Multi-digit multiplication</h2>
+              <p>Break one number into <strong>place-value chunks</strong>, multiply each chunk, and add the pieces.</p>
+              <h3>2-digit × 1-digit</h3>
+              <p class="big-example">23 × 4 = (20 × 4) + (3 × 4) = 80 + 12 = 92</p>
+              <h3>2-digit × 2-digit</h3>
+              <p>Multiply by the ones digit, then by the tens digit (shifted one place), then add.</p>
+              <p class="big-example">23 × 14<br/>
+                23 × 4 = 92<br/>
+                23 × 10 = 230<br/>
+                92 + 230 = <strong>322</strong></p>
+              <div class="tip">The standard algorithm is a compact version of partial products. Both give the same answer.</div>`,
+            examples: [
+              { q: '36 × 5', steps: ['30 × 5 = 150.', '6 × 5 = 30.', '150 + 30 = 180.'], a: '180' },
+              { q: '234 × 6', steps: ['200 × 6 = 1,200.', '30 × 6 = 180.', '4 × 6 = 24.', '1,200 + 180 + 24 = 1,404.'], a: '1,404' },
+              { q: '23 × 14', steps: ['23 × 4 = 92.', '23 × 10 = 230.', '92 + 230 = 322.'], a: '322' }
+            ],
+            gen: () => {
+              const type = rand(1, 3);
+              if (type === 1) {
+                const a = rand(12, 99), b = rand(3, 9);
+                return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+              }
+              if (type === 2) {
+                const a = rand(100, 999), b = rand(2, 9);
+                return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+              }
+              const a = rand(11, 49), b = rand(11, 29);
+              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'longDivision',
+            name: 'Long Division',
+            icon: '➗',
+            blurb: '4-digit ÷ 1-digit, with remainders (4.NBT.6)',
+            lesson: `
+              <h2>Long division: DMSB</h2>
+              <p>Four steps, repeated: <strong>Divide · Multiply · Subtract · Bring Down</strong>.</p>
+              <p class="big-example">637 ÷ 5 = 127 R 2</p>
+              <ol>
+                <li>5 into 6 = 1. &nbsp; 1 × 5 = 5. &nbsp; 6 − 5 = 1. &nbsp; Bring down 3 → 13.</li>
+                <li>5 into 13 = 2. &nbsp; 2 × 5 = 10. &nbsp; 13 − 10 = 3. &nbsp; Bring down 7 → 37.</li>
+                <li>5 into 37 = 7. &nbsp; 7 × 5 = 35. &nbsp; 37 − 35 = 2.</li>
+                <li>Nothing left to bring down. The 2 is the <strong>remainder</strong>.</li>
+              </ol>
+              <div class="tip">Type your answer like "127 r 2". If it divides evenly, just write the whole number — like "127".</div>`,
+            examples: [
+              { q: '84 ÷ 4', steps: ['4 into 8 = 2.', 'Bring down 4. 4 into 4 = 1.', 'Answer: 21.'], a: '21' },
+              { q: '637 ÷ 5', steps: ['5 into 6 = 1 r 1. Bring down 3 → 13.', '5 into 13 = 2 r 3. Bring down 7 → 37.', '5 into 37 = 7 r 2.', 'Answer: 127 r 2.'], a: '127 r 2' },
+              { q: '1,248 ÷ 6', steps: ['6 into 12 = 2. Bring down 4 → 04.', '6 into 4 = 0. Bring down 8 → 48.', '6 into 48 = 8.', 'Answer: 208.'], a: '208' }
+            ],
+            gen: () => {
+              const divisor = rand(3, 9);
+              const withRem = Math.random() < 0.5;
+              const quotient = rand(20, 999);
+              const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
+              const q = Math.floor(dividend / divisor), r = dividend % divisor;
+              const answer = r === 0 ? String(q) : `${q} r ${r}`;
+              return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 127, or "127 r 2" if there is a remainder.' };
+            }
+          },
+          {
+            id: 'factorsMultiples',
+            name: 'Factors & Multiples',
+            icon: '🔍',
+            blurb: 'Factors, multiples, primes (4.OA.4)',
+            lesson: `
+              <h2>Factors and multiples</h2>
+              <p>A <strong>factor</strong> of a number divides it evenly (no remainder).</p>
+              <p>Factors of <strong>12</strong>: 1, 2, 3, 4, 6, 12.</p>
+              <p>A <strong>multiple</strong> of a number is any entry in that number's times table.</p>
+              <p>Multiples of <strong>3</strong>: 3, 6, 9, 12, 15, 18 …</p>
+              <h3>Prime or composite?</h3>
+              <p><strong>Prime:</strong> only factors are 1 and itself (2, 3, 5, 7, 11, 13 …).</p>
+              <p><strong>Composite:</strong> has extra factors (4, 6, 8, 9, 10, 12 …).</p>
+              <div class="tip">1 is neither prime nor composite. 2 is the only even prime.</div>`,
+            examples: [
+              { q: 'How many factors does 12 have?', steps: ['Factors: 1, 2, 3, 4, 6, 12.', 'Count: 6.'], a: '6' },
+              { q: 'Is 17 prime or composite?', steps: ['Check divisors.', 'Only 1 and 17 divide it.', 'Answer: prime.'], a: 'prime' },
+              { q: 'What is the 5th multiple of 4?', steps: ['4, 8, 12, 16, 20.', '5th is 20.'], a: '20' }
+            ],
+            gen: () => {
+              const type = rand(1, 4);
+              if (type === 1) {
+                const nums = [6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 24, 25, 28, 30, 36];
+                const n = pick(nums);
+                let count = 0;
+                for (let i = 1; i <= n; i++) if (n % i === 0) count++;
+                return { display: `How many factors does <span style="color:var(--violet-500)">${n}</span> have?`, answer: String(count), inputType: 'int' };
+              }
+              if (type === 2) {
+                const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
+                const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 27, 28, 32];
+                const isPrime = Math.random() < 0.5;
+                const n = isPrime ? pick(primes) : pick(composites);
+                return { display: `Is <span style="color:var(--violet-500)">${n}</span> prime or composite?`, answer: isPrime ? 'prime' : 'composite', inputType: 'text', hint: 'Type "prime" or "composite".' };
+              }
+              if (type === 3) {
+                const base = rand(2, 9);
+                const n = rand(3, 8);
+                return { display: `What is the <strong>${n}th</strong> multiple of <strong>${base}</strong>?`, answer: String(base * n), inputType: 'int' };
+              }
+              const base = rand(2, 9);
+              const isMult = Math.random() < 0.5;
+              const n = isMult ? base * rand(3, 10) : (base * rand(3, 10) + rand(1, base - 1));
+              return { display: `Is <strong>${n}</strong> a multiple of <strong>${base}</strong>?`, answer: isMult ? 'yes' : 'no', inputType: 'text', hint: 'Type "yes" or "no".' };
+            }
+          },
+          {
+            id: 'equivFractions',
+            name: 'Equivalent Fractions',
+            icon: '🟰',
+            blurb: 'Simplify and fill-in-blank (4.NF.1)',
+            lesson: `
+              <h2>Equivalent fractions</h2>
+              <p>Two fractions are <strong>equivalent</strong> if they name the same amount — even though the numbers look different.</p>
+              <p class="big-example">1/2 = 2/4 = 3/6 = 4/8 = 50/100</p>
+              <h3>To scale up</h3>
+              <p>Multiply the top and the bottom by the <em>same</em> number.</p>
+              <h3>To simplify</h3>
+              <p>Divide the top and bottom by a common factor. Using the greatest common factor (GCF) gets you to simplest form in one step.</p>
+              <div class="tip">A fraction is simplified when the top and bottom share no common factor greater than 1.</div>`,
+            examples: [
+              { q: 'Simplify 8/12', steps: ['GCF of 8 and 12 is 4.', '8 ÷ 4 = 2. 12 ÷ 4 = 3.', 'Answer: 2/3.'], a: '2/3' },
+              { q: 'Fill in: 3/4 = ?/12', steps: ['12 ÷ 4 = 3 (scale factor).', '3 × 3 = 9.', 'Answer: 9.'], a: '9' }
+            ],
+            gen: () => {
+              const simplifyType = Math.random() < 0.5;
+              if (simplifyType) {
+                const base = simplify(rand(1, 5), rand(2, 8));
+                const mult = rand(2, 6);
+                const n = base[0] * mult, d = base[1] * mult;
+                if (n === 0 || n >= d) return { display: 'Simplify <span style="color:var(--violet-500)">6/8</span>', answer: '3/4', inputType: 'fraction' };
+                return { display: `Simplify <span style="color:var(--violet-500)">${n}/${d}</span>`, answer: `${base[0]}/${base[1]}`, inputType: 'fraction' };
+              }
+              const b = rand(2, 6);
+              const a = rand(1, b - 1);
+              const mult = rand(2, 8);
+              return {
+                display: `Fill in the blank:<br/><span style="color:var(--violet-500);font-size:0.85em">${a}/${b} = ?/${b * mult}</span>`,
+                answer: String(a * mult),
+                inputType: 'int'
+              };
+            }
+          },
+          {
+            id: 'compareFractions',
+            name: 'Compare Fractions',
+            icon: '⚖️',
+            blurb: 'Which fraction is bigger? (4.NF.2)',
+            lesson: `
+              <h2>Comparing fractions</h2>
+              <p>If the <strong>bottoms match</strong>, the bigger numerator wins.</p>
+              <p class="big-example">3/5 > 2/5</p>
+              <h3>Different bottoms</h3>
+              <p>Find a <strong>common denominator</strong> first.</p>
+              <p class="big-example">3/4 vs 2/3 &nbsp; → &nbsp; 9/12 vs 8/12 &nbsp; → &nbsp; 3/4 is bigger.</p>
+              <div class="tip">Cross-multiply shortcut: 3 × 3 = 9 and 2 × 4 = 8. The bigger product sits next to the bigger fraction.</div>`,
+            examples: [
+              { q: 'Which is bigger: 3/5 or 4/7?', steps: ['Common denom = 35. 3/5 = 21/35. 4/7 = 20/35.', '21 > 20.', 'Answer: 3/5.'], a: '3/5' },
+              { q: 'Which is bigger: 5/6 or 3/4?', steps: ['Common denom = 12. 5/6 = 10/12. 3/4 = 9/12.', '10 > 9.', 'Answer: 5/6.'], a: '5/6' }
+            ],
+            gen: () => {
+              const denoms = [3, 4, 5, 6, 8, 10];
+              let d1 = pick(denoms), d2 = pick(denoms);
+              while (d2 === d1) d2 = pick(denoms);
+              const n1 = rand(1, d1 - 1);
+              const n2 = rand(1, d2 - 1);
+              if (n1 * d2 === n2 * d1) return { display: 'Which is bigger: 3/4 or 1/2?', answer: '3/4', inputType: 'fraction', hint: 'Type the bigger fraction.' };
+              const bigger = n1 * d2 > n2 * d1 ? `${n1}/${d1}` : `${n2}/${d2}`;
+              return { display: `Which is <strong>bigger</strong>: ${n1}/${d1} or ${n2}/${d2}?`, answer: bigger, inputType: 'fraction', hint: 'Type the bigger fraction (top and bottom).' };
+            }
+          },
+          {
+            id: 'addFractions',
+            name: 'Add/Subtract Fractions',
+            icon: '➕',
+            blurb: 'Same denominator only (4.NF.3)',
+            lesson: `
+              <h2>Adding fractions with the same bottom</h2>
+              <p>If the denominators match, just <strong>add the tops</strong>. Keep the bottom the same.</p>
+              <p class="big-example">1/5 + 2/5 = 3/5</p>
+              <div class="tip">Never add the bottoms — the bottom tells the <em>size</em> of each piece, not how many pieces you have.</div>
+              <h3>Why this works</h3>
+              <p>2 <em>fifths</em> plus 3 <em>fifths</em> is 5 <em>fifths</em> — just like 2 apples + 3 apples = 5 apples.</p>`,
+            examples: [
+              { q: '2/7 + 3/7', steps: ['Bottoms match: keep 7.', 'Tops: 2 + 3 = 5.', 'Answer: 5/7.'], a: '5/7' },
+              { q: '5/8 − 2/8', steps: ['Bottoms match: keep 8.', 'Tops: 5 − 2 = 3.', 'Answer: 3/8.'], a: '3/8' }
+            ],
+            gen: () => {
+              const d = rand(4, 10);
+              const plus = Math.random() < 0.5;
+              let a, b;
+              if (plus) {
+                a = rand(1, d - 2);
+                b = rand(1, d - 1 - a);
+              } else {
+                a = rand(2, d - 1); b = rand(1, a - 1);
+              }
+              const n = plus ? a + b : a - b;
+              const [sn, sd] = simplify(n, d);
+              return { display: `${a}/${d} ${plus ? '+' : '−'} ${b}/${d} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+            }
+          },
+          {
+            id: 'fracTimesWhole',
+            name: 'Fraction × Whole #',
+            icon: '🍰',
+            blurb: 'Fraction times whole number (4.NF.4)',
+            lesson: `
+              <h2>Fraction × whole number</h2>
+              <p><strong>3 × 1/4</strong> means three copies of 1/4 — 1/4 + 1/4 + 1/4 = 3/4.</p>
+              <p>Shortcut: multiply the whole number by the <strong>top</strong>. Keep the bottom the same. Then simplify.</p>
+              <p class="big-example">5 × 2/3 = 10/3</p>
+              <div class="tip">Simplify when you can. 4 × 2/8 = 8/8 = 1.</div>`,
+            examples: [
+              { q: '3 × 1/4', steps: ['3 × 1 = 3.', 'Bottom stays 4.', 'Answer: 3/4.'], a: '3/4' },
+              { q: '5 × 2/3', steps: ['5 × 2 = 10.', 'Bottom stays 3.', 'Answer: 10/3.'], a: '10/3' },
+              { q: '4 × 1/8', steps: ['4 × 1 = 4.', '4/8 simplifies to 1/2.'], a: '1/2' }
+            ],
+            gen: () => {
+              const w = rand(2, 8);
+              const d = rand(3, 8);
+              const n = rand(1, d - 1);
+              const [sn, sd] = simplify(w * n, d);
+              return { display: `${w} × ${n}/${d} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+            }
+          },
+          {
+            id: 'decimalsIntro',
+            name: 'Decimals',
+            icon: '💠',
+            blurb: 'Tenths, hundredths, compare (4.NF.5-7)',
+            lesson: `
+              <h2>Decimals — tenths and hundredths</h2>
+              <p>The first place after the dot is <strong>tenths</strong> (1/10). The second is <strong>hundredths</strong> (1/100).</p>
+              <p class="big-example">0.3 = 3 tenths = 3/10<br/>0.47 = 47 hundredths = 47/100</p>
+              <h3>Comparing decimals</h3>
+              <p>Line up the dots. Compare place by place, left to right. Add zeros if it helps.</p>
+              <p class="big-example">0.3 vs 0.25 → 0.30 vs 0.25 → 0.30 is bigger.</p>
+              <div class="tip">Don't let 25 fool you — 0.3 is BIGGER than 0.25, because 3 tenths = 30 hundredths.</div>`,
+            examples: [
+              { q: 'Write 7/10 as a decimal.', steps: ['Tenths = first place after the dot.', '7/10 = 0.7.'], a: '0.7' },
+              { q: 'Which is bigger: 0.4 or 0.35?', steps: ['Add a zero: 0.40 vs 0.35.', '0.40 > 0.35.'], a: '0.4' },
+              { q: '0.25 + 0.6', steps: ['Line up dots: 0.25 + 0.60.', 'Sum: 0.85.'], a: '0.85' }
+            ],
+            gen: () => {
+              const type = rand(1, 4);
+              if (type === 1) {
+                const n = rand(1, 9);
+                return { display: `Write <span style="color:var(--violet-500)">${n}/10</span> as a decimal.`, answer: fmtDec(n / 10), inputType: 'decimal' };
+              }
+              if (type === 2) {
+                const n = rand(1, 99);
+                return { display: `Write <span style="color:var(--violet-500)">${n}/100</span> as a decimal.`, answer: fmtDec(n / 100), inputType: 'decimal' };
+              }
+              if (type === 3) {
+                const aTenths = rand(1, 9);
+                const bHundredths = rand(10, 99);
+                const a = aTenths / 10;
+                const b = bHundredths / 100;
+                const as = a.toFixed(1), bs = b.toFixed(2);
+                const answer = a > b ? as : bs;
+                return { display: `Which is <strong>bigger</strong>: ${as} or ${bs}?`, answer, inputType: 'decimal' };
+              }
+              const aH = rand(1, 99) / 100;
+              const bT = rand(1, 9) / 10;
+              const r = Math.round((aH + bT) * 100) / 100;
+              return { display: `${aH.toFixed(2)} + ${bT.toFixed(1)} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+            }
+          },
+          {
+            id: 'areaPerim',
+            name: 'Area & Perimeter',
+            icon: '📐',
+            blurb: 'Rectangle formulas (4.MD.3)',
+            lesson: `
+              <h2>Area and perimeter</h2>
+              <p><strong>Perimeter</strong> is the distance around the outside — add all the sides.</p>
+              <p><strong>Area</strong> is the space inside — for a rectangle, length × width.</p>
+              <p class="big-example">Rectangle 5 × 3:<br/>Area = 5 × 3 = <strong>15 sq units</strong><br/>Perimeter = 2 × (5 + 3) = <strong>16 units</strong></p>
+              <div class="tip">Area uses <em>square</em> units (sq ft, sq cm). Perimeter uses plain units (ft, cm).</div>`,
+            examples: [
+              { q: 'Rectangle 4 by 6 — area?', steps: ['Area = length × width.', '4 × 6 = 24.'], a: '24' },
+              { q: 'Rectangle 4 by 6 — perimeter?', steps: ['4 + 6 + 4 + 6.', 'Or 2 × (4 + 6) = 20.'], a: '20' }
+            ],
+            gen: () => {
+              const l = rand(3, 12), w = rand(2, 9);
+              const askArea = Math.random() < 0.5;
+              return {
+                display: `Rectangle <strong>${l} × ${w}</strong> — find the <strong>${askArea ? 'area' : 'perimeter'}</strong>.`,
+                answer: String(askArea ? l * w : 2 * (l + w)),
+                inputType: 'int'
+              };
+            }
+          },
+          {
+            id: 'longDivisionAdvanced',
+            name: 'Long Division ★',
+            icon: '🎯',
+            blurb: '2- and 3-digit divisors (advanced)',
+            lesson: `
+              <h2>Long division with bigger divisors</h2>
+              <div class="tip">This goes beyond the standard 4th grade curriculum (CA-CCSS). Try it if you're up for a challenge — it's the same method, just with bigger numbers.</div>
+              <p>Use the same four steps — <strong>Divide · Multiply · Subtract · Bring Down</strong> — but you'll need to look at more digits of the dividend before your divisor fits.</p>
+              <h3>Estimation trick</h3>
+              <p>Round the divisor to the nearest 10 or 100. "About how many 30s fit?" or "About how many 200s fit?"</p>
+              <p class="big-example">945 ÷ 15 = 63</p>
+              <ol>
+                <li>15 into 9? No. 15 into 94? Estimate: 15 × 6 = 90 ✓. 94 − 90 = 4. Bring down 5 → 45.</li>
+                <li>15 into 45 = 3 exactly.</li>
+                <li>Answer: 63.</li>
+              </ol>
+              <p class="big-example">4,800 ÷ 240 = 20</p>
+              <ol>
+                <li>240 into 4? 48? 480? &nbsp; 240 × 2 = 480 ✓.</li>
+                <li>Bring down 0 → 0. &nbsp; 240 into 0 = 0.</li>
+                <li>Answer: 20.</li>
+              </ol>
+              <div class="tip">If your estimate gives a product bigger than what you're subtracting from, try one less.</div>`,
+            examples: [
+              { q: '276 ÷ 12', steps: ['12 into 27 = 2 (24). 27 − 24 = 3.', 'Bring down 6 → 36. 12 into 36 = 3.', 'Answer: 23.'], a: '23' },
+              { q: '525 ÷ 105', steps: ['105 into 525. Try 105 × 5 = 525. ✓', 'Answer: 5.'], a: '5' },
+              { q: '2,400 ÷ 120', steps: ['120 into 240 = 2.', 'Bring down 0 → 0. 120 into 0 = 0.', 'Answer: 20.'], a: '20' }
+            ],
+            gen: () => {
+              const twoDigit = Math.random() < 0.55;
+              if (twoDigit) {
+                const divisor = rand(11, 49);
+                const withRem = Math.random() < 0.3;
+                const quotient = rand(10, 99);
+                const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
+                const q = Math.floor(dividend / divisor), r = dividend % divisor;
+                const answer = r === 0 ? String(q) : `${q} r ${r}`;
+                return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 23, or "23 r 5" if there is a remainder.' };
+              }
+              const divisor = rand(100, 499);
+              const withRem = Math.random() < 0.25;
+              const quotient = rand(2, 29);
+              const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
+              const q = Math.floor(dividend / divisor), r = dividend % divisor;
+              const answer = r === 0 ? String(q) : `${q} r ${r}`;
+              return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 20, or "20 r 7" if there is a remainder.' };
+            }
+          }
+        ]
+      },
+
+      '5': {
+        label: 'Grade 5',
+        tagline: 'Unlike-denominator fractions, decimals, PEMDAS · CA-CCSS 5.NBT, 5.NF, 5.OA, 5.MD, 5.G',
+        topics: [
+          {
+            id: 'multiDigMult5',
+            name: 'Multi-Digit ×',
+            icon: '✖️',
+            blurb: '3-digit × 2-digit (5.NBT.5)',
+            lesson: `
+              <h2>3-digit × 2-digit multiplication</h2>
+              <p>Use the <strong>standard algorithm</strong>. Multiply the top number by the ones digit of the bottom number, then by the tens digit (shifted one place), then add the two partial products.</p>
+              <p class="big-example">234 × 25 = ?</p>
+              <ol>
+                <li>234 × 5 = 1,170</li>
+                <li>234 × 20 = 4,680</li>
+                <li>1,170 + 4,680 = <strong>5,850</strong></li>
+              </ol>
+              <div class="tip">Multiplying by the tens digit shifts everything one place left — equivalent to multiplying by 10.</div>`,
+            examples: [
+              { q: '143 × 17', steps: ['143 × 7 = 1,001.', '143 × 10 = 1,430.', '1,001 + 1,430 = 2,431.'], a: '2,431' },
+              { q: '208 × 35', steps: ['208 × 5 = 1,040.', '208 × 30 = 6,240.', '1,040 + 6,240 = 7,280.'], a: '7,280' }
+            ],
+            gen: () => {
+              const a = rand(100, 999);
+              const b = rand(11, 49);
+              return { display: `${a} × ${b} = ?`, answer: String(a * b), inputType: 'int' };
+            }
+          },
+          {
+            id: 'division5',
+            name: 'Long Division',
+            icon: '➗',
+            blurb: '4-digit ÷ 2-digit (5.NBT.6)',
+            lesson: `
+              <h2>Dividing by 2-digit divisors</h2>
+              <p>Same long-division method — <strong>Divide · Multiply · Subtract · Bring Down</strong>. The biggest challenge is <em>estimating</em> how many times the divisor fits.</p>
+              <h3>Estimation trick</h3>
+              <p>Round the divisor to the nearest 10. "About how many 30s fit in this number?"</p>
+              <p class="big-example">2,415 ÷ 23 = 105</p>
+              <ol>
+                <li>23 into 24 = 1. 24 − 23 = 1. Bring down 1 → 11.</li>
+                <li>23 into 11 = 0. Bring down 5 → 115.</li>
+                <li>23 into 115 = 5. 5 × 23 = 115.</li>
+                <li>Answer: 105.</li>
+              </ol>
+              <div class="tip">If your estimated quotient times the divisor is bigger than what you're subtracting from, try one less.</div>`,
+            examples: [
+              { q: '672 ÷ 24', steps: ['24 into 67 = 2 (48). 67 − 48 = 19.', 'Bring down 2 → 192. 24 into 192 = 8.', 'Answer: 28.'], a: '28' },
+              { q: '2,415 ÷ 23', steps: ['23 into 24 = 1.', 'Bring down 1 → 11. 23 into 11 = 0.', 'Bring down 5 → 115. 23 into 115 = 5.', 'Answer: 105.'], a: '105' },
+              { q: '945 ÷ 15', steps: ['15 into 94 = 6 (90).', 'Bring down 5 → 45. 15 into 45 = 3.', 'Answer: 63.'], a: '63' }
+            ],
+            gen: () => {
+              const divisor = rand(12, 89);
+              const withRem = Math.random() < 0.4;
+              const quotient = rand(20, 299);
+              const dividend = divisor * quotient + (withRem ? rand(1, divisor - 1) : 0);
+              const q = Math.floor(dividend / divisor), r = dividend % divisor;
+              const answer = r === 0 ? String(q) : `${q} r ${r}`;
+              return { display: `${dividend} ÷ ${divisor} = ?`, answer, inputType: 'division', hint: 'Type like 28, or "28 r 5" if there is a remainder.' };
+            }
+          },
+          {
+            id: 'addFractionsUnlike',
+            name: 'Add/Sub Unlike Fractions',
+            icon: '🧩',
+            blurb: 'Different denominators (5.NF.1)',
+            lesson: `
+              <h2>Adding fractions with different bottoms</h2>
+              <p>You can't combine pieces of different sizes. First, <strong>make the bottoms match</strong>.</p>
+              <ol>
+                <li>Find a <strong>common denominator</strong>. One easy choice: multiply the two denominators together.</li>
+                <li>Rewrite each fraction with that common denominator (scale the tops, too).</li>
+                <li>Add (or subtract) the new tops. Keep the common bottom.</li>
+                <li>Simplify.</li>
+              </ol>
+              <p class="big-example">1/2 + 1/3 = 3/6 + 2/6 = <strong>5/6</strong></p>
+              <div class="tip">Using the LEAST common denominator saves work — but any common denominator gives the right answer.</div>`,
+            examples: [
+              { q: '1/4 + 1/6', steps: ['Common denom = 12. 1/4 = 3/12. 1/6 = 2/12.', '3/12 + 2/12 = 5/12.'], a: '5/12' },
+              { q: '3/4 − 1/3', steps: ['Common denom = 12. 3/4 = 9/12. 1/3 = 4/12.', '9/12 − 4/12 = 5/12.'], a: '5/12' },
+              { q: '2/3 + 1/5', steps: ['Common denom = 15. 2/3 = 10/15. 1/5 = 3/15.', '10/15 + 3/15 = 13/15.'], a: '13/15' }
+            ],
+            gen: () => {
+              const denoms = [2, 3, 4, 5, 6, 8];
+              let d1 = pick(denoms), d2 = pick(denoms);
+              while (d2 === d1) d2 = pick(denoms);
+              const n1 = rand(1, d1 - 1);
+              const n2 = rand(1, d2 - 1);
+              const plus = Math.random() < 0.55;
+              const commonD = d1 * d2;
+              if (plus) {
+                const num = n1 * d2 + n2 * d1;
+                const [sn, sd] = simplify(num, commonD);
+                return { display: `${n1}/${d1} + ${n2}/${d2} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+              }
+              const v1 = n1 * d2, v2 = n2 * d1;
+              if (v1 === v2) return { display: '3/4 − 1/2 = ?', answer: '1/4', inputType: 'fraction' };
+              if (v1 > v2) {
+                const [sn, sd] = simplify(v1 - v2, commonD);
+                return { display: `${n1}/${d1} − ${n2}/${d2} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+              }
+              const [sn, sd] = simplify(v2 - v1, commonD);
+              return { display: `${n2}/${d2} − ${n1}/${d1} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+            }
+          },
+          {
+            id: 'multFractions',
+            name: 'Multiply Fractions',
+            icon: '✖️',
+            blurb: 'Fraction × fraction (5.NF.4)',
+            lesson: `
+              <h2>Multiplying fractions</h2>
+              <p>Multiply the <strong>tops</strong> together. Multiply the <strong>bottoms</strong> together. Simplify.</p>
+              <p class="big-example">2/3 × 3/4 = 6/12 = <strong>1/2</strong></p>
+              <div class="tip">Unlike addition, you do NOT need a common denominator to multiply.</div>
+              <h3>Why it works</h3>
+              <p>"Of" in fraction talk means multiply. "1/2 of 3/4" is 3/8.</p>`,
+            examples: [
+              { q: '1/2 × 3/5', steps: ['Tops: 1 × 3 = 3.', 'Bottoms: 2 × 5 = 10.', '3/10 is already simplified.'], a: '3/10' },
+              { q: '2/3 × 3/8', steps: ['6/24.', 'Simplify by 6: 1/4.'], a: '1/4' }
+            ],
+            gen: () => {
+              const b = rand(2, 6), d = rand(2, 6);
+              const a = rand(1, b - 1);
+              const c = rand(1, d - 1);
+              const [sn, sd] = simplify(a * c, b * d);
+              return { display: `${a}/${b} × ${c}/${d} = ?`, answer: `${sn}/${sd}`, inputType: 'fraction' };
+            }
+          },
+          {
+            id: 'divFractions',
+            name: 'Divide with Fractions',
+            icon: '➗',
+            blurb: 'Unit fractions and wholes (5.NF.7)',
+            lesson: `
+              <h2>Dividing with unit fractions</h2>
+              <p>Two kinds of problems in 5th grade:</p>
+              <h3>1. Unit fraction ÷ whole number</h3>
+              <p>"1/3 ÷ 4" means: split 1/3 into 4 equal parts. Each part is tinier.</p>
+              <p class="big-example">1/3 ÷ 4 = 1/12</p>
+              <h3>2. Whole number ÷ unit fraction</h3>
+              <p>"5 ÷ 1/2" means: how many halves fit in 5? Ten halves fit.</p>
+              <p class="big-example">5 ÷ 1/2 = 10</p>
+              <h3>Shortcut: Keep, Change, Flip</h3>
+              <p>Keep the first, change ÷ to ×, flip the second — you're multiplying by the reciprocal.</p>
+              <p class="big-example">1/3 ÷ 4 = 1/3 × 1/4 = 1/12</p>`,
+            examples: [
+              { q: '1/4 ÷ 2', steps: ['Split 1/4 into 2 equal parts.', 'Keep-change-flip: 1/4 × 1/2.', 'Answer: 1/8.'], a: '1/8' },
+              { q: '3 ÷ 1/5', steps: ['How many fifths fit in 3?', 'Keep-change-flip: 3 × 5 = 15.'], a: '15' }
+            ],
+            gen: () => {
+              const type = rand(1, 2);
+              if (type === 1) {
+                const d = rand(2, 6);
+                const w = rand(2, 6);
+                return { display: `1/${d} ÷ ${w} = ?`, answer: `1/${d * w}`, inputType: 'fraction' };
+              }
+              const w = rand(2, 8);
+              const d = rand(2, 6);
+              return { display: `${w} ÷ 1/${d} = ?`, answer: String(w * d), inputType: 'int' };
+            }
+          },
+          {
+            id: 'decimalOps',
+            name: 'Decimal Operations',
+            icon: '🔢',
+            blurb: '+, −, ×, ÷ with decimals (5.NBT.7)',
+            lesson: `
+              <h2>All four operations with decimals</h2>
+              <p><strong>Add / subtract:</strong> line up the decimal points, then compute as usual.</p>
+              <p><strong>Multiply:</strong> ignore the dots, multiply as whole numbers, then count the total number of decimal places in both factors and put the dot that many places from the right.</p>
+              <p class="big-example">1.5 × 0.2 = ?<br/>15 × 2 = 30. Total 2 decimal places → <strong>0.30</strong></p>
+              <p><strong>Divide by a whole number:</strong> the decimal in the answer lines up with the decimal in the dividend.</p>
+              <p class="big-example">4.8 ÷ 4 = 1.2</p>`,
+            examples: [
+              { q: '3.2 + 1.7', steps: ['Line up dots.', 'Add: 4.9.'], a: '4.9' },
+              { q: '1.5 × 0.4', steps: ['15 × 4 = 60.', '2 total decimal places.', '0.60 = 0.6.'], a: '0.6' },
+              { q: '6.3 ÷ 3', steps: ['Dot stays in place.', '63 ÷ 3 = 21 → 2.1.'], a: '2.1' }
+            ],
+            gen: () => {
+              const type = rand(1, 4);
+              if (type === 1) {
+                const a = rand(10, 99) / 100, b = rand(10, 99) / 100;
+                const r = Math.round((a + b) * 100) / 100;
+                return { display: `${a.toFixed(2)} + ${b.toFixed(2)} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+              }
+              if (type === 2) {
+                let a = rand(50, 99) / 10, b = rand(10, 40) / 10;
+                const r = Math.round((a - b) * 10) / 10;
+                return { display: `${a.toFixed(1)} − ${b.toFixed(1)} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+              }
+              if (type === 3) {
+                const a = rand(11, 49) / 10, b = rand(2, 9);
+                const r = Math.round(a * b * 10) / 10;
+                return { display: `${a.toFixed(1)} × ${b} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+              }
+              const divisor = rand(2, 6);
+              let qTenths;
+              do { qTenths = rand(11, 99); } while (qTenths % 10 === 0);
+              const dividend = (divisor * qTenths) / 10;
+              return { display: `${dividend.toFixed(1)} ÷ ${divisor} = ?`, answer: fmtDec(qTenths / 10), inputType: 'decimal' };
+            }
+          },
+          {
+            id: 'powersOfTen',
+            name: 'Powers of 10',
+            icon: '🔟',
+            blurb: '× and ÷ by 10, 100, 1,000 (5.NBT.2)',
+            lesson: `
+              <h2>Multiplying and dividing by powers of 10</h2>
+              <p>Every time you multiply by 10, the decimal point <strong>slides one place to the right</strong>.</p>
+              <p>Every time you divide by 10, it slides one place <strong>to the left</strong>.</p>
+              <p class="big-example">4.5 × 10 = 45<br/>4.5 × 100 = 450<br/>4.5 × 1,000 = 4,500<br/>4.5 ÷ 10 = 0.45</p>
+              <div class="tip">Count the zeros in the power of 10 — that's how many places the decimal moves.</div>`,
+            examples: [
+              { q: '0.72 × 100', steps: ['100 has 2 zeros.', 'Move the dot 2 places right.', 'Answer: 72.'], a: '72' },
+              { q: '34 ÷ 10', steps: ['Move the dot 1 place left.', '34 → 3.4.'], a: '3.4' },
+              { q: '5.6 × 1,000', steps: ['3 zeros → move 3 places right.', '5.6 → 56 → 560 → 5,600.'], a: '5,600' }
+            ],
+            gen: () => {
+              const powers = [10, 100, 1000];
+              const p = pick(powers);
+              const mul = Math.random() < 0.5;
+              if (mul) {
+                const base = rand(10, 999) / 100;
+                const r = Math.round(base * p * 100) / 100;
+                return { display: `${base} × ${p.toLocaleString()} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+              }
+              const base = rand(10, 9999);
+              const r = Math.round((base / p) * 1000) / 1000;
+              return { display: `${base.toLocaleString()} ÷ ${p.toLocaleString()} = ?`, answer: fmtDec(r), inputType: 'decimal' };
+            }
+          },
+          {
+            id: 'orderOps',
+            name: 'Order of Operations',
+            icon: '🔢',
+            blurb: 'PEMDAS with parentheses (5.OA.1)',
+            lesson: `
+              <h2>Order of operations — PEMDAS</h2>
+              <p>When a problem has different operations, follow this order:</p>
+              <ol>
+                <li><strong>P</strong>arentheses</li>
+                <li><strong>E</strong>xponents</li>
+                <li><strong>M</strong>ultiplication and <strong>D</strong>ivision (left to right)</li>
+                <li><strong>A</strong>ddition and <strong>S</strong>ubtraction (left to right)</li>
+              </ol>
+              <p class="big-example">3 + 4 × 2 = 3 + 8 = <strong>11</strong></p>
+              <p>Not 14 — multiply <em>before</em> you add.</p>`,
+            examples: [
+              { q: '8 − 2 × 3', steps: ['Multiply first: 2 × 3 = 6.', '8 − 6 = 2.'], a: '2' },
+              { q: '(4 + 2) × 3', steps: ['Parentheses first: 4 + 2 = 6.', '6 × 3 = 18.'], a: '18' },
+              { q: '20 ÷ (6 − 2)', steps: ['Parentheses first: 6 − 2 = 4.', '20 ÷ 4 = 5.'], a: '5' }
+            ],
+            gen: () => {
+              const type = rand(1, 4);
+              if (type === 1) {
+                const a = rand(2, 9), b = rand(2, 6), c = rand(2, 6);
+                return { display: `${a} + ${b} × ${c} = ?`, answer: String(a + b * c), inputType: 'int' };
+              }
+              if (type === 2) {
+                const b = rand(2, 5), c = rand(2, 5);
+                const a = rand(b * c + 1, b * c + 10);
+                return { display: `${a} − ${b} × ${c} = ?`, answer: String(a - b * c), inputType: 'int' };
+              }
+              if (type === 3) {
+                const a = rand(2, 6), b = rand(2, 6), c = rand(2, 6);
+                return { display: `(${a} + ${b}) × ${c} = ?`, answer: String((a + b) * c), inputType: 'int' };
+              }
+              const d = rand(2, 5);
+              const quotient = rand(2, 9);
+              const extra = rand(1, 4);
+              const dividend = d * quotient;
+              return { display: `${dividend} ÷ (${d + extra} − ${extra}) = ?`, answer: String(quotient), inputType: 'int' };
+            }
+          },
+          {
+            id: 'coordinates',
+            name: 'Coordinate Plane',
+            icon: '📍',
+            blurb: 'First quadrant (x, y) (5.G.1-2)',
+            lesson: `
+              <h2>The coordinate plane</h2>
+              <p>Every point has two numbers: <strong>(x, y)</strong>.</p>
+              <ul>
+                <li><strong>x</strong> = how far RIGHT from the origin (0, 0)</li>
+                <li><strong>y</strong> = how far UP from the origin</li>
+              </ul>
+              <p class="big-example">(3, 4) → 3 right, 4 up</p>
+              <div class="tip">The x-coordinate comes first. Alphabetical: x, then y.</div>`,
+            examples: [
+              { q: 'Point at (5, 2) — what is the x-coordinate?', steps: ['First number is x.', 'x = 5.'], a: '5' },
+              { q: 'A ladybug walks 4 right and 6 up. Write the point.', steps: ['x = 4, y = 6.', '(4, 6).'], a: '(4,6)' }
+            ],
+            gen: () => {
+              const x = rand(0, 9), y = rand(0, 9);
+              const ask = rand(1, 3);
+              if (ask === 1) return { display: `For point <strong>(${x}, ${y})</strong> — what is the <strong>x</strong>-coordinate?`, answer: String(x), inputType: 'int' };
+              if (ask === 2) return { display: `For point <strong>(${x}, ${y})</strong> — what is the <strong>y</strong>-coordinate?`, answer: String(y), inputType: 'int' };
+              return { display: `A bug walks <strong>${x} right</strong> and <strong>${y} up</strong>. Write the point as (x, y).`, answer: `(${x},${y})`, inputType: 'text', hint: 'Type like (3,4).' };
+            }
+          },
+          {
+            id: 'volume',
+            name: 'Volume',
+            icon: '📦',
+            blurb: 'Rectangular prisms (5.MD.5)',
+            lesson: `
+              <h2>Volume of a rectangular prism</h2>
+              <p>Volume is how much <strong>space</strong> a 3D shape takes up. It's measured in <em>cubic</em> units.</p>
+              <p>For a rectangular prism (a box):</p>
+              <p class="big-example">V = length × width × height</p>
+              <p>You can also think of it as area of the base times the height:</p>
+              <p class="big-example">V = B × h</p>
+              <div class="tip">Always label volume with cubic units (cubic ft, cm³). The "3" in cm³ means cubic.</div>`,
+            examples: [
+              { q: 'Box 4 × 3 × 2 — volume?', steps: ['4 × 3 = 12.', '12 × 2 = 24.'], a: '24' },
+              { q: 'Cube 5 × 5 × 5 — volume?', steps: ['5 × 5 = 25.', '25 × 5 = 125.'], a: '125' }
+            ],
+            gen: () => {
+              const l = rand(2, 9), w = rand(2, 9), h = rand(2, 9);
+              return { display: `Rectangular prism <strong>${l} × ${w} × ${h}</strong> — find the <strong>volume</strong>.`, answer: String(l * w * h), inputType: 'int' };
+            }
+          }
+        ]
+      }
+    };
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    const state = {
+      view: 'landing',
+      gradeKey: null,
+      topicId: null,
+      practice: null,  // active session
+      stars: loadStars()
+    };
+
+    function loadStars() {
+      try {
+        const raw = localStorage.getItem('mathace_stars');
+        return raw ? JSON.parse(raw) : {};
+      } catch { return {}; }
+    }
+    function saveStars() {
+      try { localStorage.setItem('mathace_stars', JSON.stringify(state.stars)); } catch {}
+    }
+    function bestTime(tid) {
+      try {
+        const raw = localStorage.getItem('mathace_times');
+        const map = raw ? JSON.parse(raw) : {};
+        return map[tid] || null;
+      } catch { return null; }
+    }
+    function saveBestTime(tid, seconds) {
+      try {
+        const raw = localStorage.getItem('mathace_times');
+        const map = raw ? JSON.parse(raw) : {};
+        if (!map[tid] || seconds < map[tid]) {
+          map[tid] = seconds;
+          localStorage.setItem('mathace_times', JSON.stringify(map));
+        }
+      } catch {}
+    }
+
+    // ============================================================
+    // VIEW SWITCHING
+    // ============================================================
+    function showView(name) {
+      state.view = name;
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      $('view-' + name).classList.add('active');
+      renderBreadcrumb();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderBreadcrumb() {
+      const bc = $('breadcrumb');
+      if (state.view === 'landing') { bc.innerHTML = ''; return; }
+      const parts = [`<button data-nav="landing">Home</button>`];
+      if (state.view === 'grade') {
+        parts.push(`<span class="sep">›</span><span class="current">Grades</span>`);
+      } else if (state.view === 'topic') {
+        parts.push(`<span class="sep">›</span><button data-nav="grade">Grades</button>`);
+        parts.push(`<span class="sep">›</span><span class="current">${CURRICULUM[state.gradeKey].label}</span>`);
+      } else if (state.view === 'detail') {
+        const topic = getTopic();
+        parts.push(`<span class="sep">›</span><button data-nav="grade">Grades</button>`);
+        parts.push(`<span class="sep">›</span><button data-nav="topic">${CURRICULUM[state.gradeKey].label}</button>`);
+        parts.push(`<span class="sep">›</span><span class="current">${topic.name}</span>`);
+      }
+      bc.innerHTML = parts.join('');
+    }
+
+    function getTopic() {
+      return CURRICULUM[state.gradeKey].topics.find(t => t.id === state.topicId);
+    }
+
+    function renderGradeSelect() {
+      const grid = $('gradeGrid');
+      const order = ['K', '1', '2', '3', '4', '5'];
+      const names = { K: 'Kindergarten', '1': '1st Grade', '2': '2nd Grade', '3': '3rd Grade', '4': '4th Grade', '5': '5th Grade' };
+      grid.innerHTML = order.map(k => {
+        const c = CURRICULUM[k];
+        return `<div class="grade-card grade-${k}" data-grade="${k}">
+          <div class="grade-badge">${k}</div>
+          <h3 class="grade-name">${names[k]}</h3>
+          <p class="grade-desc">${c.tagline}</p>
+        </div>`;
+      }).join('');
+    }
+
+    function renderTopicGrid() {
+      const c = CURRICULUM[state.gradeKey];
+      $('topicGridTitle').textContent = c.label;
+      $('topicGridSub').textContent = c.tagline;
+      $('topicGrid').innerHTML = c.topics.map(t => {
+        const stars = state.stars[t.id] || 0;
+        const best = bestTime(t.id);
+        return `<div class="topic-card" data-topic="${t.id}">
+          <div class="topic-icon">${t.icon}</div>
+          <h3 class="topic-name">${t.name}</h3>
+          <p class="topic-blurb">${t.blurb}</p>
+          <div class="topic-stars">
+            ${[0,1,2].map(i => `<span class="star ${i < stars ? 'earned' : ''}">★</span>`).join('')}
+          </div>
+          ${best ? `<div class="topic-best">Best time: ${fmtTime(best)}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function renderTopicDetail() {
+      const t = getTopic();
+      $('detailIcon').textContent = t.icon;
+      $('detailTitle').textContent = t.name;
+      renderLesson(t);
+      // default to learn tab
+      switchTab('learn');
+    }
+
+    function renderLesson(t) {
+      const examplesHtml = t.examples.map(ex => `
+        <div class="example">
+          <div class="example-q">${ex.q}</div>
+          <ol class="example-steps">${ex.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+          <span class="example-ans">${ex.a}</span>
+        </div>`).join('');
+      $('lessonCard').innerHTML = `
+        ${t.lesson}
+        <h3>Worked examples</h3>
+        <div class="examples-grid">${examplesHtml}</div>
+      `;
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+      if (name === 'practice') startPractice();
+    }
+
+    // ============================================================
+    // PRACTICE ENGINE
+    // ============================================================
+    const TOTAL_PROBLEMS = 15;
+
+    function startPractice() {
+      const topic = getTopic();
+      state.practice = {
+        topic,
+        idx: 0,
+        correct: 0,
+        wrong: 0,
+        streak: 0,
+        bestStreak: 0,
+        startMs: Date.now(),
+        timer: null,
+        current: null,
+        submitted: false
+      };
+      renderPractice();
+      if (state.practice.timer) clearInterval(state.practice.timer);
+      state.practice.timer = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      const el = $('practiceTimer');
+      if (!el || !state.practice) return;
+      const sec = Math.floor((Date.now() - state.practice.startMs) / 1000);
+      el.textContent = fmtTime(sec);
+    }
+
+    function renderPractice() {
+      const p = state.practice;
+      const pct = Math.round((p.idx / TOTAL_PROBLEMS) * 100);
+      p.current = p.topic.gen();
+      p.submitted = false;
+
+      const inputType = p.current.inputType;
+      let inputHtml = '';
+      if (inputType === 'fraction') {
+        inputHtml = `
+          <div class="answer-frac">
+            <input class="answer-input small" id="answerNum" type="text" inputmode="numeric" autocomplete="off" placeholder="?"/>
+            <div class="bar"></div>
+            <input class="answer-input small" id="answerDen" type="text" inputmode="numeric" autocomplete="off" placeholder="?"/>
+          </div>`;
+      } else if (inputType === 'text') {
+        inputHtml = `<input class="answer-input" id="answerInput" type="text" autocomplete="off" placeholder="?"/>`;
+      } else if (inputType === 'decimal') {
+        inputHtml = `<input class="answer-input" id="answerInput" type="text" inputmode="decimal" autocomplete="off" placeholder="?"/>`;
+      } else if (inputType === 'division') {
+        inputHtml = `<input class="answer-input" id="answerInput" type="text" autocomplete="off" placeholder="?"/>`;
+      } else {
+        inputHtml = `<input class="answer-input" id="answerInput" type="text" inputmode="numeric" autocomplete="off" placeholder="?"/>`;
+      }
+
+      $('practiceWrap').innerHTML = `
+        <div class="practice-header">
+          <span><strong>Problem ${p.idx + 1}</strong> of ${TOTAL_PROBLEMS}</span>
+          <div class="practice-stats">
+            <span class="stat"><span class="stat-icon">🔥</span> <span id="practiceStreak">${p.streak}</span></span>
+            <span class="stat"><span class="stat-icon">✓</span> <span>${p.correct}</span></span>
+            <span class="stat"><span class="stat-icon">⏱</span> <span id="practiceTimer">0s</span></span>
+          </div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="problem-card" id="problemCard">
+          <div class="problem-label">${p.topic.name}</div>
+          <div class="problem-q">${p.current.display}</div>
+          ${p.current.visual ? `<div class="problem-visual">${p.current.visual}</div>` : ''}
+          <form class="answer-form" id="answerForm">
+            ${inputHtml}
+            <button type="submit" class="submit-btn" id="submitBtn">Check</button>
+          </form>
+          ${p.current.hint ? `<div class="problem-hint">${p.current.hint}</div>` : ''}
+          <div class="feedback" id="feedback"></div>
+          <button class="skip-link" id="skipBtn">Skip this one →</button>
+        </div>
+      `;
+
+      const form = $('answerForm');
+      form.addEventListener('submit', (e) => { e.preventDefault(); submitAnswer(); });
+
+      // focus input
+      setTimeout(() => {
+        const first = document.querySelector('.answer-input');
+        if (first) first.focus();
+      }, 80);
+
+      $('skipBtn').addEventListener('click', () => {
+        if (!state.practice.submitted) {
+          state.practice.wrong++;
+          state.practice.streak = 0;
+          state.practice.submitted = true;
+          showFeedback(false, state.practice.current.answer, state.practice.current.inputType);
+          setTimeout(nextProblem, 1400);
+        }
+      });
+    }
+
+    function readAnswer() {
+      const p = state.practice;
+      const type = p.current.inputType;
+      if (type === 'fraction') {
+        const n = ($('answerNum').value || '').trim();
+        const d = ($('answerDen').value || '').trim();
+        if (!n) return null;
+        // If the kid leaves the denominator blank, treat the answer as a whole number (n/1).
+        return d ? `${n}/${d}` : `${n}/1`;
+      }
+      const v = ($('answerInput').value || '').trim();
+      return v || null;
+    }
+
+    function answersEqual(user, expected, inputType) {
+      if (user == null) return false;
+      if (inputType === 'fraction') {
+        const me = expected.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+        if (!me) return false;
+        const [en, ed] = [parseInt(me[1], 10), parseInt(me[2], 10)];
+        if (ed === 0) return false;
+        // accept "n/d" OR bare integer (if expected simplifies to whole)
+        const fracM = user.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+        if (fracM) {
+          const [un, ud] = [parseInt(fracM[1], 10), parseInt(fracM[2], 10)];
+          if (ud === 0) return false;
+          return un * ed === en * ud;
+        }
+        const intM = user.match(/^(-?\d+)$/);
+        if (intM && ed !== 0 && en % ed === 0) {
+          return parseInt(intM[1], 10) === en / ed;
+        }
+        return false;
+      }
+      if (inputType === 'decimal') {
+        const a = parseFloat(String(user).replace(/[,\s]/g, ''));
+        const b = parseFloat(String(expected).replace(/[,\s]/g, ''));
+        if (isNaN(a) || isNaN(b)) return false;
+        return Math.abs(a - b) < 0.005;
+      }
+      if (inputType === 'division') {
+        // Normalize "25", "25 r 3", "25R3", "25 rem 3", "25 remainder 3" → [quotient, remainder]
+        const parseDiv = (s) => {
+          const clean = String(s).toLowerCase().replace(/\s+/g, '').replace(/remainder/g, 'r').replace(/rem/g, 'r');
+          const full = clean.match(/^(-?\d+)r(-?\d+)$/);
+          if (full) return [parseInt(full[1], 10), parseInt(full[2], 10)];
+          const plain = clean.match(/^(-?\d+)$/);
+          if (plain) return [parseInt(plain[1], 10), 0];
+          return null;
+        };
+        const u = parseDiv(user);
+        const e = parseDiv(expected);
+        if (!u || !e) return false;
+        return u[0] === e[0] && u[1] === e[1];
+      }
+      if (inputType === 'text') {
+        const norm = (s) => s.toLowerCase().replace(/\s+/g, '').replace(/[()]/g, '');
+        return norm(user) === norm(expected);
+      }
+      // int
+      const a = parseInt(user.replace(/[,\s]/g, ''), 10);
+      const b = parseInt(expected, 10);
+      return !isNaN(a) && a === b;
+    }
+
+    function submitAnswer() {
+      const p = state.practice;
+      if (p.submitted) return;
+      const ans = readAnswer();
+      if (ans == null || ans === '' || ans === '/') {
+        const input = document.querySelector('.answer-input');
+        if (input) { input.focus(); input.classList.add('shake'); setTimeout(()=> input.classList.remove('shake'), 400); }
+        return;
+      }
+      p.submitted = true;
+      const ok = answersEqual(ans, p.current.answer, p.current.inputType);
+      if (ok) {
+        p.correct++;
+        p.streak++;
+        if (p.streak > p.bestStreak) p.bestStreak = p.streak;
+      } else {
+        p.wrong++;
+        p.streak = 0;
+      }
+      showFeedback(ok, p.current.answer, p.current.inputType);
+      $('practiceStreak').textContent = p.streak;
+      setTimeout(nextProblem, ok ? 950 : 1800);
+    }
+
+    function prettyAnswer(ans, inputType) {
+      if (inputType === 'fraction') {
+        const m = String(ans).match(/^(-?\d+)\/(-?\d+)$/);
+        if (!m) return ans;
+        const n = parseInt(m[1], 10), d = parseInt(m[2], 10);
+        if (d === 1) return String(n);
+        if (n === 0) return '0';
+        return `${n}/${d}`;
+      }
+      if (inputType === 'division') {
+        const m = String(ans).match(/^(-?\d+)\s*r\s*(-?\d+)$/i);
+        if (m) {
+          const r = parseInt(m[2], 10);
+          return r === 0 ? m[1] : `${m[1]} R ${r}`;
+        }
+        return ans;
+      }
+      return ans;
+    }
+
+    function showFeedback(ok, correctAnswer, inputType) {
+      const fb = $('feedback');
+      const card = $('problemCard');
+      fb.className = 'feedback show ' + (ok ? 'correct' : 'wrong');
+      if (ok) {
+        fb.innerHTML = `<span>🎉 Correct!</span>`;
+        card.classList.add('pulse');
+        setTimeout(() => card.classList.remove('pulse'), 550);
+      } else {
+        fb.innerHTML = `<span>Not quite.</span><small>The answer is <strong>${prettyAnswer(correctAnswer, inputType)}</strong>.</small>`;
+        card.classList.add('shake');
+        setTimeout(() => card.classList.remove('shake'), 450);
+      }
+      // disable input/submit
+      document.querySelectorAll('.answer-input').forEach(i => i.disabled = true);
+      const sb = $('submitBtn'); if (sb) sb.disabled = true;
+    }
+
+    function nextProblem() {
+      const p = state.practice;
+      p.idx++;
+      if (p.idx >= TOTAL_PROBLEMS) {
+        endSet();
+      } else {
+        renderPractice();
+      }
+    }
+
+    function endSet() {
+      const p = state.practice;
+      clearInterval(p.timer);
+      const seconds = Math.floor((Date.now() - p.startMs) / 1000);
+      const accuracy = Math.round((p.correct / TOTAL_PROBLEMS) * 100);
+
+      // star calculation
+      let stars = 0;
+      if (accuracy >= 60) stars = 1;
+      if (accuracy >= 80) stars = 2;
+      if (accuracy >= 95) stars = 3;
+      const prevStars = state.stars[p.topic.id] || 0;
+      if (stars > prevStars) {
+        state.stars[p.topic.id] = stars;
+        saveStars();
+      }
+      if (accuracy >= 80) saveBestTime(p.topic.id, seconds);
+
+      const emoji = accuracy === 100 ? '🏆' : accuracy >= 80 ? '🌟' : accuracy >= 60 ? '👍' : '💪';
+      const title = accuracy === 100 ? 'Perfect!' : accuracy >= 80 ? 'Great job!' : accuracy >= 60 ? 'Nice work!' : 'Keep practicing!';
+
+      $('practiceWrap').innerHTML = `
+        <div class="results-card">
+          <div class="results-emoji">${emoji}</div>
+          <h2 class="results-title">${title}</h2>
+          <p class="results-sub">${p.topic.name} · ${TOTAL_PROBLEMS} problems</p>
+          <div class="stars-earned">
+            ${[0,1,2].map(i => `<span class="s ${i < stars ? '' : 'empty'}">★</span>`).join('')}
+          </div>
+          <div class="results-stats">
+            <div class="result-stat"><div class="n">${p.correct}/${TOTAL_PROBLEMS}</div><div class="l">Correct</div></div>
+            <div class="result-stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div>
+            <div class="result-stat"><div class="n">${fmtTime(seconds)}</div><div class="l">Time</div></div>
+          </div>
+          <div class="results-actions">
+            <button class="btn-primary" id="againBtn">Try Again</button>
+            <button class="btn-ghost" id="backToTopicsBtn">Other Topics</button>
+          </div>
+        </div>
+      `;
+
+      $('againBtn').addEventListener('click', startPractice);
+      $('backToTopicsBtn').addEventListener('click', () => {
+        renderTopicGrid();
+        showView('topic');
+      });
+
+      if (stars > 0) fireConfetti(stars * 20);
+    }
+
+    // ============================================================
+    // CONFETTI
+    // ============================================================
+    const CONFETTI_COLORS = ['#6d4ae0','#ffd23f','#2ec4b6','#ff8787','#9570ff','#ffb87a'];
+    function fireConfetti(count) {
+      const layer = $('confetti');
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'confetti-piece';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.background = pick(CONFETTI_COLORS);
+        p.style.animationDelay = (Math.random() * 0.4) + 's';
+        p.style.animationDuration = (2.4 + Math.random() * 1.2) + 's';
+        p.style.transform = `rotate(${Math.random() * 360}deg)`;
+        layer.appendChild(p);
+        setTimeout(() => p.remove(), 3800);
+      }
+    }
+
+    // ============================================================
+    // EVENT WIRING
+    // ============================================================
+    $('startBtn').addEventListener('click', () => { renderGradeSelect(); showView('grade'); });
+    $('brandHome').addEventListener('click', () => showView('landing'));
+
+    // breadcrumb navigation
+    document.addEventListener('click', (e) => {
+      const navBtn = e.target.closest('[data-nav]');
+      if (!navBtn) return;
+      const dest = navBtn.dataset.nav;
+      if (dest === 'landing') showView('landing');
+      else if (dest === 'grade') { renderGradeSelect(); showView('grade'); }
+      else if (dest === 'topic') { renderTopicGrid(); showView('topic'); }
+    });
+
+    // grade card clicks
+    $('gradeGrid').addEventListener('click', (e) => {
+      const card = e.target.closest('.grade-card');
+      if (!card) return;
+      state.gradeKey = card.dataset.grade;
+      renderTopicGrid();
+      showView('topic');
+    });
+
+    // topic card clicks
+    $('topicGrid').addEventListener('click', (e) => {
+      const card = e.target.closest('.topic-card');
+      if (!card) return;
+      state.topicId = card.dataset.topic;
+      renderTopicDetail();
+      showView('detail');
+    });
+
+    // tab switching
+    document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+    // "Start Practice" in lesson pane
+    $('toPracticeBtn').addEventListener('click', () => switchTab('practice'));
+
+    // stop practice timer on view change
+    const origShowView = showView;
+    // (no extra wrapping needed — endSet clears, startPractice re-creates)
+
+    // initial
+    showView('landing');
+  })();
+  </script>
+</body>
+</html>

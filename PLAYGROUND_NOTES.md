@@ -20,7 +20,8 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 8. [Spades](#8-spadeshtml) — `spades.html`
 9. [Bare DAW](#9-daw-folder) — `daw/{index.html, styles.css, app.js}`
 10. [YouTube Smart Skip](#10-youtube-smart-skip-folder) — `youtube-smart-skip/{manifest.json, content.{js,css}, popup.{html,css,js}}`
-11. [Cross-Project Patterns](#cross-project-patterns)
+11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html`
+12. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -630,16 +631,132 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 
 ---
 
+## 11. `math-ace.html`
+
+**Kumon-style math tutor for elementary students (K–5).** Each topic has a `Learn` pane (explanation + worked examples) and a `Practice` pane that generates 15 sequential problems with instant feedback, a running timer, a streak counter, and a results screen with 1–3 stars. Star earnings + best times persist per topic in `localStorage`.
+
+- **Lines:** 2,766
+- **Layout:** Single-column responsive; 4-view state machine (landing → grade select → topic grid → topic detail)
+- **Dependencies:** None (pure vanilla HTML/CSS/JS)
+- **No-build:** Open directly in any modern browser
+
+### Curriculum
+
+44 topics total, organized by grade. **Grade 4 and 5 are aligned to California Common Core State Standards (CA-CCSS-M)** with standard codes cited in topic blurbs. K–3 are lighter on standards-mapping and focus on foundational skills.
+
+| Grade | Topics | Headline coverage |
+|-------|--------|-------------------|
+| K | 6 | Counting to 10/20, number words, picture +, shapes (SVG), bigger/smaller |
+| 1 | 6 | +/− within 10 and 20, skip counting, place value (tens/ones) |
+| 2 | 6 | 2-digit +/− (with & w/o regrouping), analog clock reading, counting coins |
+| 3 | 6 | ×-tables, ÷, fractions intro (shaded bar), 3-digit +, rounding, word problems |
+| 4 | **10** | Multi-digit × (4.NBT.5), long division ÷1-digit (4.NBT.6), factors & multiples (4.OA.4), equivalent fractions (4.NF.1), compare fractions (4.NF.2), add/sub same-denom (4.NF.3), fraction × whole (4.NF.4), decimals to hundredths (4.NF.5-7), area/perimeter (4.MD.3), **Advanced long division ★** (2- and 3-digit divisors — beyond CA 4th grade scope, for accelerated learners) |
+| 5 | **10** | 3-dig × 2-dig (5.NBT.5), ÷ by 2-digit divisor (5.NBT.6), add/sub unlike-denom fractions (5.NF.1), × fractions (5.NF.4), ÷ with unit fractions (5.NF.7), decimal operations (5.NBT.7), powers of 10 (5.NBT.2), order of operations (5.OA.1), coordinate plane first quadrant (5.G.1-2), volume (5.MD.5) |
+
+**Notable CA-CCSS alignment decisions:**
+- 5th grade has NO percentages topic — percentages are 6.RP.3c in CA (6th grade).
+- 5th grade divide-fractions (`divFractions`) is restricted to 5.NF.7 cases (unit-fraction-by-whole and whole-by-unit-fraction), not full fraction ÷ fraction (which is 6.NS.1).
+- 4th grade's `longDivisionAdvanced` is explicitly marked "beyond standard curriculum" — it exists to support accelerated learners doing 2-digit and 3-digit divisors earlier.
+
+### Section Map
+
+| Range | Section |
+|-------|---------|
+| 1–74 | `<!-- ... -->` header TOC comment (navigation anchors) |
+| 76–726 | `<style>` — CSS variables, landing, grade/topic grids, lesson/practice, results, confetti, mobile |
+| 83–120 | `:root` palette (violet + sun + teal + coral + cream) |
+| 156–194 | `.top-bar` / `.brand` / `.breadcrumb` |
+| 197–247 | Landing (hero, pill, CTA, feature cards) |
+| 249–310 | Grade select grid (K/1/2/3/4/5 each with gradient badge) |
+| 313–339 | Topic card grid (icon, name, blurb, stars earned, best time) |
+| 342–381 | Topic detail head + tab bar |
+| 384–448 | Lesson pane (`.lesson-card`, `.example`, `.goto-practice`) |
+| 451–655 | Practice pane (problem card, inputs, keypad, feedback, hint, skip) |
+| 659–720 | Results card (emoji, title, stars, stats, retry buttons) + confetti pieces |
+| 722–742 | Mobile breakpoint (≤640px) |
+| 746–814 | `<body>` — all 4 views (landing, grade, topic, detail) |
+| 817+ | `<script>` IIFE |
+
+### Key JS Entry Points
+
+| Line | Function | Purpose |
+|------|----------|---------|
+| ~850 | `rand`, `pick`, `shuffle`, `gcd`, `simplify`, `fmtTime`, `fmtDec` | Core helpers |
+| ~870 | `shapeSvg(name)` | Inline SVG for 10 shapes (circle, square, triangle, rectangle, star, heart, oval, diamond, pentagon, hexagon) |
+| ~895 | `clockSvg(h, m)` | Inline SVG analog clock for 2nd-grade telling-time |
+| ~918 | `fractionBar(p, n)` | Inline SVG shaded-parts bar for fractions intro |
+| ~933 | `CURRICULUM` | All 44 topics, grouped by grade key (`K`, `1`..`5`) |
+| ~2160 | `state` | `{ view, gradeKey, topicId, practice, stars }` |
+| ~2185 | `showView(name)` | Swap `.view.active` class and re-render breadcrumb |
+| ~2260 | `renderLesson(topic)` | Inject lesson HTML + worked examples grid |
+| ~2290 | `startPractice()` / `renderPractice()` | Build problem card + input of correct `inputType` |
+| ~2425 | `answersEqual(user, expected, inputType)` | Type-aware comparison (int / fraction / decimal / text / division) |
+| ~2470 | `prettyAnswer(ans, inputType)` | Pretty-print for feedback (e.g., `3/1` → `3`, `127 r 0` → `127`) |
+| ~2540 | `nextProblem()` / `endSet()` | Advance or show results |
+| ~2570 | `fireConfetti(count)` | Star-reward celebration |
+
+### Problem `gen()` Contract
+
+Each topic's `gen()` returns:
+
+```js
+{
+  display: String,         // HTML shown as the problem question
+  answer: String,          // Canonical expected answer (e.g., "127 r 2", "3/4", "0.85")
+  inputType: String,       // 'int' | 'fraction' | 'decimal' | 'text' | 'division'
+  visual?: String,         // Optional HTML (SVG) shown above the input
+  hint?: String            // Optional italic caption shown below the input
+}
+```
+
+### Input Types
+
+| Type | UI | Accepted user formats | Match rule |
+|------|----|------------------------|------------|
+| `int` | single text input (inputmode=numeric) | `"127"`, `"1,234"` | `parseInt` after stripping commas/spaces |
+| `fraction` | two small inputs (num / bar / den) | `"3/4"`, or `"3"` with blank denom → `3/1` | Cross-multiplication equality (`un*ed === en*ud`); bare int matched if expected is whole |
+| `decimal` | single text input (inputmode=decimal) | `"4.9"`, `"4.90"`, `"1,234.5"` | `Math.abs(a - b) < 0.005` after stripping commas |
+| `text` | single text input | `"(3,4)"`, `"circle"` | Lowercased, stripped of whitespace & parens |
+| `division` | single text input | `"127"`, `"127 r 2"`, `"127R2"`, `"127 rem 2"`, `"127 remainder 2"` | Parsed to `[quotient, remainder]` and compared; `N` ≡ `N r 0` |
+
+### Persistence
+
+`localStorage['mathace_stars']` — `{ topicId: starCount (0–3) }`. Only written when the new star count is strictly greater than the previous (so getting 2 stars after previously earning 3 doesn't erase progress).
+
+`localStorage['mathace_times']` — `{ topicId: bestSeconds }`. Only written when accuracy ≥ 80% AND the time is a new personal best.
+
+### CSS Variables
+
+```css
+--violet-500 #6d4ae0   --sun-400  #ffd23f   --teal-400 #2ec4b6   --coral-500 #ff6b6b
+--violet-400 #9570ff   --sun-300  #ffe27a   --teal-300 #7ee0d2
+--violet-100 #ebe3ff   --ink-900  #1e1b3a   --cream    #fef6e4   --paper #ffffff
+--radius 16px   --radius-lg 24px
+```
+
+### Interactions / Flow
+
+Landing hero → "Choose a grade" CTA → grade card → topic card → **Learn** tab (default) shows lesson + examples → "Start Practice" CTA or click the **Practice** tab → 15 problems render one at a time. Enter submits. Wrong answer shakes the card and shows the correct answer; right answer pulses green and auto-advances. Hit "Skip this one" to mark wrong and move on. After problem 15, a results card shows accuracy %, time, star rating (≥60% / ≥80% / ≥95%), and a confetti burst if stars earned. Progress bar + streak counter + live timer in the practice header.
+
+### Why It's "Kumon-style"
+
+Kumon worksheets drill a narrow skill repeatedly — each worksheet has ~15–30 similar problems to build fluency through repetition. Math Ace mirrors that: 15 problems of the same topic in a row, with slight intra-set variation from the generator. The lesson + worked examples mirror a Kumon instructor's introduction before handing a worksheet to a student.
+
+---
+
 ## Cross-Project Patterns
 
 | Pattern | Where |
 |---------|-------|
-| **Single IIFE script** | All Glow Studio variants, both slot machines, spades |
+| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
 | **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), slot machines (none — DOM), spades (none — DOM) |
+| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars) |
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic) |
+| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs) |
 | **No build step / no framework** | Every project |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
 | **Chrome extension (MV3) / content script** | youtube-smart-skip only |
@@ -653,9 +770,10 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 | glow-studio-mobile.html | 2,399 | Photo editor |
 | glow-studio.html | 2,227 | Photo editor |
 | spades.html | 2,189 | Card game |
+| math-ace.html | 2,766 | K–5 math tutor |
 | slot-machine-memes.html | 1,754 | Slot game |
 | glow-studio-easy.html | 1,662 | Photo editor |
-| glow-studio-video.html | 1,645 | Video editor |
+| glow-studio-video.html | 1,713 | Video editor |
 | slot-machine.html | 1,481 | Slot game |
 | daw/app.js | 1,456 | DAW engine |
 | daw/styles.css | 533 | DAW styling |
@@ -667,7 +785,7 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 | youtube-smart-skip/content.css | 64 | Extension toast styling |
 | youtube-smart-skip/README.md | 55 | Extension docs |
 | youtube-smart-skip/manifest.json | 21 | Extension manifest (MV3) |
-| **Total** | **18,948** | |
+| **Total** | **21,782** | |
 
 ### Quick `grep` recipes
 

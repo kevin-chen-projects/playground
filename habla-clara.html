@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habla Clara — English pronunciation for Spanish speakers</title>
+<!--
+================================================================================
+FILE INDEX — habla-clara.html
+================================================================================
+
+A pronunciation-practice web app for Hispanic English learners. Teaches hard
+English words inside realistic everyday conversations (ordering coffee, at the
+doctor, small talk, etc.) so the words get used in casual speech rather than
+drilled in isolation.
+
+Core loop:
+  1. Pick a scenario (or "today's scene")
+  2. Read/hear the dialogue — tricky words are underlined
+  3. Tap any underlined word → phonetic + Spanish-speaker tip + mic practice
+  4. Try saying "your lines" end-to-end with live speech recognition feedback
+
+Secondary:
+  - Word Gym: same practice UI, grouped by category (TH, V/B, silent letters,
+    SP/ST/SC clusters that Spanish speakers tend to prefix with "e", etc.)
+  - Quiet daily progress — count of words warmed up, no points/streaks/badges
+
+No build step. Single HTML file, vanilla JS, system fonts.
+
+--------------------------------------------------------------------------------
+SECTION MAP
+--------------------------------------------------------------------------------
+  Lines   Section
+  -----   -------
+   1-35   <head> + this TOC comment
+  37-760  <style>                                  (= CSS SECTION)
+         37-105   CSS variables, reset, typography
+        107-150   Header & brand
+        152-230   Landing hero + featured card
+        232-340   Scenario grid cards
+        342-390   Word gym promo card + footer
+        392-470   Detail-view header + scene block
+        472-600   Dialogue rendering + word chips
+        602-720   Word detail card (phonetic, tip, mic)
+        722-800   Line-practice block + mic states + feedback
+        802-860   Word Gym view
+        862-900   Mobile breakpoint
+  762-1160 <body> HTML                              (= HTML SECTION)
+        762-770   Landing view
+        772-910   Scenario detail view
+        912-960   Word gym view
+  1162-1900 <script>                                (= JS SECTION)
+       1162-1580  SCENARIOS data (10 scenarios)
+       1582-1780  GYM data (7 categories of tricky words)
+       1782-1840  Speech synthesis helpers
+       1842-1910  Speech recognition helpers + scoring
+       1912-2000  View/routing + rendering
+       2002-2100  Word-detail rendering + mic interactions
+       2102-2180  Line-practice + progress persistence
+
+--------------------------------------------------------------------------------
+BROWSER NOTES
+--------------------------------------------------------------------------------
+- speechSynthesis: works everywhere modern.
+- webkitSpeechRecognition: Chrome, Edge, Safari (iOS 14.5+). Firefox: no. The
+  mic buttons show a disabled state with a short explanation if unavailable.
+- Microphone access is requested per-session; audio never leaves the device
+  (recognition runs in the browser).
+
+================================================================================
+-->
+<style>
+/* ============================================================================
+   CSS — tokens, reset, typography
+   ========================================================================== */
+:root {
+  --cream-50:  #FDF8F0;
+  --cream-100: #F7ECD6;
+  --cream-200: #EDDBB7;
+  --cream-300: #DAC094;
+  --sun-400:   #E5A83A;
+  --sun-500:   #C98722;
+  --terra-400: #DB6B4F;
+  --terra-500: #C75439;
+  --terra-600: #A53E27;
+  --terra-700: #7F2E1C;
+  --sage-400:  #8FAE82;
+  --sage-500:  #6F9361;
+  --sage-600:  #52744A;
+  --ink-900:   #2B1D17;
+  --ink-800:   #3D2B22;
+  --ink-700:   #5A4638;
+  --ink-500:   #897365;
+  --ink-300:   #BCAA98;
+  --ink-200:   #D9CBB9;
+  --paper:     #FFFFFF;
+  --wash:      #FBF5E9;
+  --line:      #E5D6BA;
+
+  --shadow-sm: 0 1px 2px rgba(60,35,20,0.05), 0 1px 3px rgba(60,35,20,0.04);
+  --shadow-md: 0 4px 14px rgba(60,35,20,0.08), 0 2px 6px rgba(60,35,20,0.05);
+  --shadow-lg: 0 22px 50px rgba(60,35,20,0.13), 0 8px 18px rgba(60,35,20,0.08);
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius:    14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Georgia', serif;
+  --sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--cream-50);
+  color: var(--ink-900);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 600px at 85% -10%, rgba(229, 168, 58, 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 90%, rgba(199, 84, 57, 0.07), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; color: var(--ink-900); letter-spacing: -0.01em; }
+h1 { font-size: 2.4rem; line-height: 1.1; }
+h2 { font-size: 1.6rem; line-height: 1.2; }
+h3 { font-size: 1.2rem; line-height: 1.3; }
+p  { margin: 0 0 0.8em; color: var(--ink-700); }
+
+button {
+  font-family: inherit; font-size: inherit; cursor: pointer;
+  border: 0; background: transparent; color: inherit;
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* ============================================================================
+   HEADER & BRAND
+   ========================================================================== */
+.site-header {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1100px; margin: 0 auto;
+  padding: 28px 32px 8px;
+}
+
+.brand {
+  display: flex; align-items: baseline; gap: 10px;
+  font-family: var(--serif); font-weight: 600;
+  font-size: 1.35rem; color: var(--ink-900);
+  letter-spacing: -0.01em;
+}
+.brand-mark {
+  display: inline-block; width: 28px; height: 28px;
+  position: relative; top: 4px;
+  background: var(--terra-500);
+  border-radius: 50%;
+  box-shadow: inset -6px -6px 0 rgba(0,0,0,0.06);
+}
+.brand-mark::after {
+  content: ""; position: absolute; inset: 7px 7px auto auto;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--sun-400);
+}
+.brand em { font-style: italic; color: var(--terra-600); font-weight: 500; }
+
+.today-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-size: 0.85rem; color: var(--ink-700);
+  box-shadow: var(--shadow-sm);
+}
+.today-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--sage-500);
+  box-shadow: 0 0 0 3px rgba(111, 147, 97, 0.18);
+}
+
+/* ============================================================================
+   LANDING — HERO + FEATURED
+   ========================================================================== */
+.landing-main {
+  max-width: 1100px; margin: 0 auto;
+  padding: 20px 32px 80px;
+}
+
+.hero {
+  padding: 48px 0 32px;
+  max-width: 720px;
+}
+.hero-kicker {
+  font-family: var(--sans);
+  text-transform: uppercase; letter-spacing: 0.18em;
+  font-size: 0.75rem; font-weight: 600;
+  color: var(--terra-600);
+  margin-bottom: 18px;
+}
+.hero-title {
+  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  margin: 0 0 18px;
+  color: var(--ink-900);
+}
+.hero-title em {
+  font-style: italic; color: var(--terra-500);
+  font-family: var(--serif);
+}
+.hero-sub {
+  font-size: 1.15rem; line-height: 1.55;
+  color: var(--ink-700);
+  max-width: 580px;
+  margin: 0;
+}
+
+.section-label {
+  font-family: var(--sans);
+  text-transform: uppercase; letter-spacing: 0.18em;
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--ink-500);
+  margin: 0 0 14px;
+}
+
+.featured-wrap { margin-top: 24px; }
+
+.featured-card {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 28px; align-items: center;
+  padding: 32px 36px;
+  background: linear-gradient(135deg, var(--paper) 0%, var(--wash) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.featured-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.featured-icon {
+  font-size: 5rem; line-height: 1;
+  text-align: center;
+  filter: drop-shadow(0 4px 6px rgba(60,35,20,0.1));
+}
+.featured-body h3 {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+}
+.featured-body p {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  color: var(--ink-700);
+}
+
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 22px;
+  background: var(--terra-500);
+  color: var(--paper);
+  border-radius: 100px;
+  font-weight: 500; font-size: 0.95rem;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover { background: var(--terra-600); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 22px;
+  background: var(--paper);
+  color: var(--ink-900);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-weight: 500; font-size: 0.95rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-secondary:hover { background: var(--wash); border-color: var(--cream-300); }
+
+/* ============================================================================
+   SCENARIO GRID
+   ========================================================================== */
+.scenarios-section { margin-top: 56px; }
+.section-header { margin-bottom: 24px; }
+.section-header h2 { margin: 0 0 6px; }
+.section-header p { margin: 0; font-size: 1rem; color: var(--ink-500); }
+
+.scenarios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 16px;
+}
+
+.scenario-card {
+  padding: 22px 22px 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.scenario-card::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(229,168,58,0.0), rgba(229,168,58,0.04));
+  opacity: 0; transition: opacity 0.15s;
+  pointer-events: none;
+}
+.scenario-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--cream-300);
+  box-shadow: var(--shadow-md);
+}
+.scenario-card:hover::before { opacity: 1; }
+.scenario-card .icon {
+  font-size: 2.4rem;
+  margin-bottom: 10px;
+  display: inline-block;
+  filter: drop-shadow(0 2px 3px rgba(60,35,20,0.08));
+}
+.scenario-card h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  letter-spacing: -0.005em;
+}
+.scenario-card .subtitle {
+  font-size: 0.88rem;
+  color: var(--ink-500);
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+.scenario-card .target-preview {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.scenario-card .target-preview span {
+  font-size: 0.75rem;
+  color: var(--terra-600);
+  padding: 3px 9px;
+  background: rgba(199, 84, 57, 0.08);
+  border-radius: 100px;
+  font-weight: 500;
+}
+.scenario-card.visited-today {
+  border-color: var(--sage-400);
+  background: linear-gradient(180deg, var(--paper), #F5F7F2);
+}
+.scenario-card.visited-today::after {
+  content: "practiced today";
+  position: absolute;
+  top: 16px; right: 16px;
+  font-size: 0.7rem;
+  color: var(--sage-600);
+  font-weight: 500;
+}
+
+/* ============================================================================
+   WORD GYM PROMO + FOOTER
+   ========================================================================== */
+.gym-promo {
+  margin-top: 56px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 28px 32px;
+  background: var(--ink-900);
+  color: var(--cream-50);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  background-image:
+    radial-gradient(400px 200px at 100% 0%, rgba(229,168,58,0.18), transparent 60%),
+    radial-gradient(400px 200px at 0% 100%, rgba(219,107,79,0.12), transparent 60%);
+}
+.gym-promo .section-label { color: var(--sun-400); }
+.gym-promo h2 {
+  color: var(--cream-50);
+  margin: 0 0 6px;
+}
+.gym-promo p {
+  color: var(--ink-300);
+  margin: 0;
+  font-size: 0.95rem;
+  max-width: 520px;
+}
+.gym-promo button {
+  padding: 12px 24px;
+  background: var(--cream-50);
+  color: var(--ink-900);
+  border-radius: 100px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: transform 0.1s ease;
+}
+.gym-promo button:hover { transform: translateY(-1px); }
+
+.site-footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.site-footer p {
+  font-size: 0.85rem; color: var(--ink-500);
+  margin: 0 0 4px;
+}
+.site-footer .small { font-size: 0.78rem; }
+
+/* ============================================================================
+   DETAIL HEADER + SCENE BLOCK
+   ========================================================================== */
+.detail-main {
+  max-width: 780px; margin: 0 auto;
+  padding: 20px 32px 80px;
+}
+
+.detail-header {
+  max-width: 780px; margin: 0 auto;
+  padding: 28px 32px 12px;
+  display: flex; align-items: center; gap: 16px;
+}
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-size: 0.9rem; color: var(--ink-700);
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s;
+}
+.back-btn:hover { border-color: var(--cream-300); background: var(--wash); }
+
+.scenario-title-wrap {
+  display: flex; align-items: center; gap: 12px;
+}
+.scenario-title-wrap .scenario-icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 2px 3px rgba(60,35,20,0.1));
+}
+.scenario-title-wrap h1 {
+  font-size: 1.8rem; margin: 0;
+}
+
+.scene-block {
+  padding: 20px 24px;
+  background: var(--wash);
+  border-left: 3px solid var(--sun-400);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-bottom: 32px;
+}
+.scene-block .section-label { margin-bottom: 8px; color: var(--sun-500); }
+.scene-block p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--ink-800);
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   DIALOGUE
+   ========================================================================== */
+.dialogue-block { margin-bottom: 32px; }
+
+.dialogue-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+.dialogue-header .section-label { margin: 0; }
+.dialogue-actions { display: flex; gap: 8px; }
+
+.btn-chip {
+  padding: 7px 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-size: 0.82rem;
+  color: var(--ink-700);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-chip:hover { background: var(--wash); border-color: var(--cream-300); }
+.btn-chip.active {
+  background: var(--ink-900); color: var(--cream-50);
+  border-color: var(--ink-900);
+}
+.btn-chip .play-icon {
+  display: inline-block;
+  width: 0; height: 0;
+  border-left: 6px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+.dialogue {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.line {
+  padding: 16px 22px;
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  transition: background 0.2s;
+}
+.line:last-child { border-bottom: 0; }
+.line.speaking { background: rgba(229, 168, 58, 0.12); }
+.line.yours {
+  background: linear-gradient(180deg, var(--paper), #FEF9ED);
+}
+.line.yours.speaking { background: rgba(229, 168, 58, 0.14); }
+
+.line-speaker {
+  flex: 0 0 86px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-500);
+  padding-top: 4px;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.line.yours .line-speaker { color: var(--terra-600); }
+.line-speaker .speaker-emoji {
+  font-size: 1rem;
+  letter-spacing: normal;
+}
+
+.line-text {
+  flex: 1; min-width: 0;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: var(--ink-900);
+}
+
+.target-word {
+  background: rgba(229, 168, 58, 0.22);
+  padding: 1px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  border-bottom: 2px dashed rgba(201, 135, 34, 0.55);
+  transition: background 0.15s, border-color 0.15s;
+}
+.target-word:hover {
+  background: rgba(229, 168, 58, 0.4);
+  border-color: var(--sun-500);
+}
+.target-word.active {
+  background: var(--terra-500);
+  color: var(--paper);
+  border-bottom-color: var(--terra-700);
+}
+
+.line-play-btn {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--wash);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  padding-left: 3px;
+}
+.line-play-btn:hover {
+  background: var(--sun-400);
+  border-color: var(--sun-500);
+  color: var(--paper);
+}
+.line-play-btn:active { transform: scale(0.94); }
+.line-play-btn .play-icon {
+  width: 0; height: 0;
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+.dialogue-hint {
+  font-size: 0.85rem;
+  color: var(--ink-500);
+  margin-top: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ============================================================================
+   WORD DETAIL CARD
+   ========================================================================== */
+.word-detail {
+  margin: 32px 0;
+  padding: 28px;
+  background: linear-gradient(180deg, var(--paper), var(--wash));
+  border: 1px solid var(--cream-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.word-detail-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 6px;
+}
+.word-detail-word {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 600;
+  color: var(--ink-900);
+  line-height: 1;
+}
+.word-close {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-500);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  transition: background 0.15s;
+}
+.word-close:hover { background: var(--cream-100); }
+
+.word-phonetic-row {
+  display: flex; gap: 14px; align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.phonetic-simple {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--terra-600);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.phonetic-ipa {
+  font-size: 0.95rem;
+  color: var(--ink-500);
+  font-family: Menlo, Monaco, Consolas, monospace;
+}
+
+.audio-btns {
+  display: flex; gap: 8px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.audio-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-900);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.audio-btn:hover { background: var(--sun-400); border-color: var(--sun-500); }
+.audio-btn:active { transform: scale(0.97); }
+.audio-btn.speaking { background: var(--sun-400); border-color: var(--sun-500); }
+
+.tip-box {
+  padding: 16px 20px;
+  background: var(--cream-100);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  border: 1px solid var(--cream-200);
+}
+.tip-box .tip-label {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--terra-600);
+  margin-bottom: 6px;
+}
+.tip-box p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--ink-800);
+  line-height: 1.55;
+}
+
+.context-phrase {
+  padding: 14px 18px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 14px;
+}
+.context-phrase .ctx-label {
+  font-size: 0.72rem;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 3px;
+}
+.context-phrase .ctx-text {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--ink-900);
+  font-style: italic;
+}
+.context-phrase button {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--wash);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  padding-left: 3px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.context-phrase button:hover { background: var(--sun-400); border-color: var(--sun-500); }
+.context-phrase button .play-icon {
+  width: 0; height: 0;
+  border-left: 9px solid currentColor;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+
+/* ============================================================================
+   MIC + PRACTICE STATES
+   ========================================================================== */
+.practice-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--cream-200);
+}
+
+.mic-btn {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: var(--terra-500);
+  color: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: 0 4px 12px rgba(199, 84, 57, 0.3);
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  flex: 0 0 auto;
+}
+.mic-btn:hover { background: var(--terra-600); }
+.mic-btn:active { transform: scale(0.94); }
+.mic-btn.listening {
+  background: var(--sage-500);
+  animation: pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(111, 147, 97, 0.35);
+}
+.mic-btn.disabled {
+  background: var(--ink-300);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(111, 147, 97, 0.5); }
+  50%      { box-shadow: 0 0 0 12px rgba(111, 147, 97, 0); }
+}
+
+.mic-label { font-size: 0.95rem; color: var(--ink-700); flex: 1; }
+.mic-label strong { color: var(--ink-900); }
+
+.feedback {
+  margin-top: 14px;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  animation: slideIn 0.25s ease;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.feedback-icon { flex: 0 0 auto; font-size: 1.2rem; line-height: 1.3; }
+.feedback-body { flex: 1; }
+.feedback-body strong { display: block; margin-bottom: 2px; }
+.feedback.good {
+  background: rgba(111, 147, 97, 0.14);
+  color: var(--sage-600);
+  border: 1px solid rgba(111, 147, 97, 0.25);
+}
+.feedback.close {
+  background: rgba(229, 168, 58, 0.14);
+  color: var(--sun-500);
+  border: 1px solid rgba(229, 168, 58, 0.25);
+}
+.feedback.retry {
+  background: rgba(199, 84, 57, 0.1);
+  color: var(--terra-600);
+  border: 1px solid rgba(199, 84, 57, 0.2);
+}
+.feedback .heard {
+  font-family: Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  background: rgba(0,0,0,0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ============================================================================
+   LINE PRACTICE (your lines at the end of a scenario)
+   ========================================================================== */
+.line-practice {
+  margin-top: 40px;
+  padding: 28px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.line-practice h2 {
+  margin: 0 0 6px;
+  font-size: 1.3rem;
+}
+.line-practice > p {
+  margin: 0 0 20px;
+  color: var(--ink-500);
+  font-size: 0.95rem;
+}
+
+.line-practice-item {
+  padding: 16px 18px;
+  background: var(--wash);
+  border: 1px solid var(--cream-200);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+.line-practice-item:last-child { margin-bottom: 0; }
+
+.line-practice-text {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--ink-900);
+  line-height: 1.4;
+}
+.line-practice-text.muted { color: var(--ink-500); font-size: 0.95rem; font-style: italic; }
+
+.line-practice-mic {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: var(--terra-500);
+  color: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  transition: background 0.15s, transform 0.1s;
+  flex: 0 0 auto;
+}
+.line-practice-mic:hover { background: var(--terra-600); }
+.line-practice-mic:active { transform: scale(0.94); }
+.line-practice-mic.listening {
+  background: var(--sage-500);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.line-practice-mic.disabled { background: var(--ink-300); cursor: not-allowed; }
+
+.line-practice-item .feedback {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+}
+
+.mic-unavailable {
+  padding: 14px 18px;
+  background: var(--cream-100);
+  border: 1px dashed var(--cream-300);
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  color: var(--ink-700);
+  margin-top: 16px;
+}
+.mic-unavailable strong { color: var(--ink-900); }
+
+/* ============================================================================
+   WORD GYM VIEW
+   ========================================================================== */
+.gym-intro {
+  font-size: 1.05rem;
+  color: var(--ink-700);
+  max-width: 620px;
+  margin: 0 0 28px;
+}
+
+.gym-category {
+  margin-bottom: 28px;
+  padding: 24px 28px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.gym-category-head {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.gym-category h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.gym-category-head .count {
+  font-size: 0.8rem;
+  color: var(--ink-500);
+  font-weight: 500;
+}
+.gym-category-blurb {
+  font-size: 0.95rem;
+  color: var(--ink-500);
+  margin: 0 0 18px;
+}
+
+.gym-word-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gym-word {
+  padding: 9px 16px;
+  background: var(--wash);
+  border: 1px solid var(--cream-200);
+  border-radius: 100px;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  color: var(--ink-900);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.gym-word:hover {
+  background: var(--sun-400);
+  border-color: var(--sun-500);
+  color: var(--ink-900);
+}
+.gym-word:active { transform: scale(0.97); }
+.gym-word.warmed {
+  background: rgba(111, 147, 97, 0.14);
+  border-color: rgba(111, 147, 97, 0.35);
+  color: var(--sage-600);
+}
+
+/* ============================================================================
+   MOBILE
+   ========================================================================== */
+@media (max-width: 720px) {
+  .site-header { padding: 20px 20px 4px; flex-wrap: wrap; gap: 10px; }
+  .landing-main, .detail-main { padding: 16px 20px 64px; }
+  .detail-header { padding: 20px 20px 8px; flex-wrap: wrap; }
+  .hero { padding: 32px 0 20px; }
+  .hero-title { font-size: 2rem; }
+  .featured-card { grid-template-columns: 1fr; gap: 16px; padding: 24px; }
+  .featured-icon { font-size: 3.2rem; text-align: left; }
+  .gym-promo { grid-template-columns: 1fr; padding: 24px; }
+  .line { padding: 14px 18px; gap: 10px; flex-wrap: wrap; }
+  .line-speaker { flex-basis: 100%; }
+  .line-play-btn { flex-basis: auto; }
+  .word-detail { padding: 22px; }
+  .word-detail-word { font-size: 2rem; }
+  .gym-category { padding: 20px; }
+  .line-practice { padding: 22px; }
+  .line-practice-item { grid-template-columns: 1fr; }
+  .line-practice-mic { justify-self: start; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================================
+     LANDING VIEW
+     ========================================================================== -->
+<div class="view active" id="landing-view">
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span>Habla <em>Clara</em></span>
+    </div>
+    <div class="today-pill" id="today-pill">
+      <span class="today-dot"></span>
+      <span id="today-text">Warming up</span>
+    </div>
+  </header>
+
+  <main class="landing-main">
+    <section class="hero">
+      <p class="hero-kicker">Pronunciation, made natural</p>
+      <h1 class="hero-title">Say it the way you <em>mean</em> it.</h1>
+      <p class="hero-sub">
+        Everyday English conversations — with the tricky words built right in.
+        No drills, no points. Just practice until the words feel like yours,
+        so you'll use them when it matters.
+      </p>
+    </section>
+
+    <section class="featured-wrap">
+      <p class="section-label">Today's scene</p>
+      <div class="featured-card" id="featured-card">
+        <div class="featured-icon" id="featured-icon">☕</div>
+        <div class="featured-body">
+          <h3 id="featured-title">Ordering Coffee</h3>
+          <p id="featured-sub">Morning at the café. You know the feeling.</p>
+          <button class="btn-primary">Begin →</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="scenarios-section">
+      <div class="section-header">
+        <p class="section-label">Everyday conversations</p>
+        <h2>Pick whichever matches your day.</h2>
+        <p>Each one is short — under a minute to read through. Come back as often as you like.</p>
+      </div>
+      <div class="scenarios-grid" id="scenarios-grid"></div>
+    </section>
+
+    <section class="gym-promo">
+      <div>
+        <p class="section-label">Word gym</p>
+        <h2>Or work on specific sounds.</h2>
+        <p>TH. V vs B. Silent letters. The words your tongue keeps stumbling on — grouped by what makes them hard.</p>
+      </div>
+      <button class="btn-primary" id="open-gym-btn" style="background: var(--cream-50); color: var(--ink-900);">Open gym →</button>
+    </section>
+
+    <footer class="site-footer">
+      <p>Built for Spanish speakers learning English.</p>
+      <p class="small">Works best in Chrome, Edge, and Safari. Your microphone audio stays on this device.</p>
+    </footer>
+  </main>
+</div>
+
+<!-- ============================================================================
+     SCENARIO DETAIL VIEW
+     ========================================================================== -->
+<div class="view" id="scenario-view">
+  <div class="detail-header">
+    <button class="back-btn" data-back="landing">← Back</button>
+    <div class="scenario-title-wrap">
+      <span class="scenario-icon" id="detail-icon">☕</span>
+      <h1 id="detail-title">Ordering Coffee</h1>
+    </div>
+  </div>
+
+  <main class="detail-main">
+    <section class="scene-block">
+      <p class="section-label">The scene</p>
+      <p id="scene-text"></p>
+    </section>
+
+    <section class="dialogue-block">
+      <div class="dialogue-header">
+        <p class="section-label">Dialogue</p>
+        <div class="dialogue-actions">
+          <button class="btn-chip" id="play-all-btn">
+            <span class="play-icon"></span> Play all
+          </button>
+          <button class="btn-chip" id="slow-mode-btn">
+            🐢 Slow
+          </button>
+        </div>
+      </div>
+      <div class="dialogue" id="dialogue-container"></div>
+      <p class="dialogue-hint">Tap any underlined word to work on it.</p>
+    </section>
+
+    <section class="word-detail" id="word-detail" style="display:none;"></section>
+
+    <section class="line-practice">
+      <h2>Practice your lines</h2>
+      <p>Press the mic next to each line and say it out loud. We'll listen and give you a nudge.</p>
+      <div id="line-practice-stack"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ============================================================================
+     WORD GYM VIEW
+     ========================================================================== -->
+<div class="view" id="gym-view">
+  <div class="detail-header">
+    <button class="back-btn" data-back="landing">← Back</button>
+    <h1>Word Gym</h1>
+  </div>
+  <main class="detail-main">
+    <p class="gym-intro">
+      Words picked specifically for Spanish speakers. Tap any word — you'll hear it,
+      see a Spanish-friendly tip, and get a chance to try it yourself.
+    </p>
+    <section class="word-detail" id="gym-word-detail" style="display:none;"></section>
+    <div id="gym-categories"></div>
+  </main>
+</div>
+
+<script>
+/* ============================================================================
+   DATA — SCENARIOS
+   Each scenario includes a scene, a dialogue (Barista/You alternating), and
+   a map of target words → { phonetic, ipa, tip, ctx }.
+   ========================================================================== */
+(function() {
+  'use strict';
+
+  const SCENARIOS = [
+    {
+      id: 'coffee',
+      title: 'Ordering Coffee',
+      subtitle: 'Morning at the café.',
+      icon: '☕',
+      scene: "Tuesday morning at your favorite café. The place smells like cinnamon and espresso.",
+      dialogue: [
+        { who: 'Barista', emoji: '☕', text: "Good [morning]! What can I get started for you?" },
+        { who: 'You',     emoji: '👤', text: "I'd like a [medium] latte, please. Not too hot." },
+        { who: 'Barista', emoji: '☕', text: "Sure thing. Anything else?" },
+        { who: 'You',     emoji: '👤', text: "Yes — a [blueberry] muffin. [Thanks]." },
+        { who: 'Barista', emoji: '☕', text: "You got it. That'll be six [fifty]." }
+      ],
+      words: {
+        morning: {
+          phonetic: "MOR-ning",
+          ipa: "/ˈmɔːrnɪŋ/",
+          tip: "Soft American R — don't roll it. End with '-ing' like a gentle hum through the nose.",
+          ctx: "Good morning."
+        },
+        medium: {
+          phonetic: "MEE-dee-um",
+          ipa: "/ˈmiːdiəm/",
+          tip: "First sound is long 'ee' (like Spanish 'sí' held out), not the short 'e' of 'mesa'. Three distinct syllables.",
+          ctx: "I'd like a medium latte."
+        },
+        blueberry: {
+          phonetic: "BLOO-beh-ree",
+          ipa: "/ˈbluːˌbɛri/",
+          tip: "Two firm B sounds. In Spanish B and V often blur — here, both Bs are crisp stops where the lips fully close.",
+          ctx: "A blueberry muffin, please."
+        },
+        Thanks: {
+          phonetic: "THANKS",
+          ipa: "/θæŋks/",
+          tip: "Tongue pokes softly between your teeth and you blow air. If you say 'tanks', you've made a Spanish T — back up and let the tongue show.",
+          ctx: "Thanks, have a great day."
+        },
+        fifty: {
+          phonetic: "FIF-tee",
+          ipa: "/ˈfɪfti/",
+          tip: "Short 'i' (like 'bit'), not 'ee'. Two F sounds — both with teeth gently on the lower lip.",
+          ctx: "That'll be six fifty."
+        }
+      }
+    },
+
+    {
+      id: 'smalltalk',
+      title: 'Small Talk at Work',
+      subtitle: 'Monday by the coffee machine.',
+      icon: '💬',
+      scene: "Monday at the office. A coworker catches your eye by the coffee machine and smiles.",
+      dialogue: [
+        { who: 'Coworker', emoji: '🧑', text: "Hey! How was your [weekend]?" },
+        { who: 'You',      emoji: '👤', text: "It was [great]. I went hiking on [Saturday]." },
+        { who: 'Coworker', emoji: '🧑', text: "Oh nice. Where did you go?" },
+        { who: 'You',      emoji: '👤', text: "A trail by the reservoir. [Beautiful] views." },
+        { who: 'Coworker', emoji: '🧑', text: "Sounds relaxing. Busy week ahead?" },
+        { who: 'You',      emoji: '👤', text: "Yeah, [Wednesday]'s my deadline." }
+      ],
+      words: {
+        weekend: {
+          phonetic: "WEEK-end",
+          ipa: "/ˈwiːkɛnd/",
+          tip: "Two clear syllables. The stress falls on WEEK — don't flatten it. 'W' starts with rounded lips, almost like blowing a candle.",
+          ctx: "How was your weekend?"
+        },
+        great: {
+          phonetic: "GRAYT",
+          ipa: "/ɡreɪt/",
+          tip: "GR right together — don't slip an 'e' in front ('eh-great'). Start with a hard G, slide into R, then 'ayt' like 'eight'.",
+          ctx: "It was great."
+        },
+        Saturday: {
+          phonetic: "SAT-er-day",
+          ipa: "/ˈsætərdeɪ/",
+          tip: "Three syllables. The first 'a' is flat (like 'cat'), not 'ah'. Americans often smash the middle 'er' — 'SAD-er-day' is fine.",
+          ctx: "I went hiking on Saturday."
+        },
+        Beautiful: {
+          phonetic: "BYOO-tuh-ful",
+          ipa: "/ˈbjuːtɪfʊl/",
+          tip: "Starts with 'BYOO' — not 'beh-ah'. Three syllables. The middle 't' often softens to 'd' in American speech.",
+          ctx: "Beautiful views."
+        },
+        Wednesday: {
+          phonetic: "WENZ-day",
+          ipa: "/ˈwɛnzdeɪ/",
+          tip: "Two syllables. The 'd' in the middle is completely silent — forget the spelling, just say 'wenz-day'.",
+          ctx: "Wednesday is my deadline."
+        }
+      }
+    },
+
+    {
+      id: 'doctor',
+      title: 'At the Doctor',
+      subtitle: 'A cold that won\'t quit.',
+      icon: '🩺',
+      scene: "You've had a bad cough all week. Now you're sitting on the crinkly paper in a doctor's office.",
+      dialogue: [
+        { who: 'Doctor', emoji: '🩺', text: "What brings you in today?" },
+        { who: 'You',    emoji: '👤', text: "I've had a sore [throat] and cough for [three] days." },
+        { who: 'Doctor', emoji: '🩺', text: "Any fever?" },
+        { who: 'You',    emoji: '👤', text: "A little on [Thursday] night. It's gone now." },
+        { who: 'Doctor', emoji: '🩺', text: "Let me take a look. Open your mouth, please." },
+        { who: 'You',    emoji: '👤', text: "[Thank] you. Should I be worried?" }
+      ],
+      words: {
+        throat: {
+          phonetic: "THROHT",
+          ipa: "/θroʊt/",
+          tip: "TH (tongue between teeth, air only) then slide to 'roht' — like 'boat' with an R. One syllable, don't break it up.",
+          ctx: "A sore throat."
+        },
+        three: {
+          phonetic: "THREE",
+          ipa: "/θriː/",
+          tip: "TH first (tongue shows, soft air), then single soft R, then long 'ee'. Don't roll the R like Spanish — it's a single flap.",
+          ctx: "For three days."
+        },
+        Thursday: {
+          phonetic: "THURZ-day",
+          ipa: "/ˈθɜːrzdeɪ/",
+          tip: "Starts with TH (not T). Then 'urz' with a buzzy Z sound, then '-day'. Skip the 'R' feel — the vowel does the work.",
+          ctx: "On Thursday night."
+        },
+        Thank: {
+          phonetic: "THANK",
+          ipa: "/θæŋk/",
+          tip: "Same TH as in 'thanks' and 'three' — tongue peeks out, gentle air. The 'a' is flat (like 'cat').",
+          ctx: "Thank you, doctor."
+        }
+      }
+    },
+
+    {
+      id: 'directions',
+      title: 'Asking for Directions',
+      subtitle: 'Lost in a new part of town.',
+      icon: '🧭',
+      scene: "You're in a neighborhood you don't know, looking for a library. A friendly person walks by with their dog.",
+      dialogue: [
+        { who: 'You',   emoji: '👤', text: "[Excuse] me, could you help me?" },
+        { who: 'Local', emoji: '🧑‍🦱', text: "Sure, what are you looking for?" },
+        { who: 'You',   emoji: '👤', text: "I'm trying to find the [Jefferson] library." },
+        { who: 'Local', emoji: '🧑‍🦱', text: "Go [straight] three blocks, then turn right." },
+        { who: 'You',   emoji: '👤', text: "Straight, three blocks, then right. [Thank] you so much." },
+        { who: 'Local', emoji: '🧑‍🦱', text: "No problem. It's just past the school." }
+      ],
+      words: {
+        Excuse: {
+          phonetic: "iks-KYOOZ",
+          ipa: "/ɪkˈskjuːz/",
+          tip: "Starts with a short 'i' (like 'it'), not 'e' like Spanish. Two syllables: iks-KYOOZ. Ends with a buzzy Z.",
+          ctx: "Excuse me, could you help?"
+        },
+        Jefferson: {
+          phonetic: "JEF-er-sun",
+          ipa: "/ˈdʒɛfərsən/",
+          tip: "English J is like the 'dg' in 'edge' — voiced and buzzy. It's NOT the Spanish J (which sounds like English H). Think 'Mexico' → 'Jefferson'.",
+          ctx: "The Jefferson library."
+        },
+        straight: {
+          phonetic: "STRAYT",
+          ipa: "/streɪt/",
+          tip: "STR all together at the start — don't add an 'e' in front ('es-traight'). Start with air through the teeth, then the cluster.",
+          ctx: "Go straight three blocks."
+        },
+        Thank: {
+          phonetic: "THANK",
+          ipa: "/θæŋk/",
+          tip: "TH — tongue between teeth, soft air. No voice yet. Then 'ank'.",
+          ctx: "Thank you so much."
+        }
+      }
+    },
+
+    {
+      id: 'interview',
+      title: 'Job Interview Opener',
+      subtitle: 'First question, first impression.',
+      icon: '💼',
+      scene: "A room with too-bright lighting. The hiring manager smiles across the table and opens a notebook.",
+      dialogue: [
+        { who: 'Interviewer', emoji: '🧑‍💼', text: "[Thanks] for coming in. Tell me about [yourself]." },
+        { who: 'You',         emoji: '👤', text: "I've been in marketing for five years, mostly digital." },
+        { who: 'Interviewer', emoji: '🧑‍💼', text: "What brings you here today?" },
+        { who: 'You',         emoji: '👤', text: "I want a role where I can grow and take on more [responsibility]." },
+        { who: 'Interviewer', emoji: '🧑‍💼', text: "Why this company [specifically]?" },
+        { who: 'You',         emoji: '👤', text: "Your product is [thoughtful] and the team culture really stands out." }
+      ],
+      words: {
+        Thanks: {
+          phonetic: "THANKS",
+          ipa: "/θæŋks/",
+          tip: "TH opens with the tongue between the teeth and a soft breath. No voice on the TH — voice starts on the 'a'.",
+          ctx: "Thanks for coming in."
+        },
+        yourself: {
+          phonetic: "yer-SELF",
+          ipa: "/jɜːrˈsɛlf/",
+          tip: "Starts with a soft Y (like 'yo' in Spanish 'yo voy') — NOT the English J sound. Stress lands on SELF.",
+          ctx: "Tell me about yourself."
+        },
+        responsibility: {
+          phonetic: "ri-spon-suh-BIL-ih-tee",
+          ipa: "/rɪˌspɒnsəˈbɪləti/",
+          tip: "Six syllables, stress on BIL. The trick: keep the other syllables quick and light — only BIL gets the punch.",
+          ctx: "More responsibility."
+        },
+        specifically: {
+          phonetic: "spuh-SIF-ik-lee",
+          ipa: "/spəˈsɪfɪkli/",
+          tip: "SP together — no 'e' in front ('es-pecifically'). Stress on SIF. The last two syllables blur into '-ikly'.",
+          ctx: "Why this company specifically?"
+        },
+        thoughtful: {
+          phonetic: "THAWT-ful",
+          ipa: "/ˈθɔːtfʊl/",
+          tip: "TH + 'awt' + 'ful'. The 'gh' is silent. Two syllables — almost like 'thought' + 'full'.",
+          ctx: "The product is thoughtful."
+        }
+      }
+    },
+
+    {
+      id: 'dinner',
+      title: 'Ordering Dinner',
+      subtitle: 'Friday night out.',
+      icon: '🍽️',
+      scene: "A busy restaurant you've been wanting to try. Your server appears with a notepad and a warm smile.",
+      dialogue: [
+        { who: 'Server', emoji: '🧑‍🍳', text: "Are you ready to order?" },
+        { who: 'You',    emoji: '👤', text: "I [think] so. What's the soup of the day?" },
+        { who: 'Server', emoji: '🧑‍🍳', text: "Tomato basil. It's really [popular] tonight." },
+        { who: 'You',    emoji: '👤', text: "I'll start with that, then the grilled [salmon]." },
+        { who: 'Server', emoji: '🧑‍🍳', text: "Any [vegetables] on the side?" },
+        { who: 'You',    emoji: '👤', text: "Yes — the roasted vegetables, please." }
+      ],
+      words: {
+        think: {
+          phonetic: "THINK",
+          ipa: "/θɪŋk/",
+          tip: "TH (tongue between teeth, air out), then short 'i' (like 'bit'), then 'nk'. Avoid 'tink' — show the tongue.",
+          ctx: "I think so."
+        },
+        popular: {
+          phonetic: "POP-yuh-ler",
+          ipa: "/ˈpɒpjələr/",
+          tip: "Three syllables. Middle syllable is 'yuh', not 'oo'. Stress up front on POP.",
+          ctx: "It's really popular tonight."
+        },
+        salmon: {
+          phonetic: "SAM-un",
+          ipa: "/ˈsæmən/",
+          tip: "The L is completely silent. Just 'sam' + 'un'. Pretend the word is spelled 'sammon'.",
+          ctx: "The grilled salmon."
+        },
+        vegetables: {
+          phonetic: "VEJ-tuh-buls",
+          ipa: "/ˈvɛdʒtəbəlz/",
+          tip: "Only three syllables, not four. Drop the middle 'e' completely. Start with a soft V (top teeth on lower lip, vibration).",
+          ctx: "Roasted vegetables, please."
+        }
+      }
+    },
+
+    {
+      id: 'pharmacy',
+      title: 'At the Pharmacy',
+      subtitle: 'Picking up a prescription.',
+      icon: '💊',
+      scene: "The line just cleared. You step up to the pharmacy counter where a pharmacist looks up at you.",
+      dialogue: [
+        { who: 'Pharmacist', emoji: '👩‍⚕️', text: "Can I help you?" },
+        { who: 'You',        emoji: '👤', text: "Yes, picking up a [prescription] for Rodriguez." },
+        { who: 'Pharmacist', emoji: '👩‍⚕️', text: "First name?" },
+        { who: 'You',        emoji: '👤', text: "Maria. M-A-R-I-A." },
+        { who: 'Pharmacist', emoji: '👩‍⚕️', text: "Here it is. Any [questions] about how to take it?" },
+        { who: 'You',        emoji: '👤', text: "How [often] should I take [this]?" }
+      ],
+      words: {
+        prescription: {
+          phonetic: "pri-SKRIP-shun",
+          ipa: "/prɪˈskrɪpʃən/",
+          tip: "PR + SKR are two consonant clusters in a row — tough. Break it: 'pri' then 'SKRIP' then 'shun'. No 'e' before the clusters.",
+          ctx: "Picking up a prescription."
+        },
+        questions: {
+          phonetic: "KWES-chunz",
+          ipa: "/ˈkwɛstʃənz/",
+          tip: "Starts with KW (no 'e' in front). The middle is softened — 'kwes-chunz', not 'ques-tion-es'. Ends with Z sound.",
+          ctx: "Any questions?"
+        },
+        often: {
+          phonetic: "OFF-en",
+          ipa: "/ˈɒfən/",
+          tip: "Most Americans drop the T completely — 'OFF-en'. Some say 'OFF-ten'. Both are fine; pick whichever is easier.",
+          ctx: "How often should I take this?"
+        },
+        this: {
+          phonetic: "THIS",
+          ipa: "/ðɪs/",
+          tip: "Soft (voiced) TH — tongue between teeth AND voice humming. Different from 'think' — here the voice is on from the start.",
+          ctx: "How often should I take this?"
+        }
+      }
+    },
+
+    {
+      id: 'friend',
+      title: 'Calling a Friend',
+      subtitle: 'Making weekend plans.',
+      icon: '📱',
+      scene: "Saturday afternoon. Your phone buzzes — it's Jessica calling to make plans.",
+      dialogue: [
+        { who: 'Friend', emoji: '🧑‍🦰', text: "Hey! What are you up to later?" },
+        { who: 'You',    emoji: '👤', text: "Not much. I [thought] I'd stay in tonight." },
+        { who: 'Friend', emoji: '🧑‍🦰', text: "Come on, let's see a movie." },
+        { who: 'You',    emoji: '👤', text: "What's playing?" },
+        { who: 'Friend', emoji: '🧑‍🦰', text: "That new [thriller]. It starts at eight [thirty]." },
+        { who: 'You',    emoji: '👤', text: "Alright, sounds good. I'll meet you [there]." }
+      ],
+      words: {
+        thought: {
+          phonetic: "THAWT",
+          ipa: "/θɔːt/",
+          tip: "TH (tongue between teeth, air out), then 'awt' like 'caught'. The 'gh' is silent. One syllable.",
+          ctx: "I thought I'd stay in."
+        },
+        thriller: {
+          phonetic: "THRIL-er",
+          ipa: "/ˈθrɪlər/",
+          tip: "Hardest TH combo — TH right next to R. Say 'th' slowly, then 'ril-er'. Practice the switch from tongue-out to R.",
+          ctx: "That new thriller."
+        },
+        thirty: {
+          phonetic: "THUR-tee",
+          ipa: "/ˈθɜːrti/",
+          tip: "TH opens, then 'ur' (like 'her' without the H), then 'tee'. Some Americans soften the T to a D: 'thur-dee'.",
+          ctx: "At eight thirty."
+        },
+        there: {
+          phonetic: "THAIR",
+          ipa: "/ðɛr/",
+          tip: "Soft (voiced) TH — like 'this' and 'that'. Tongue between teeth WITH your voice humming. Not 'dair'.",
+          ctx: "I'll meet you there."
+        }
+      }
+    },
+
+    {
+      id: 'neighbors',
+      title: 'Meeting the Neighbors',
+      subtitle: 'Just moved in.',
+      icon: '🏡',
+      scene: "Boxes still on the porch. Your new neighbor waves from across the driveway, holding a mug of coffee.",
+      dialogue: [
+        { who: 'Neighbor', emoji: '🧓', text: "Welcome to the [neighborhood]!" },
+        { who: 'You',      emoji: '👤', text: "[Thanks]! We moved in on [Thursday]." },
+        { who: 'Neighbor', emoji: '🧓', text: "I'm Beatriz. Let me know if you need anything." },
+        { who: 'You',      emoji: '👤', text: "I'm Daniel. Nice to meet you. Thanks so much." },
+        { who: 'Neighbor', emoji: '🧓', text: "Where are you coming from?" },
+        { who: 'You',      emoji: '👤', text: "[Originally] Mexico, but [Chicago] for the past [three] years." }
+      ],
+      words: {
+        neighborhood: {
+          phonetic: "NAY-ber-hood",
+          ipa: "/ˈneɪbərhʊd/",
+          tip: "Three syllables. The 'gh' is silent — it's just 'nay'. The H on 'hood' IS pronounced, unlike Spanish where H is always silent.",
+          ctx: "Welcome to the neighborhood."
+        },
+        Thanks: {
+          phonetic: "THANKS",
+          ipa: "/θæŋks/",
+          tip: "TH — tongue between teeth, no voice, soft breath. The number-one giveaway of a Spanish accent is 'tanks'. Just show the tongue.",
+          ctx: "Thanks, we just moved in."
+        },
+        Thursday: {
+          phonetic: "THURZ-day",
+          ipa: "/ˈθɜːrzdeɪ/",
+          tip: "Starts with TH, not T. 'THURZ-day', not 'TERS-day'. The Z in the middle is buzzy.",
+          ctx: "We moved in on Thursday."
+        },
+        Originally: {
+          phonetic: "uh-RIJ-ih-nuh-lee",
+          ipa: "/əˈrɪdʒɪnəli/",
+          tip: "Five syllables. Stress on RIJ (like 'bridge' minus the B). The 'g' is a J sound (/dʒ/).",
+          ctx: "Originally from Mexico."
+        },
+        Chicago: {
+          phonetic: "shi-KAH-go",
+          ipa: "/ʃɪˈkɑːɡoʊ/",
+          tip: "Starts with SH, not CH. Stress on the middle syllable: shi-KAH-go. The city name is the exception — most CH words are 'ch'.",
+          ctx: "Chicago for three years."
+        },
+        three: {
+          phonetic: "THREE",
+          ipa: "/θriː/",
+          tip: "TH + R + long 'ee'. Single soft R, not rolled. Keep the tongue between your teeth at the start.",
+          ctx: "For three years."
+        }
+      }
+    },
+
+    {
+      id: 'market',
+      title: 'At the Farmer\'s Market',
+      subtitle: 'Saturday morning produce run.',
+      icon: '🍅',
+      scene: "The farmer's market is busy with the early crowd. A vendor arranges fresh tomatoes at the front of their stall.",
+      dialogue: [
+        { who: 'Vendor', emoji: '👨‍🌾', text: "Can I help you find something?" },
+        { who: 'You',    emoji: '👤', text: "Yes, I'm looking for ripe [tomatoes]." },
+        { who: 'Vendor', emoji: '👨‍🌾', text: "These came in this morning. [Very] fresh." },
+        { who: 'You',    emoji: '👤', text: "Good for a salad?" },
+        { who: 'Vendor', emoji: '👨‍🌾', text: "Perfect. How many?" },
+        { who: 'You',    emoji: '👤', text: "I'll take four, please. Also, where are the [avocados]?" }
+      ],
+      words: {
+        tomatoes: {
+          phonetic: "tuh-MAY-tohz",
+          ipa: "/təˈmeɪtoʊz/",
+          tip: "Stress on MAY, not TOE. The first 'o' becomes a quick 'uh'. Ends with a Z sound, not an S. Some Brits say 'tuh-MAH-tohz' — also fine.",
+          ctx: "Ripe tomatoes."
+        },
+        Very: {
+          phonetic: "VEH-ree",
+          ipa: "/ˈvɛri/",
+          tip: "Top teeth touch lower lip, then voice buzzes out — that's V. In Spanish V and B blur; in English, V never closes the lips.",
+          ctx: "Very fresh."
+        },
+        avocados: {
+          phonetic: "ah-vuh-KAH-dohz",
+          ipa: "/ˌævəˈkɑːdoʊz/",
+          tip: "Stress on KAH (third syllable). Spanish speakers often stress the first syllable out of habit — push the emphasis later.",
+          ctx: "Where are the avocados?"
+        }
+      }
+    }
+  ];
+
+  /* ==========================================================================
+     DATA — WORD GYM CATEGORIES
+     Category-grouped practice for learners who want to drill a specific
+     Spanish-speaker difficulty outside of a conversation.
+     ======================================================================== */
+  const GYM = [
+    {
+      id: 'th',
+      title: 'The TH sound',
+      blurb: "Spanish doesn't have this sound — so we default to T or D. The fix: let your tongue peek between your teeth and let the air do the work.",
+      words: [
+        { word: 'think',    phonetic: 'THINK',    ipa: '/θɪŋk/',   tip: "Unvoiced TH — tongue shows, air only, no vocal cords." },
+        { word: 'thanks',   phonetic: 'THANKS',   ipa: '/θæŋks/',  tip: "Same unvoiced TH. Flat 'a' like 'cat'." },
+        { word: 'three',    phonetic: 'THREE',    ipa: '/θriː/',   tip: "TH + soft R + long 'ee'. Don't roll the R." },
+        { word: 'thirty',   phonetic: 'THUR-tee', ipa: '/ˈθɜːrti/',tip: "TH into 'ur-tee'. Some say 'thur-dee' — fine." },
+        { word: 'thought',  phonetic: 'THAWT',    ipa: '/θɔːt/',   tip: "TH + 'awt'. Silent 'gh'." },
+        { word: 'through',  phonetic: 'THROO',    ipa: '/θruː/',   tip: "TH + 'roo' (like 'blue'). Silent 'gh'." },
+        { word: 'birthday', phonetic: 'BURTH-day',ipa: '/ˈbɜːrθdeɪ/',tip: "TH is in the middle — still tongue between teeth." },
+        { word: 'month',    phonetic: 'MUNTH',    ipa: '/mʌnθ/',   tip: "Ends with TH. Hold your tongue out at the end of the word." },
+        { word: 'this',     phonetic: 'THIS',     ipa: '/ðɪs/',    tip: "Voiced TH — tongue out AND voice humming. Different from 'think'." },
+        { word: 'that',     phonetic: 'THAT',     ipa: '/ðæt/',    tip: "Voiced TH, like 'this'. Not 'dat'." },
+        { word: 'the',      phonetic: 'THUH',     ipa: '/ðə/',     tip: "The most common word — voiced TH + a quick 'uh'. Not 'da'." },
+        { word: 'mother',   phonetic: 'MUTH-er',  ipa: '/ˈmʌðər/', tip: "Voiced TH in the middle. Don't skip to D." }
+      ]
+    },
+    {
+      id: 'vb',
+      title: 'V vs B',
+      blurb: "In Spanish, V and B sound nearly the same. In English they're very different — V keeps the lips slightly open and buzzes.",
+      words: [
+        { word: 'very',       phonetic: 'VEH-ree',       ipa: '/ˈvɛri/',         tip: "Top teeth on lower lip. Voice buzzes. Lips never close." },
+        { word: 'voice',      phonetic: 'VOYS',          ipa: '/vɔɪs/',          tip: "Start with the buzzy V. Not 'boys'." },
+        { word: 'vocabulary', phonetic: 'voh-KAB-yuh-leh-ree', ipa: '/voʊˈkæbjəlɛri/', tip: "V at the start. Stress on KAB." },
+        { word: 'vegetable',  phonetic: 'VEJ-tuh-bul',   ipa: '/ˈvɛdʒtəbəl/',    tip: "Three syllables (drop the middle 'e'). Starts with V." },
+        { word: 'vanilla',    phonetic: 'vuh-NIL-uh',    ipa: '/vəˈnɪlə/',       tip: "V + 'nilla'. Stress on NIL." },
+        { word: 'valuable',   phonetic: 'VAL-yoo-bul',   ipa: '/ˈvæljuəbəl/',    tip: "V at the start. Three syllables." },
+        { word: 'volume',     phonetic: 'VOL-yoom',      ipa: '/ˈvɒljuːm/',      tip: "V + 'ol' + 'yoom'. Don't let it drift into 'bolume'." },
+        { word: 'visit',      phonetic: 'VIZ-it',        ipa: '/ˈvɪzɪt/',        tip: "V start. Middle is a buzzy Z." }
+      ]
+    },
+    {
+      id: 'ship-sheep',
+      title: 'Short "i" vs long "ee"',
+      blurb: "Spanish has one 'i' (like 'sí'). English has two — a short 'i' ('ship') and a long 'ee' ('sheep'). Getting them crossed changes the word.",
+      words: [
+        { word: 'sheep',   phonetic: 'SHEEP',   ipa: '/ʃiːp/', tip: "Long 'ee' — like Spanish 'sí', but hold it out." },
+        { word: 'ship',    phonetic: 'SHIP',    ipa: '/ʃɪp/',  tip: "Short 'i' — quicker, mouth more relaxed. The Spanish 'i' is closer to 'ee'." },
+        { word: 'leave',   phonetic: 'LEEV',    ipa: '/liːv/', tip: "Long 'ee' + V (buzzy). Not 'live'." },
+        { word: 'live',    phonetic: 'LIV',     ipa: '/lɪv/',  tip: "Short 'i'. 'Live' the verb rhymes with 'give'." },
+        { word: 'feet',    phonetic: 'FEET',    ipa: '/fiːt/', tip: "Long 'ee', like Spanish 'fe' held out." },
+        { word: 'fit',     phonetic: 'FIT',     ipa: '/fɪt/',  tip: "Short, snappy 'i'. Mouth relaxed." },
+        { word: 'eat',     phonetic: 'EET',     ipa: '/iːt/',  tip: "Long 'ee'. Not 'it'." },
+        { word: 'it',      phonetic: 'IT',      ipa: '/ɪt/',   tip: "Short, lazy 'i'. Mouth almost closed." },
+        { word: 'seat',    phonetic: 'SEET',    ipa: '/siːt/', tip: "Long 'ee'. Not 'sit'." },
+        { word: 'sit',     phonetic: 'SIT',     ipa: '/sɪt/',  tip: "Short 'i'. Relaxed." }
+      ]
+    },
+    {
+      id: 'silent',
+      title: 'Silent letters',
+      blurb: "English spelling is a fossil — some letters are there but aren't said anymore. Ignore them.",
+      words: [
+        { word: 'Wednesday',   phonetic: 'WENZ-day',  ipa: '/ˈwɛnzdeɪ/',   tip: "Middle 'd' is silent. Two syllables, not three." },
+        { word: 'salmon',      phonetic: 'SAM-un',    ipa: '/ˈsæmən/',     tip: "The 'L' is silent. Pretend it's spelled 'sammon'." },
+        { word: 'island',      phonetic: 'EYE-lund',  ipa: '/ˈaɪlənd/',    tip: "Silent S. Just 'eye' + 'lund'." },
+        { word: 'comfortable', phonetic: 'COMF-ter-bul', ipa: '/ˈkʌmftərbəl/', tip: "The 'or' collapses — three syllables, not four." },
+        { word: 'chocolate',   phonetic: 'CHOK-lut',  ipa: '/ˈtʃɒklət/',   tip: "Middle 'o' vanishes. Two syllables." },
+        { word: 'restaurant',  phonetic: 'RES-trawnt',ipa: '/ˈrɛstərɒnt/', tip: "Middle 'au' usually collapses. Two or three syllables." },
+        { word: 'February',    phonetic: 'FEB-yoo-eh-ree', ipa: '/ˈfɛbjuɛri/', tip: "Most Americans drop the first R. 'Feb-you-ary' is fine." },
+        { word: 'muscle',      phonetic: 'MUS-ul',    ipa: '/ˈmʌsəl/',     tip: "Silent C. Just 'mus' + 'ul'." },
+        { word: 'aisle',       phonetic: 'EYEL',      ipa: '/aɪl/',        tip: "Silent S. Sounds just like 'I'll' (I will)." },
+        { word: 'answer',      phonetic: 'AN-ser',    ipa: '/ˈænsər/',     tip: "Silent 'W'. Just 'an-ser'." }
+      ]
+    },
+    {
+      id: 'clusters',
+      title: 'SP / ST / SK clusters',
+      blurb: "Spanish words never start with these — they always add an 'e' first (escuela, español). English drops that 'e'. Start the word with a breath instead.",
+      words: [
+        { word: 'speak',    phonetic: 'SPEEK',   ipa: '/spiːk/',  tip: "No 'e' in front. Just a quick air-breath, then SP." },
+        { word: 'Spanish',  phonetic: 'SPAN-ish',ipa: '/ˈspænɪʃ/',tip: "Not 'es-Spanish'. The word is already two syllables; don't add a third." },
+        { word: 'start',    phonetic: 'START',   ipa: '/stɑːrt/', tip: "One syllable. ST together, right at the start." },
+        { word: 'stop',     phonetic: 'STOP',    ipa: '/stɒp/',   tip: "ST cluster. No 'e' in front." },
+        { word: 'student',  phonetic: 'STOO-dent',ipa: '/ˈstuːdənt/', tip: "Two syllables. ST + 'oo' + 'dent'." },
+        { word: 'school',   phonetic: 'SKOOL',   ipa: '/skuːl/',  tip: "SK together. Not 'es-kool'." },
+        { word: 'scream',   phonetic: 'SKREEM',  ipa: '/skriːm/', tip: "Three consonants at the start (SKR). Tough — practice slowly." },
+        { word: 'strong',   phonetic: 'STRAWNG', ipa: '/strɒŋ/',  tip: "STR cluster. Three consonants, one syllable." },
+        { word: 'straight', phonetic: 'STRAYT',  ipa: '/streɪt/', tip: "STR + 'ayt'. One syllable." },
+        { word: 'stomach',  phonetic: 'STUM-ik', ipa: '/ˈstʌmək/',tip: "ST cluster, then 'um-ik'. The 'ch' sounds like K." }
+      ]
+    },
+    {
+      id: 'h-sounds',
+      title: 'The H sound',
+      blurb: "In Spanish, the letter H is silent. In English, it's almost always pronounced — a soft puff of air from the throat.",
+      words: [
+        { word: 'hello',    phonetic: 'heh-LOH',   ipa: '/həˈloʊ/',   tip: "The H is a gentle puff. Don't skip it." },
+        { word: 'happy',    phonetic: 'HAP-ee',    ipa: '/ˈhæpi/',    tip: "H puff, then 'ap-ee'. Never silent." },
+        { word: 'home',     phonetic: 'HOHM',      ipa: '/hoʊm/',     tip: "Breathe out gently to start. Not 'ome'." },
+        { word: 'hand',     phonetic: 'HAND',      ipa: '/hænd/',     tip: "H start, flat 'a', ends with a soft 'nd'." },
+        { word: 'hospital', phonetic: 'HOS-pi-tul',ipa: '/ˈhɒspɪtəl/',tip: "Starts with a real H puff. Three syllables." },
+        { word: 'hotel',    phonetic: 'hoh-TEL',   ipa: '/hoʊˈtɛl/',  tip: "Real H (not silent like Spanish 'hotel'). Stress on TEL." },
+        { word: 'history',  phonetic: 'HIS-tuh-ree',ipa: '/ˈhɪstəri/',tip: "H puff at the start. Three syllables." },
+        { word: 'heart',    phonetic: 'HART',      ipa: '/hɑːrt/',    tip: "H start, then 'art'. Note the silent 'e' — actually 'ar'." }
+      ]
+    },
+    {
+      id: 'tongue-twisters',
+      title: 'Tricky single words',
+      blurb: "The words that trip up most Spanish speakers (and plenty of natives). Work through them slowly — nobody nails these in one try.",
+      words: [
+        { word: 'squirrel',     phonetic: 'SKWUR-ul',      ipa: '/ˈskwɜːrəl/',      tip: "Two syllables, fast. SK + W + 'ur' + 'ul'. Even natives struggle." },
+        { word: 'rural',        phonetic: 'ROO-rul',       ipa: '/ˈrʊərəl/',        tip: "Two soft Rs. Don't roll — just a light tap each time." },
+        { word: 'world',        phonetic: 'WURLD',         ipa: '/wɜːrld/',         tip: "One syllable. Rounded 'w' opens the mouth, then 'urld' with soft R and quick L+D." },
+        { word: 'girl',         phonetic: 'GURL',          ipa: '/ɡɜːrl/',          tip: "One syllable. G + 'url'. The 'r' and 'l' blend at the end." },
+        { word: 'thoroughly',   phonetic: 'THUR-oh-lee',   ipa: '/ˈθɜːrəli/',       tip: "Three syllables. Not 'through-lee'. TH + 'ur' + 'oh' + 'lee'." },
+        { word: 'entrepreneur', phonetic: 'ON-truh-pruh-NUR', ipa: '/ˌɒntrəprəˈnɜːr/', tip: "French import. Four syllables. Stress on NUR at the end." },
+        { word: 'usually',      phonetic: 'YOO-zhoo-lee',  ipa: '/ˈjuːʒuəli/',      tip: "The 'su' becomes 'zh' — like the soft J in French 'bonjour'." },
+        { word: 'specifically', phonetic: 'spuh-SIF-ik-lee', ipa: '/spəˈsɪfɪkli/',  tip: "No 'e' before SP. Stress on SIF. Four syllables." },
+        { word: 'colonel',      phonetic: 'KUR-nul',       ipa: '/ˈkɜːrnəl/',       tip: "Forget the spelling — it's 'KER-nul', exactly like 'kernel'. Historic anomaly." },
+        { word: 'February',     phonetic: 'FEB-yoo-eh-ree',ipa: '/ˈfɛbjuɛri/',      tip: "Most Americans drop the first R. Three or four syllables." }
+      ]
+    }
+  ];
+
+  /* ==========================================================================
+     SPEECH SYNTHESIS (TTS)
+     ======================================================================== */
+  const synth = window.speechSynthesis;
+  let cachedVoice = null;
+  function pickVoice() {
+    if (cachedVoice) return cachedVoice;
+    const voices = synth.getVoices();
+    if (!voices.length) return null;
+    // Prefer a high-quality en-US voice
+    const prefs = [
+      v => v.lang === 'en-US' && /Samantha|Ava|Karen|Jenny|Aria|Google US/i.test(v.name),
+      v => v.lang === 'en-US' && v.localService,
+      v => v.lang.startsWith('en-US'),
+      v => v.lang.startsWith('en-GB'),
+      v => v.lang.startsWith('en')
+    ];
+    for (const p of prefs) {
+      const found = voices.find(p);
+      if (found) { cachedVoice = found; return found; }
+    }
+    cachedVoice = voices[0];
+    return cachedVoice;
+  }
+  if (synth) {
+    // voices load async in some browsers
+    synth.addEventListener && synth.addEventListener('voiceschanged', () => { cachedVoice = null; pickVoice(); });
+  }
+
+  function speak(text, { rate = 0.95, onEnd = null } = {}) {
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = pickVoice();
+    u.rate = rate;
+    u.pitch = 1;
+    u.lang = 'en-US';
+    if (onEnd) u.onend = onEnd;
+    synth.speak(u);
+    return u;
+  }
+
+  /* ==========================================================================
+     SPEECH RECOGNITION
+     ======================================================================== */
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micAvailable = !!SpeechRec;
+  let activeRec = null;
+
+  function listen({ onResult, onError, onEnd }) {
+    if (!SpeechRec) { onError && onError('unavailable'); return null; }
+    if (activeRec) { try { activeRec.stop(); } catch(e){} activeRec = null; }
+    const rec = new SpeechRec();
+    rec.lang = 'en-US';
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    rec.continuous = false;
+    let heard = null;
+    rec.onresult = (e) => {
+      const alts = [];
+      for (let i = 0; i < e.results[0].length; i++) alts.push(e.results[0][i].transcript);
+      heard = alts;
+      onResult && onResult(alts);
+    };
+    rec.onerror = (e) => { onError && onError(e.error); };
+    rec.onend = () => { activeRec = null; onEnd && onEnd(heard); };
+    try { rec.start(); activeRec = rec; return rec; }
+    catch(err) { onError && onError('start-failed'); return null; }
+  }
+
+  function stopListening() {
+    if (activeRec) { try { activeRec.stop(); } catch(e){} activeRec = null; }
+  }
+
+  // Fuzzy match — returns { score: 0..1, matched: bool, heardWord: string|null }
+  function scoreWordMatch(target, heardAlts) {
+    if (!heardAlts || !heardAlts.length) return { score: 0, matched: false, heardWord: null };
+    const t = target.toLowerCase().replace(/[^a-z]/g, '');
+    let best = { score: 0, heardWord: null };
+    for (const alt of heardAlts) {
+      const clean = alt.toLowerCase().replace(/[^a-z ]/g, '');
+      const words = clean.split(/\s+/).filter(Boolean);
+      for (const w of words) {
+        const d = levenshtein(t, w);
+        const maxLen = Math.max(t.length, w.length) || 1;
+        const sim = 1 - (d / maxLen);
+        if (sim > best.score) best = { score: sim, heardWord: w };
+      }
+    }
+    return { ...best, matched: best.score >= 0.75 };
+  }
+
+  // Phrase-level: word-by-word coverage
+  function scorePhraseMatch(target, heardAlts) {
+    if (!heardAlts || !heardAlts.length) return { score: 0, heard: '', hits: 0, total: 0 };
+    const tWords = target.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean);
+    let best = { score: 0, heard: heardAlts[0], hits: 0, total: tWords.length };
+    for (const alt of heardAlts) {
+      const hWords = alt.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(Boolean);
+      let hits = 0;
+      // greedy in-order match with Lev tolerance
+      let pos = 0;
+      for (const tw of tWords) {
+        let matched = false;
+        for (let i = pos; i < hWords.length; i++) {
+          const d = levenshtein(tw, hWords[i]);
+          if (d <= Math.max(1, Math.floor(tw.length / 4))) {
+            hits++; pos = i + 1; matched = true; break;
+          }
+        }
+        if (!matched) {
+          // allow backward match (but no position advance)
+          for (let i = 0; i < pos; i++) {
+            if (levenshtein(tw, hWords[i]) <= 1) { hits++; break; }
+          }
+        }
+      }
+      const score = hits / tWords.length;
+      if (score > best.score) best = { score, heard: alt, hits, total: tWords.length };
+    }
+    return best;
+  }
+
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    const la = a.length, lb = b.length;
+    if (!la) return lb;
+    if (!lb) return la;
+    const v0 = new Array(lb + 1), v1 = new Array(lb + 1);
+    for (let i = 0; i <= lb; i++) v0[i] = i;
+    for (let i = 0; i < la; i++) {
+      v1[0] = i + 1;
+      for (let j = 0; j < lb; j++) {
+        const cost = a.charCodeAt(i) === b.charCodeAt(j) ? 0 : 1;
+        v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+      }
+      for (let j = 0; j <= lb; j++) v0[j] = v1[j];
+    }
+    return v1[lb];
+  }
+
+  /* ==========================================================================
+     PERSISTENCE — tiny, local-only, today-only stats
+     ======================================================================== */
+  const STORAGE_KEY = 'habla_clara_state_v1';
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  }
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      if (parsed.day !== todayKey()) {
+        return { day: todayKey(), wordsWarmed: {}, scenarios: {} };
+      }
+      return { day: parsed.day, wordsWarmed: parsed.wordsWarmed || {}, scenarios: parsed.scenarios || {} };
+    } catch(e) {
+      return { day: todayKey(), wordsWarmed: {}, scenarios: {} };
+    }
+  }
+  function saveState(s) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch(e) {}
+  }
+  const state = loadState();
+
+  function markWordWarmed(word) {
+    state.wordsWarmed[word.toLowerCase()] = Date.now();
+    saveState(state);
+    refreshTodayPill();
+  }
+  function markScenarioVisited(id) {
+    state.scenarios[id] = Date.now();
+    saveState(state);
+  }
+  function refreshTodayPill() {
+    const count = Object.keys(state.wordsWarmed).length;
+    const el = document.getElementById('today-text');
+    if (!el) return;
+    if (count === 0) el.textContent = "Ready when you are";
+    else if (count === 1) el.textContent = "1 word warmed up today";
+    else el.textContent = `${count} words warmed up today`;
+  }
+
+  /* ==========================================================================
+     ROUTING
+     ======================================================================== */
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const v = document.getElementById(name + '-view');
+    if (v) v.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  /* ==========================================================================
+     LANDING — render scenarios grid + featured
+     ======================================================================== */
+  function renderLanding() {
+    // Featured = today's rotating scenario (seeded by day-of-year)
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    const featured = SCENARIOS[dayOfYear % SCENARIOS.length];
+    document.getElementById('featured-icon').textContent = featured.icon;
+    document.getElementById('featured-title').textContent = featured.title;
+    document.getElementById('featured-sub').textContent = featured.subtitle;
+    document.getElementById('featured-card').onclick = () => openScenario(featured.id);
+
+    const grid = document.getElementById('scenarios-grid');
+    grid.innerHTML = '';
+    SCENARIOS.forEach(s => {
+      const visited = state.scenarios[s.id];
+      const card = document.createElement('div');
+      card.className = 'scenario-card' + (visited ? ' visited-today' : '');
+      const targetWords = Object.keys(s.words).slice(0, 3);
+      card.innerHTML = `
+        <span class="icon">${s.icon}</span>
+        <h3>${escapeHtml(s.title)}</h3>
+        <p class="subtitle">${escapeHtml(s.subtitle)}</p>
+        <div class="target-preview">
+          ${targetWords.map(w => `<span>${escapeHtml(w)}</span>`).join('')}
+        </div>
+      `;
+      card.onclick = () => openScenario(s.id);
+      grid.appendChild(card);
+    });
+
+    refreshTodayPill();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  /* ==========================================================================
+     SCENARIO DETAIL
+     ======================================================================== */
+  let currentScenario = null;
+  let slowMode = false;
+
+  function openScenario(id) {
+    const s = SCENARIOS.find(x => x.id === id);
+    if (!s) return;
+    currentScenario = s;
+    slowMode = false;
+    markScenarioVisited(id);
+
+    document.getElementById('detail-icon').textContent = s.icon;
+    document.getElementById('detail-title').textContent = s.title;
+    document.getElementById('scene-text').textContent = s.scene;
+
+    const slowBtn = document.getElementById('slow-mode-btn');
+    slowBtn.classList.remove('active');
+
+    renderDialogue(s);
+    renderLinePractice(s);
+    hideWordDetail();
+    showView('scenario');
+  }
+
+  function renderDialogue(s) {
+    const container = document.getElementById('dialogue-container');
+    container.innerHTML = '';
+    s.dialogue.forEach((line, idx) => {
+      const isYou = line.who === 'You';
+      const lineEl = document.createElement('div');
+      lineEl.className = 'line' + (isYou ? ' yours' : '');
+      lineEl.dataset.idx = idx;
+
+      const speakerEl = document.createElement('div');
+      speakerEl.className = 'line-speaker';
+      speakerEl.innerHTML = `<span class="speaker-emoji">${line.emoji}</span>${escapeHtml(line.who)}`;
+      lineEl.appendChild(speakerEl);
+
+      const textEl = document.createElement('div');
+      textEl.className = 'line-text';
+      textEl.innerHTML = renderLineWithTargets(line.text, s.words);
+      lineEl.appendChild(textEl);
+
+      const playBtn = document.createElement('button');
+      playBtn.className = 'line-play-btn';
+      playBtn.title = 'Play this line';
+      playBtn.innerHTML = '<span class="play-icon"></span>';
+      playBtn.onclick = (e) => {
+        e.stopPropagation();
+        const plain = stripTargets(line.text);
+        document.querySelectorAll('.line').forEach(l => l.classList.remove('speaking'));
+        lineEl.classList.add('speaking');
+        speak(plain, {
+          rate: slowMode ? 0.7 : 0.95,
+          onEnd: () => lineEl.classList.remove('speaking')
+        });
+      };
+      lineEl.appendChild(playBtn);
+
+      container.appendChild(lineEl);
+    });
+
+    // Wire up target word clicks (use delegation)
+    container.addEventListener('click', (e) => {
+      const t = e.target.closest('.target-word');
+      if (!t) return;
+      const w = t.dataset.word;
+      document.querySelectorAll('.target-word').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      showWordDetail(w, s.words[w], s);
+    });
+  }
+
+  function renderLineWithTargets(text, wordsMap) {
+    // Text uses [word] markers for target words
+    return text.replace(/\[([^\]]+)\]/g, (_, w) => {
+      const clean = w.trim();
+      if (wordsMap[clean]) {
+        return `<span class="target-word" data-word="${escapeHtml(clean)}">${escapeHtml(clean)}</span>`;
+      }
+      return escapeHtml(clean);
+    });
+  }
+
+  function stripTargets(text) {
+    return text.replace(/\[([^\]]+)\]/g, '$1');
+  }
+
+  document.getElementById('play-all-btn').onclick = () => {
+    if (!currentScenario) return;
+    const btn = document.getElementById('play-all-btn');
+    if (btn.classList.contains('active')) {
+      synth.cancel();
+      btn.classList.remove('active');
+      document.querySelectorAll('.line').forEach(l => l.classList.remove('speaking'));
+      return;
+    }
+    btn.classList.add('active');
+    playAllLines(currentScenario, 0, () => {
+      btn.classList.remove('active');
+    });
+  };
+
+  function playAllLines(s, idx, done) {
+    if (idx >= s.dialogue.length) { done && done(); return; }
+    const line = s.dialogue[idx];
+    const lineEl = document.querySelector(`.line[data-idx="${idx}"]`);
+    document.querySelectorAll('.line').forEach(l => l.classList.remove('speaking'));
+    if (lineEl) lineEl.classList.add('speaking');
+    const plain = stripTargets(line.text);
+    speak(plain, {
+      rate: slowMode ? 0.7 : 0.95,
+      onEnd: () => {
+        if (lineEl) lineEl.classList.remove('speaking');
+        setTimeout(() => playAllLines(s, idx + 1, done), 350);
+      }
+    });
+  }
+
+  document.getElementById('slow-mode-btn').onclick = (e) => {
+    slowMode = !slowMode;
+    e.currentTarget.classList.toggle('active', slowMode);
+  };
+
+  /* ==========================================================================
+     WORD DETAIL CARD
+     ======================================================================== */
+  function showWordDetail(word, info, scenario) {
+    const container = document.getElementById('word-detail');
+    container.innerHTML = buildWordDetailHTML(word, info);
+    container.style.display = 'block';
+    wireWordDetail(container, word, info);
+    // Scroll into view
+    setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+  }
+
+  function showGymWordDetail(word, info) {
+    const container = document.getElementById('gym-word-detail');
+    container.innerHTML = buildWordDetailHTML(word, info);
+    container.style.display = 'block';
+    wireWordDetail(container, word, info);
+    setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  }
+
+  function buildWordDetailHTML(word, info) {
+    const ctxHtml = info.ctx ? `
+      <div class="context-phrase">
+        <div>
+          <span class="ctx-label">In context</span>
+          <span class="ctx-text">"${escapeHtml(info.ctx)}"</span>
+        </div>
+        <button class="ctx-play-btn" title="Play phrase">
+          <span class="play-icon"></span>
+        </button>
+      </div>` : '';
+
+    const micHtml = micAvailable ? `
+      <div class="practice-row">
+        <button class="mic-btn" data-action="mic">🎤</button>
+        <div class="mic-label">
+          <strong>Try it.</strong> Press the mic and say the word.
+        </div>
+      </div>
+      <div class="feedback-slot"></div>
+    ` : `
+      <div class="mic-unavailable">
+        <strong>Speech feedback unavailable in this browser.</strong><br>
+        Listen, mimic out loud, and come back in Chrome, Safari, or Edge to get live feedback.
+      </div>`;
+
+    return `
+      <div class="word-detail-head">
+        <div>
+          <div class="word-detail-word">${escapeHtml(word)}</div>
+        </div>
+        <button class="word-close" data-action="close" title="Close">×</button>
+      </div>
+      <div class="word-phonetic-row">
+        <span class="phonetic-simple">${escapeHtml(info.phonetic)}</span>
+        <span class="phonetic-ipa">${escapeHtml(info.ipa || '')}</span>
+      </div>
+      <div class="audio-btns">
+        <button class="audio-btn" data-action="play-slow">🐢 Slow</button>
+        <button class="audio-btn" data-action="play-normal"><span class="play-icon" style="display:inline-block;width:0;height:0;border-left:7px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent;"></span> Natural</button>
+      </div>
+      <div class="tip-box">
+        <div class="tip-label">For Spanish speakers</div>
+        <p>${escapeHtml(info.tip)}</p>
+      </div>
+      ${ctxHtml}
+      ${micHtml}
+    `;
+  }
+
+  function wireWordDetail(container, word, info) {
+    const feedbackSlot = container.querySelector('.feedback-slot');
+
+    container.querySelector('[data-action="close"]').onclick = () => {
+      container.style.display = 'none';
+      document.querySelectorAll('.target-word.active, .gym-word.active').forEach(x => x.classList.remove('active'));
+    };
+
+    container.querySelector('[data-action="play-slow"]').onclick = (e) => {
+      const btn = e.currentTarget;
+      btn.classList.add('speaking');
+      speak(word, { rate: 0.55, onEnd: () => btn.classList.remove('speaking') });
+    };
+    container.querySelector('[data-action="play-normal"]').onclick = (e) => {
+      const btn = e.currentTarget;
+      btn.classList.add('speaking');
+      speak(word, { rate: 0.9, onEnd: () => btn.classList.remove('speaking') });
+    };
+    const ctxBtn = container.querySelector('.ctx-play-btn');
+    if (ctxBtn && info.ctx) {
+      ctxBtn.onclick = () => {
+        ctxBtn.classList.add('speaking');
+        speak(info.ctx, { rate: 0.85, onEnd: () => ctxBtn.classList.remove('speaking') });
+      };
+    }
+
+    const micBtn = container.querySelector('[data-action="mic"]');
+    if (micBtn) {
+      micBtn.onclick = () => {
+        if (micBtn.classList.contains('listening')) {
+          stopListening();
+          micBtn.classList.remove('listening');
+          return;
+        }
+        feedbackSlot.innerHTML = '';
+        micBtn.classList.add('listening');
+        listen({
+          onResult: (alts) => {
+            const { matched, score, heardWord } = scoreWordMatch(word, alts);
+            showWordFeedback(feedbackSlot, word, matched, score, heardWord);
+            if (matched) markWordWarmed(word);
+          },
+          onError: (err) => {
+            micBtn.classList.remove('listening');
+            showMicError(feedbackSlot, err);
+          },
+          onEnd: () => { micBtn.classList.remove('listening'); }
+        });
+      };
+    }
+  }
+
+  function hideWordDetail() {
+    const c = document.getElementById('word-detail');
+    if (c) c.style.display = 'none';
+  }
+
+  function showWordFeedback(slot, target, matched, score, heardWord) {
+    let cls, icon, title, body;
+    if (matched && score >= 0.9) {
+      cls = 'good'; icon = '✓';
+      title = 'Nailed it.';
+      body = `That sounded great. You've said <strong>${escapeHtml(target)}</strong> today — bring it into a real conversation next.`;
+    } else if (matched) {
+      cls = 'good'; icon = '✓';
+      title = 'Clear enough.';
+      body = `Close on the money. Try it once more slowly to lock in <strong>${escapeHtml(target)}</strong>.`;
+    } else if (score >= 0.5) {
+      cls = 'close'; icon = '◐';
+      title = 'Getting there.';
+      body = heardWord
+        ? `I heard <span class="heard">${escapeHtml(heardWord)}</span>. Try again — listen to the slow version and exaggerate the hard part.`
+        : `Almost. Listen again and exaggerate the hard sound.`;
+    } else {
+      cls = 'retry'; icon = '○';
+      title = 'Let\'s try again.';
+      body = heardWord
+        ? `I heard <span class="heard">${escapeHtml(heardWord)}</span>. Replay the slow version and focus on the first sound.`
+        : `Couldn't catch it clearly. Press the mic and try once more.`;
+    }
+    slot.innerHTML = `
+      <div class="feedback ${cls}">
+        <div class="feedback-icon">${icon}</div>
+        <div class="feedback-body"><strong>${title}</strong>${body}</div>
+      </div>`;
+  }
+
+  function showMicError(slot, err) {
+    let msg;
+    if (err === 'not-allowed' || err === 'permission-denied') {
+      msg = 'Microphone access was blocked. Allow it in your browser settings to use speech practice.';
+    } else if (err === 'no-speech') {
+      msg = "Didn't hear anything — try pressing the mic again and speaking a bit louder.";
+    } else if (err === 'unavailable') {
+      msg = "Your browser doesn't support speech recognition. Try Chrome, Safari, or Edge.";
+    } else {
+      msg = "Something went wrong with the mic. Give it another try.";
+    }
+    slot.innerHTML = `<div class="feedback retry"><div class="feedback-icon">!</div><div class="feedback-body">${escapeHtml(msg)}</div></div>`;
+  }
+
+  /* ==========================================================================
+     LINE PRACTICE
+     ======================================================================== */
+  function renderLinePractice(s) {
+    const stack = document.getElementById('line-practice-stack');
+    stack.innerHTML = '';
+
+    if (!micAvailable) {
+      stack.innerHTML = `
+        <div class="mic-unavailable">
+          <strong>Speech feedback isn't available in this browser.</strong><br>
+          Read your lines out loud anyway — it still builds muscle memory. For live feedback, try Chrome, Safari, or Edge.
+        </div>`;
+      return;
+    }
+
+    s.dialogue.forEach((line, idx) => {
+      if (line.who !== 'You') return;
+      const plain = stripTargets(line.text);
+      const item = document.createElement('div');
+      item.className = 'line-practice-item';
+      item.innerHTML = `
+        <div class="line-practice-text">"${escapeHtml(plain)}"</div>
+        <button class="line-practice-mic" title="Try this line">🎤</button>
+      `;
+      const micBtn = item.querySelector('.line-practice-mic');
+      let feedbackEl = null;
+      micBtn.onclick = () => {
+        if (micBtn.classList.contains('listening')) {
+          stopListening();
+          micBtn.classList.remove('listening');
+          return;
+        }
+        if (feedbackEl) { feedbackEl.remove(); feedbackEl = null; }
+        micBtn.classList.add('listening');
+        listen({
+          onResult: (alts) => {
+            const r = scorePhraseMatch(plain, alts);
+            const { level, title, body } = gradePhrase(r, plain);
+            feedbackEl = document.createElement('div');
+            feedbackEl.className = `feedback ${level}`;
+            feedbackEl.innerHTML = `
+              <div class="feedback-icon">${level === 'good' ? '✓' : level === 'close' ? '◐' : '○'}</div>
+              <div class="feedback-body"><strong>${title}</strong>${body}</div>`;
+            item.appendChild(feedbackEl);
+            if (level === 'good') {
+              // Mark any target words in this line as warmed
+              const targets = (line.text.match(/\[([^\]]+)\]/g) || []).map(x => x.slice(1, -1));
+              targets.forEach(markWordWarmed);
+            }
+          },
+          onError: (err) => {
+            micBtn.classList.remove('listening');
+            feedbackEl = document.createElement('div');
+            feedbackEl.className = 'feedback retry';
+            showMicError({ innerHTML: '', _el: feedbackEl }, err);
+            let errMsg;
+            if (err === 'not-allowed' || err === 'permission-denied') errMsg = 'Microphone access was blocked.';
+            else if (err === 'no-speech') errMsg = "Didn't hear anything. Try again.";
+            else errMsg = "Mic error — try once more.";
+            feedbackEl.innerHTML = `<div class="feedback-icon">!</div><div class="feedback-body">${escapeHtml(errMsg)}</div>`;
+            item.appendChild(feedbackEl);
+          },
+          onEnd: () => micBtn.classList.remove('listening')
+        });
+      };
+      stack.appendChild(item);
+    });
+  }
+
+  function gradePhrase(r, expected) {
+    if (r.score >= 0.85) {
+      return {
+        level: 'good',
+        title: 'Sounded natural.',
+        body: `You got <strong>${r.hits}/${r.total}</strong> words clearly. Do it once more — then try it tomorrow in real life.`
+      };
+    }
+    if (r.score >= 0.55) {
+      return {
+        level: 'close',
+        title: 'Close — almost there.',
+        body: `Got <strong>${r.hits}/${r.total}</strong>. I heard: <span class="heard">${escapeHtml(r.heard)}</span>. Replay the line slowly and try again.`
+      };
+    }
+    return {
+      level: 'retry',
+      title: "Let's try that again.",
+      body: `I heard: <span class="heard">${escapeHtml(r.heard)}</span>. Press play on the line first, then match the rhythm.`
+    };
+  }
+
+  /* ==========================================================================
+     WORD GYM VIEW
+     ======================================================================== */
+  function renderGym() {
+    const container = document.getElementById('gym-categories');
+    container.innerHTML = '';
+    GYM.forEach(cat => {
+      const section = document.createElement('section');
+      section.className = 'gym-category';
+      section.innerHTML = `
+        <div class="gym-category-head">
+          <h3>${escapeHtml(cat.title)}</h3>
+          <span class="count">${cat.words.length} words</span>
+        </div>
+        <p class="gym-category-blurb">${escapeHtml(cat.blurb)}</p>
+        <div class="gym-word-grid">
+          ${cat.words.map(w => {
+            const warmed = state.wordsWarmed[w.word.toLowerCase()] ? ' warmed' : '';
+            return `<button class="gym-word${warmed}" data-cat="${cat.id}" data-word="${escapeHtml(w.word)}">${escapeHtml(w.word)}</button>`;
+          }).join('')}
+        </div>
+      `;
+      container.appendChild(section);
+    });
+
+    container.addEventListener('click', (e) => {
+      const b = e.target.closest('.gym-word');
+      if (!b) return;
+      document.querySelectorAll('.gym-word.active').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const cat = GYM.find(c => c.id === b.dataset.cat);
+      const info = cat.words.find(w => w.word === b.dataset.word);
+      showGymWordDetail(info.word, info);
+    });
+  }
+
+  /* ==========================================================================
+     GLOBAL WIRING
+     ======================================================================== */
+  document.querySelectorAll('[data-back]').forEach(b => {
+    b.onclick = () => {
+      synth.cancel();
+      stopListening();
+      hideWordDetail();
+      const gymDetail = document.getElementById('gym-word-detail');
+      if (gymDetail) gymDetail.style.display = 'none';
+      showView(b.dataset.back);
+      if (b.dataset.back === 'landing') renderLanding();
+    };
+  });
+
+  document.getElementById('open-gym-btn').onclick = () => {
+    showView('gym');
+    renderGym();
+  };
+
+  // Cancel any in-flight speech when leaving
+  window.addEventListener('beforeunload', () => { synth.cancel(); stopListening(); });
+
+  // Boot
+  renderLanding();
+  pickVoice();
+  // Tickle voice load on some browsers
+  setTimeout(() => { if (synth && !cachedVoice) pickVoice(); }, 500);
+})();
+</script>
+</body>
+</html>

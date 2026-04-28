@@ -21,7 +21,8 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 9. [Bare DAW](#9-daw-folder) — `daw/{index.html, styles.css, app.js}`
 10. [YouTube Smart Skip](#10-youtube-smart-skip-folder) — `youtube-smart-skip/{manifest.json, content.{js,css}, popup.{html,css,js}}`
 11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html`
-12. [Cross-Project Patterns](#cross-project-patterns)
+12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html`
+13. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -744,23 +745,165 @@ Kumon worksheets drill a narrow skill repeatedly — each worksheet has ~15–30
 
 ---
 
+## 12. `habla-clara.html`
+
+**English pronunciation tutor for Hispanic learners.** Hard-to-pronounce English words are embedded inside realistic everyday conversations (coffee order, doctor visit, job interview, directions, etc.) so they get practiced in context rather than drilled in isolation. Each target word has a simplified phonetic, IPA, and a Spanish-speaker-specific tip that names the Spanish habit creating the mistake and the mechanical fix. A secondary Word Gym groups the same material by difficulty category (TH, V/B, silent letters, SP/ST/SK clusters, H sound, tricky single words). Browser TTS models pronunciation; `SpeechRecognition` + Levenshtein fuzzy matching gives per-word and per-line feedback on the user's attempts.
+
+- **Lines:** 2,385
+- **Layout:** 3-view SPA (landing → scenario detail → word gym), centered max-width 1100/780px
+- **Dependencies:** None (vanilla). Uses browser `speechSynthesis` + `webkitSpeechRecognition`.
+
+### Section Map
+
+| Range | Section |
+|-------|---------|
+| 1–71 | `<!-- ... -->` header TOC comment |
+| 72–988 | `<style>` |
+| 73–149 | `:root` palette (cream + terracotta + sage + sun + ink) + reset + typography |
+| 150–192 | Header & brand (dot-mark + "Habla *Clara*" wordmark + today pill) |
+| 194–292 | Landing hero + featured "today's scene" card |
+| 294–370 | Scenario grid cards (icon + title + subtitle + target-word preview chips) |
+| 372–422 | Word Gym dark promo + site footer |
+| 424–475 | Detail-view header + italicized scene block |
+| 477–607 | Dialogue (speaker badges, line rows, target-word chips, play buttons) |
+| 609–751 | Word detail card (phonetic + IPA + tip + context + audio buttons + mic) |
+| 753–825 | Mic button states + pulsing animation + feedback (good/close/retry) |
+| 827–900 | Per-line practice block (mic rehearsal of "your" lines) |
+| 902–965 | Word Gym view (category sections + pill-style word chips) |
+| 967–987 | Mobile breakpoint (≤720px) |
+| 991–1116 | `<body>` HTML (3 views) |
+| 993–1054 | Landing view |
+| 1056–1098 | Scenario detail view |
+| 1100–1115 | Word Gym view |
+| 1118–2383 | `<script>` — single IIFE |
+| 1127–1570 | `SCENARIOS` — 10 conversations (scene, 4–6 line dialogue, words map) |
+| 1577–1695 | `GYM` — 7 categories of tricky words (68 total) |
+| 1697–1737 | Speech synthesis (TTS) helpers + voice preference |
+| 1739–1836 | Speech recognition + Levenshtein + word/phrase scoring |
+| 1838–1879 | Persistence — daily-bucketed localStorage |
+| 1881–1889 | View routing |
+| 1891–1927 | Landing render (today's feature + scenario grid + today pill) |
+| 1929–2053 | Scenario detail render + play-all + slow-mode |
+| 2055–2224 | Word detail card + mic practice |
+| 2226–2316 | Line-practice rendering + phrase grading |
+| 2318–2352 | Word Gym rendering |
+| 2354–2381 | Global wiring + boot |
+
+### Key JS Entry Points
+
+| Line | Function | Purpose |
+|------|----------|---------|
+| 1127 | `SCENARIOS` | 10 scenario objects: `{id, title, icon, scene, dialogue[], words{}}` |
+| 1577 | `GYM` | 7 category objects with per-word `{phonetic, ipa, tip}` |
+| 1702 | `pickVoice()` | Prefer a high-quality `en-US` local voice for TTS |
+| 1726 | `speak(text, {rate, onEnd})` | Cancel then utter via `speechSynthesis` |
+| 1746 | `listen({onResult, onError, onEnd})` | One-shot `SpeechRecognition` session with alternatives |
+| 1772 | `scoreWordMatch(target, alts)` | Single-word Levenshtein fuzzy match across alternatives |
+| 1790 | `scorePhraseMatch(target, alts)` | In-order phrase-level word-coverage scoring with tolerance |
+| 1820 | `levenshtein(a, b)` | Two-row edit-distance implementation |
+| 1846 | `loadState()` / `saveState()` | `localStorage['habla_clara_state_v1']` daily-bucketed state |
+| 1863 | `markWordWarmed(word)` | Add to today's warmed-word set; refresh header pill |
+| 1894 | `renderLanding()` | Featured = `SCENARIOS[dayOfYear % length]` + scenario grid + pill |
+| 1935 | `openScenario(id)` | Switch to scenario detail view; mark scenario visited today |
+| 1955 | `renderDialogue(s)` | Render lines; convert `[word]` markers → clickable chips |
+| 2034 | `playAllLines(s, idx, done)` | Sequential TTS play-through of full conversation |
+| 2058 | `showWordDetail(word, info, s)` | Inline word deep-dive inside a scenario |
+| 2075 | `buildWordDetailHTML(word, info)` | Build phonetic + IPA + tip + audio + mic HTML |
+| 2125 | `wireWordDetail(...)` | Close + play-slow + play-natural + context-play + mic handlers |
+| 2182 | `showWordFeedback(...)` | "Nailed it" / "Clear enough" / "Getting there" / "Try again" |
+| 2229 | `renderLinePractice(s)` | Mic rows for each "You" line in the dialogue |
+| 2296 | `gradePhrase(r, expected)` | Bucket phrase score into good/close/retry |
+| 2321 | `renderGym()` | Build gym categories + word chips + click delegation |
+
+### CSS Variables (warm editorial palette)
+
+```css
+--cream-50  #FDF8F0     --sun-400   #E5A83A     --terra-500 #C75439
+--cream-100 #F7ECD6     --sun-500   #C98722     --terra-600 #A53E27
+--cream-200 #EDDBB7     --sage-400  #8FAE82     --terra-700 #7F2E1C
+--cream-300 #DAC094     --sage-500  #6F9361     --wash      #FBF5E9
+--ink-900   #2B1D17     --ink-700   #5A4638     --line      #E5D6BA
+```
+
+Intentionally distinct from the blush/ink Glow Studio palette — aims for a magazine/cookbook feel, warm and un-game-like. Serif (`Iowan Old Style` → Palatino → Georgia) pairs with system sans for body.
+
+### Content Volume
+
+- **10 scenarios** — short 4–6 line conversations, 3–5 target words each
+- **48 in-scenario target words** (each with its own Spanish-speaker tip)
+- **7 Gym categories, 68 words total** (overlaps with scenarios + additional drill-only words)
+- Each word ships with: reader-friendly phonetic (e.g. `WENZ-day`), IPA (`/ˈwɛnzdeɪ/`), 1-sentence Spanish-speaker explanation, and (scenarios only) a sample in-context phrase
+
+### Gym Categories
+
+| Category | Why Spanish speakers struggle |
+|----------|-------------------------------|
+| The TH sound | Spanish has no TH — defaults to T or D |
+| V vs B | In Spanish these merge; in English V keeps the lips slightly open and buzzes |
+| Short "i" vs long "ee" (ship/sheep) | Spanish has one "i" sound, roughly matching English "ee" |
+| Silent letters | English spelling is a fossil — ignore the mute letters (Wednesday, salmon, island) |
+| SP/ST/SK clusters | Spanish words never start with these — always prefix "e" (escuela). English drops the "e". |
+| The H sound | Spanish H is always silent; English H is a soft puff from the throat |
+| Tricky single words | squirrel, rural, colonel, February, entrepreneur, thoroughly |
+
+### Scenarios
+
+| Scenario | Context | Sample tricky words |
+|----------|---------|---------------------|
+| Ordering Coffee | Café order | morning, medium, blueberry, Thanks |
+| Small Talk at Work | Monday by the coffee machine | weekend, great, Saturday, Beautiful, Wednesday |
+| At the Doctor | Cold / cough visit | throat, three, Thursday, Thank |
+| Asking for Directions | Lost in new part of town | Excuse, Jefferson, straight, Thank |
+| Job Interview Opener | First question | Thanks, yourself, responsibility, specifically, thoughtful |
+| Ordering Dinner | Restaurant | think, popular, salmon, vegetables |
+| At the Pharmacy | Rx pickup | prescription, questions, often, this |
+| Calling a Friend | Weekend plans | thought, thriller, thirty, there |
+| Meeting the Neighbors | Just moved in | neighborhood, Thanks, Thursday, Originally, Chicago, three |
+| Farmer's Market | Produce run | tomatoes, Very, avocados |
+
+### Persistence
+
+`localStorage['habla_clara_state_v1']` stores `{ day, wordsWarmed, scenarios }`. The `day` key is today's calendar date — state resets each day on purpose (the design goal is a daily practice rhythm, not cumulative streaks). `wordsWarmed` is `{ word: timestamp }`; the header pill reads `"N words warmed up today"`. `scenarios` is `{ id: timestamp }` used to subtly mark scenario cards as "practiced today". **No points, badges, levels, or streak meters.**
+
+### Speech Recognition & Feedback
+
+- `SpeechRecognition` / `webkitSpeechRecognition` — one-shot (`continuous=false`), `maxAlternatives=3`, `interimResults=false`.
+- **Word-level grade** (word detail card): Levenshtein distance computed across every word of every alternative; match when `similarity ≥ 0.75`. Feedback tiers: `≥0.9` → "Nailed it", `≥0.75` → "Clear enough", `≥0.5` → "Getting there", else "Try again" with the heard transcript.
+- **Phrase-level grade** (line practice): in-order word match with per-word edit-distance tolerance `max(1, floor(len/4))`; includes a backward-scan fallback for light reorderings. Score buckets at `0.85` (good) / `0.55` (close) / else retry.
+- Browsers without `SpeechRecognition` (Firefox, some older Safari) see a "Listen and mimic — come back in Chrome, Safari, or Edge for live feedback" card rather than broken mic buttons.
+
+### Interactions
+
+Landing → today pill reads your quiet practice count → tap the featured "today's scene" (rotates by day-of-year) or any of the ten scenario cards. Inside a scenario: read the scene, hit "Play all" to hear the whole dialogue ("Slow" halves the rate), tap any underlined word for its detail card (phonetic + IPA + Spanish-tip + slow/natural TTS + in-context phrase + mic try). At the bottom, "Practice your lines" rows let you rehearse each of your own lines with mic feedback. Alternative entry: "Open gym →" from the landing drills by difficulty category outside of a conversation.
+
+### Differences vs Other Playground Projects
+
+- **Only language-learning project** in the repo (vs photo/video editors, card games, slots, DAW, math tutor).
+- **Only project using `SpeechSynthesis` + `SpeechRecognition`** — first use of either Web Speech API in this repo.
+- **Intentionally anti-gamified** — no stars (contrast: math-ace), no jackpot fanfare (contrast: slots), no simulator metrics (contrast: count-champ). Design target is "practice today, come back tomorrow" rhythm, not achievement accumulation.
+- **Cream + terracotta + sage palette** — distinct from every other project's palette.
+- **Spanish-speaker-specific tips** (not generic pronunciation guides) — each tip names the Spanish habit that creates the mistake and the mechanical fix.
+
+---
+
 ## Cross-Project Patterns
 
 | Pattern | Where |
 |---------|-------|
-| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace |
+| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
 | **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), slot machines (none — DOM), spades (none — DOM) |
 | **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars) |
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
-| **localStorage-persisted progress** | math-ace (stars + best times per topic) |
-| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs) |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking) |
+| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym) |
 | **No build step / no framework** | Every project |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
 | **Chrome extension (MV3) / content script** | youtube-smart-skip only |
 | **`chrome.storage.sync` for settings** | youtube-smart-skip only |
+| **Web Speech API (TTS + recognition)** | habla-clara only |
 
 ### File Size Summary
 
@@ -768,6 +911,7 @@ Kumon worksheets drill a narrow skill repeatedly — each worksheet has ~15–30
 |------|-------|------|
 | count-champ.html | 2,580 | Trainer/sim |
 | glow-studio-mobile.html | 2,399 | Photo editor |
+| habla-clara.html | 2,385 | Pronunciation tutor |
 | glow-studio.html | 2,227 | Photo editor |
 | spades.html | 2,189 | Card game |
 | math-ace.html | 2,766 | K–5 math tutor |
@@ -785,7 +929,7 @@ Kumon worksheets drill a narrow skill repeatedly — each worksheet has ~15–30
 | youtube-smart-skip/content.css | 64 | Extension toast styling |
 | youtube-smart-skip/README.md | 55 | Extension docs |
 | youtube-smart-skip/manifest.json | 21 | Extension manifest (MV3) |
-| **Total** | **21,782** | |
+| **Total** | **24,167** | |
 
 ### Quick `grep` recipes
 

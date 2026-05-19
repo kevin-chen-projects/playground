@@ -1,0 +1,189 @@
+        <div class="module-section" data-module="evolve" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">~70</span>
+                <div class="big-number-label">brand-new mutations the average newborn carries — that neither parent had.</div>
+                <h2>Tiny typos. Long-term consequences.</h2>
+                <p>
+                  Every time a cell copies its DNA, it makes a few mistakes.
+                  Most of those typos do absolutely nothing — the cell rolls
+                  on like it never happened. Sometimes a typo changes one
+                  ingredient in one recipe. Once in a while, it stops a
+                  recipe in the middle.
+                </p>
+                <p>
+                  Stack those rare changes up across <em>millions</em> of
+                  years and billions of organisms, and you get the entire
+                  diversity of life on Earth — from algae to elephants to
+                  you.
+                </p>
+              </div>
+              <div class="hook-stage" id="mut-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 6 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Show me the typos →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea (the three classes of mutation) -->
+          <div class="scene" data-scene="1">
+            <h2>Three flavors of typo.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              When one DNA letter gets swapped for another, it lands in a
+              codon — a 3-letter "word" the ribosome reads. Depending on
+              which word the typo creates, the consequences range from
+              <em>nothing</em> to <em>everything</em>.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🟢</div>
+                <div class="pair"><span class="biology">Silent</span></div>
+                <p class="desc">The codon changed, but the new codon codes for the <strong>same</strong> amino acid. Protein unchanged. The genetic code's "redundancy" is doing you a favor.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🟡</div>
+                <div class="pair"><span class="biology">Missense</span></div>
+                <p class="desc">The new codon codes for a <strong>different</strong> amino acid. The protein gets one wrong ingredient. Sometimes harmless, sometimes catastrophic.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🔴</div>
+                <div class="pair"><span class="biology">Nonsense</span></div>
+                <p class="desc">The new codon is a <strong>stop</strong> signal. The ribosome quits early. The protein is short and almost always broken.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">⏳</div>
+                <div class="pair"><span class="biology">+ Time + Selection</span></div>
+                <p class="desc">Tiny advantages from rare beneficial mutations spread. Over millions of years, that's evolution. No designer needed.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Try it yourself</span>
+              <button class="btn btn-primary" data-action="next">Try a mutation →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — mutation classifier -->
+          <div class="scene" data-scene="2">
+            <h2>Flip a letter. See what happens.</h2>
+            <p style="margin-top: 8px; color: var(--ink-700); max-width: 760px;">
+              Below is a tiny mRNA strand of 4 codons, coding for 4 amino
+              acids. Click any letter to see the three possible single-base
+              swaps and what each one does to the protein.
+            </p>
+            <div class="mutation-stage" id="mutation-stage"></div>
+            <div class="mutation-verdict" id="mutation-verdict">
+              <div class="verdict-label">Pick a letter to mutate</div>
+              <div class="verdict-detail">Each letter has 3 possible swaps (A, U, G, C minus the current one). The verdict tells you whether the protein changes — and how.</div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · One famous example</span>
+              <button class="btn btn-primary" data-action="next">The sickle cell story →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — sickle cell vs malaria -->
+          <div class="scene" data-scene="3">
+            <h2>One letter, two stories.</h2>
+            <p style="margin-top: 12px; max-width: 760px;">
+              In the gene for hemoglobin (the oxygen-carrying protein in
+              your red blood cells), there's a codon that reads
+              <span class="codon-inline">GAG</span> — Glutamic acid.
+              Sometimes a copy error changes that middle letter to a U:
+              <span class="codon-inline">GUG</span> — Valine. One letter.
+              One amino acid. <strong>Huge</strong> consequences.
+            </p>
+
+            <div class="sickle-compare" id="sickle-compare"></div>
+
+            <div class="sickle-story">
+              <div class="sickle-card">
+                <div class="sickle-card-head">
+                  <span class="dot dot-bad"></span>
+                  <strong>Two copies of the mutation</strong>
+                </div>
+                <p>
+                  Sickle cell disease. Under stress, hemoglobin clumps and
+                  bends red blood cells into rigid crescents that get stuck
+                  in tiny vessels. Painful, sometimes fatal.
+                </p>
+              </div>
+              <div class="sickle-card">
+                <div class="sickle-card-head">
+                  <span class="dot dot-mid"></span>
+                  <strong>One copy of the mutation</strong>
+                </div>
+                <p>
+                  Mostly fine — and <strong>partially resistant to malaria</strong>.
+                  The malaria parasite has a much harder time inside the
+                  sickle-shaped cells.
+                </p>
+              </div>
+              <div class="sickle-card">
+                <div class="sickle-card-head">
+                  <span class="dot dot-good"></span>
+                  <strong>Zero copies</strong>
+                </div>
+                <p>
+                  Normal hemoglobin, normal red cells. Fully susceptible to
+                  malaria — which is why, in places where malaria is common,
+                  carriers actually live longer on average.
+                </p>
+              </div>
+            </div>
+
+            <div class="callout" style="margin-top: 22px; max-width: 760px; background: var(--sun-100); border: 1px solid var(--sun-300);">
+              <strong>🎯 Mutations aren't bad → good. They're traded off.</strong>
+              <p>The sickle-cell mutation looks "bad" in places without malaria, and "good" in places with it. Selection doesn't pick perfect — it picks <em>whatever survives long enough to reproduce</em>. Over millions of generations, that's all evolution is.</p>
+            </div>
+
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="mut-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap + tease -->
+          <div class="scene" data-scene="5">
+            <h2>You finished mutations & evolution. 🦎</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Same system from the first 5 modules — DNA, transcription,
+              translation, regulation — but now you also know what happens
+              when the system makes a tiny mistake. And you've seen how
+              those tiny mistakes, multiplied across deep time, drove the
+              whole history of life.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">✏️</span><span class="lbl">Copying isn't perfect</span></div>
+              <div class="recap-pill"><span class="ic">🟢</span><span class="lbl">Most mutations are silent</span></div>
+              <div class="recap-pill"><span class="ic">🟡</span><span class="lbl">Missense changes one ingredient</span></div>
+              <div class="recap-pill"><span class="ic">🔴</span><span class="lbl">Nonsense stops the recipe early</span></div>
+              <div class="recap-pill"><span class="ic">⏳</span><span class="lbl">Selection + time = evolution</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🩺</div>
+              <div>
+                <h3>Coming up next: Cancer & Genetic Disease</h3>
+                <p>
+                  Most mutations are harmless. Sometimes, though, the wrong
+                  mutations stack up in the wrong cells, in the wrong order
+                  — the cell forgets to follow the rules and just keeps
+                  growing. We call that cancer. (Coming soon!)
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 6 complete · 5 of 11 unlocked, 6 to go</span>
+              <button class="btn btn-primary" data-action="home">Back to all modules</button>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="evolve" -->

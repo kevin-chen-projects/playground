@@ -1,0 +1,177 @@
+        <div class="module-section" data-module="cell">
+
+        <!-- Scene 1: Hook -->
+        <div class="scene active" data-scene="0">
+          <div class="hook">
+            <div class="hook-text">
+              <span class="big-number" id="big-num">37 trillion</span>
+              <div class="big-number-label">cells in your body, right now.</div>
+              <h2>You contain <em>multitudes.</em></h2>
+              <p>
+                Every part of you — your skin, your heart, your eyeballs, the
+                voice in your head reading these words — is built from cells.
+                Tiny living machines, smaller than this period.
+              </p>
+              <p>
+                In the next few minutes you'll meet the parts inside one. By
+                the end you'll know what each does, and how they work together
+                like a little city.
+              </p>
+            </div>
+            <div class="hook-stage" id="hook-stage">
+              <!-- Animated cell SVG injected by JS -->
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 1 of 8 · Scene 1 of 6</span>
+            <button class="btn btn-primary" data-action="next">Let's go →</button>
+          </div>
+        </div>
+
+        <!-- Scene 2: The big idea (city) -->
+        <div class="scene" data-scene="1">
+          <h2>The big idea: a cell is a tiny city.</h2>
+          <p style="margin-top: 14px; max-width: 720px;">
+            That's it. That's the whole metaphor. A cell has walls, factories,
+            a power plant, a library, and neighborhoods — just way smaller, and
+            made of molecules instead of bricks.
+          </p>
+          <div class="city-grid">
+            <div class="city-card">
+              <div class="icons">🧱<span class="arrow">→</span>🦠</div>
+              <div class="pair">City walls / <span class="biology">Cell membrane</span></div>
+              <p class="desc">Decides what gets in and out. Wraps the whole cell like a stretchy bubble.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">📚<span class="arrow">→</span>🧬</div>
+              <div class="pair">Library / <span class="biology">Nucleus</span></div>
+              <p class="desc">Stores the instructions (DNA) for everything the cell builds.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">⚡<span class="arrow">→</span>🔋</div>
+              <div class="pair">Power plants / <span class="biology">Mitochondria</span></div>
+              <p class="desc">Turn food into energy the cell can actually use.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">🏭<span class="arrow">→</span>🟡</div>
+              <div class="pair">Factories / <span class="biology">Ribosomes</span></div>
+              <p class="desc">Read instructions from the library and build proteins.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">💧<span class="arrow">→</span>🌊</div>
+              <div class="pair">Neighborhoods / <span class="biology">Cytoplasm</span></div>
+              <p class="desc">The jelly-like fluid that fills the cell. Where everything floats and happens.</p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 2 of 6 · Get ready to tour the city</span>
+            <button class="btn btn-primary" data-action="next">Take the tour →</button>
+          </div>
+        </div>
+
+        <!-- Scene 3: Interactive cell tour -->
+        <div class="scene" data-scene="2">
+          <h2>Tour the cell. <span style="color: var(--ink-500); font-weight: 400; font-size: 0.65em;">Click the parts to explore.</span></h2>
+          <div class="tour" style="margin-top: 20px;">
+            <div class="tour-stage" id="tour-stage">
+              <!-- Big interactive cell SVG injected by JS -->
+            </div>
+            <div class="tour-info" id="tour-info">
+              <div class="placeholder">
+                <span class="hint-icon">👆</span>
+                Tap any part of the cell to learn what it does.
+              </div>
+            </div>
+          </div>
+          <div class="tour-progress">
+            <span>You've explored <span class="pct" id="tour-pct">0/5</span> parts</span>
+            <span class="bar"><i id="tour-bar"></i></span>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 3 of 6 · Click each part for the full tour</span>
+            <button class="btn btn-primary" data-action="next">Next: animals vs plants →</button>
+          </div>
+        </div>
+
+        <!-- Scene 4: Animal vs plant -->
+        <div class="scene" data-scene="3">
+          <h2>Animal cell vs. plant cell.</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            Animal and plant cells are mostly the same — same membrane, same
+            nucleus, same mitochondria. But plants have a few extras that let
+            them stand tall and make food from sunlight.
+          </p>
+          <div class="toggle-row">
+            <div class="toggle" role="tablist">
+              <button class="active" data-cell="animal">🐕 Animal cell</button>
+              <button data-cell="plant">🌿 Plant cell</button>
+            </div>
+          </div>
+          <div class="compare-stage" id="compare-stage">
+            <!-- SVG injected by JS, with .plant-only group -->
+          </div>
+          <div class="compare-callouts">
+            <div class="callout">
+              <strong>🦠 Cell membrane</strong>
+              <p>Both have one. Plant cells have it too, just behind the wall.</p>
+            </div>
+            <div class="callout plant">
+              <strong>🧱 Cell wall <span style="color: var(--ink-500); font-weight: 400;">(plant only)</span></strong>
+              <p>A stiff outer layer made of cellulose. It's why plants don't flop over.</p>
+            </div>
+            <div class="callout plant">
+              <strong>☀️ Chloroplasts <span style="color: var(--ink-500); font-weight: 400;">(plant only)</span></strong>
+              <p>Tiny solar panels. Catch sunlight and turn it into sugar (photosynthesis).</p>
+            </div>
+            <div class="callout plant">
+              <strong>💧 Big vacuole <span style="color: var(--ink-500); font-weight: 400;">(plant only)</span></strong>
+              <p>A water balloon that takes up most of the cell. Helps the plant stay firm.</p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 4 of 6 · Time for a quick check</span>
+            <button class="btn btn-primary" data-action="next">I'm ready, quiz me →</button>
+          </div>
+        </div>
+
+        <!-- Scene 5: Quiz -->
+        <div class="scene" data-scene="4">
+          <div class="quiz-card" id="quiz-card">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Scene 6: Recap -->
+        <div class="scene" data-scene="5">
+          <h2>You learned a lot. 🎉</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            Here's what's in your head now that wasn't 10 minutes ago:
+          </p>
+          <div class="recap-grid">
+            <div class="recap-pill"><span class="ic">🦠</span><span class="lbl">A cell is a tiny living city</span></div>
+            <div class="recap-pill"><span class="ic">📚</span><span class="lbl">Nucleus stores instructions</span></div>
+            <div class="recap-pill"><span class="ic">⚡</span><span class="lbl">Mitochondria make energy</span></div>
+            <div class="recap-pill"><span class="ic">🏭</span><span class="lbl">Ribosomes build proteins</span></div>
+            <div class="recap-pill"><span class="ic">🌿</span><span class="lbl">Plant cells have extras</span></div>
+          </div>
+          <div class="next-tease">
+            <div class="icon">🧬</div>
+            <div>
+              <h3>Coming up next: What is DNA?</h3>
+              <p>
+                Inside that "library" you just learned about (the nucleus) is
+                the most famous molecule in biology. It's the recipe book for
+                literally every protein your body makes. Let's crack it open.
+              </p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module complete · DNA is unlocked</span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-ghost" data-action="home">All modules</button>
+              <button class="btn btn-primary" data-action="goto" data-mod="dna">Continue to DNA →</button>
+            </div>
+          </div>
+        </div>
+
+        </div><!-- /module-section data-module="cell" -->

@@ -1,0 +1,169 @@
+        <!-- ============= MODULE: REGULATION ============= -->
+        <div class="module-section" data-module="regulation" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">200+</span>
+                <div class="big-number-label">different cell types in your body — all from the same DNA.</div>
+                <h2>Why is a brain cell <em>nothing like</em> a skin cell?</h2>
+                <p>
+                  Every cell in your body — your eye cells, your gut cells,
+                  your neurons, your bone cells — has the exact same DNA.
+                  The same complete set of recipes.
+                </p>
+                <p>
+                  But they look completely different and do completely different
+                  jobs. The trick: each cell only <strong>turns on</strong> the
+                  recipes it actually needs. Today we look at the on/off switches.
+                </p>
+              </div>
+              <div class="hook-stage" id="reg-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 5 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Show me the switches →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea (switches) -->
+          <div class="scene" data-scene="1">
+            <h2>Genes are like light switches.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Every cell has all ~20,000 genes. But at any given moment, only
+              a few thousand are turned ON. The exact set that's ON is what
+              makes a cell what it is.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🧠</div>
+                <div class="pair"><span class="biology">Brain cell</span></div>
+                <p class="desc">Turns on genes for long branches and electrical signals.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">💪</div>
+                <div class="pair"><span class="biology">Muscle cell</span></div>
+                <p class="desc">Turns on stretchy-fiber genes (actin/myosin) and lots of mitochondria.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🛡️</div>
+                <div class="pair"><span class="biology">Skin cell</span></div>
+                <p class="desc">Turns on keratin (a tough protein) and genes for fast cell division.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🍷</div>
+                <div class="pair"><span class="biology">Liver cell</span></div>
+                <p class="desc">Turns on toxin-breakdown genes and sugar-storage genes.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · See the switches</span>
+              <button class="btn btn-primary" data-action="next">Compare cell types →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive cell type switcher -->
+          <div class="scene" data-scene="2">
+            <h2>Same DNA. <span style="color: var(--ink-500); font-weight: 400; font-size: 0.65em;">Different active genes.</span></h2>
+            <p style="margin-top: 8px; color: var(--ink-700); max-width: 720px;">
+              Below is a tiny snapshot of 20 genes. Click a cell type — watch
+              which switches flip on (green) and which turn off (gray).
+            </p>
+            <div class="celltype-toggle" id="celltype-toggle">
+              <button class="active" data-type="brain">🧠 Brain</button>
+              <button data-type="muscle">💪 Muscle</button>
+              <button data-type="skin">🛡️ Skin</button>
+              <button data-type="liver">🍷 Liver</button>
+            </div>
+            <div class="gene-grid" id="gene-grid"></div>
+            <div class="celltype-explain" id="celltype-explain"></div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · How are switches flipped?</span>
+              <button class="btn btn-primary" data-action="next">What flips them? →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: How regulation works -->
+          <div class="scene" data-scene="3">
+            <h2>What flips the switches?</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Cells have a few clever ways to turn genes on and off. The most
+              important one: <strong>transcription factors</strong> — proteins
+              whose whole job is to slide along the DNA and decide which genes
+              get copied next.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🔑</div>
+                <div class="pair"><span class="biology">Transcription factors</span></div>
+                <p class="desc">Proteins that bind near a gene and either invite or block RNA polymerase.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🚦</div>
+                <div class="pair"><span class="biology">Promoter region</span></div>
+                <p class="desc">A short stretch of DNA right before each gene — where regulators bind.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">💊</div>
+                <div class="pair"><span class="biology">Hormones & signals</span></div>
+                <p class="desc">Insulin, adrenaline, testosterone — these change which genes are active.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🔖</div>
+                <div class="pair"><span class="biology">Epigenetic tags</span></div>
+                <p class="desc">Tiny chemical bookmarks that say "do not read" — and can be inherited.</p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px; background: var(--leaf-50); border: 1px solid var(--leaf-200);">
+              <strong>🌅 Your DNA isn't your destiny.</strong>
+              <p>What you eat, how you sleep, the air you breathe, the stress you're under — all of these change which genes are ON at any moment. The DNA stays fixed, but your body is constantly tuning the music.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="reg-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Final recap -->
+          <div class="scene" data-scene="5">
+            <h2>You finished the foundations. 🎓</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              In 5 modules, you've gone from "what's a cell?" to understanding
+              how DNA becomes proteins, and how cells decide what to make.
+              That's the central conceptual core of molecular biology — and
+              you have it.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">🦠</span><span class="lbl">Cells are tiny living cities</span></div>
+              <div class="recap-pill"><span class="ic">🧬</span><span class="lbl">DNA is the recipe book</span></div>
+              <div class="recap-pill"><span class="ic">📝</span><span class="lbl">Transcription = copy recipe</span></div>
+              <div class="recap-pill"><span class="ic">🔤</span><span class="lbl">Translation = build protein</span></div>
+              <div class="recap-pill"><span class="ic">🎛️</span><span class="lbl">Regulation = decide what to make</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🦎</div>
+              <div>
+                <h3>Coming up next: Mutations & Evolution</h3>
+                <p>
+                  Now that you know the system, let's see what happens when it
+                  glitches — and how those glitches, over millions of years,
+                  drive the entire history of life on Earth.
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 5 complete · One more in the foundations arc</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="evolve">Continue to Mutations & Evolution →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="regulation" -->

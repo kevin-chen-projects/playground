@@ -1,0 +1,66 @@
+      // =====================================================================
+      // MODULES — registry of all built modules
+      // =====================================================================
+
+      const MODULES = {
+        cell: {
+          name: 'What is a cell?',
+          icon: '🦠',
+          iconBg: 'var(--leaf-100)',
+          intro: 'Every living thing — you, a tree, a mushroom, a bacterium — is built from these tiny machines. Let\'s meet them.',
+          quiz: QUIZ,
+          quizCardSel: '#quiz-card',
+          sceneRenderers: { 2: renderTour, 3: renderCompare, 4: () => startQuiz('cell') },
+          next: 'dna',
+        },
+        dna: {
+          name: 'What is DNA?',
+          icon: '🧬',
+          iconBg: 'var(--grape-100)',
+          intro: 'The famous double helix. The recipe book that lives in every cell of every living thing on Earth.',
+          quiz: DNA_QUIZ,
+          quizCardSel: '#dna-quiz-card',
+          sceneRenderers: { 0: renderDnaHook, 2: renderDnaInteractive, 3: renderDnaShare, 4: () => startQuiz('dna') },
+          next: 'transcription',
+        },
+        transcription: {
+          name: 'Transcription',
+          icon: '📝',
+          iconBg: 'var(--sky-100)',
+          intro: 'How DNA gets copied into mRNA so the message can leave the nucleus.',
+          quiz: TRANS_QUIZ,
+          quizCardSel: '#trans-quiz-card',
+          sceneRenderers: { 0: renderTransHook, 2: renderTrans, 4: () => startQuiz('transcription') },
+          next: 'translation',
+        },
+        translation: {
+          name: 'Translation',
+          icon: '🔤',
+          iconBg: 'var(--coral-100)',
+          intro: 'How mRNA becomes a working protein. The ribosome reads codons; tRNAs deliver amino acids.',
+          quiz: TRANSL_QUIZ,
+          quizCardSel: '#transl-quiz-card',
+          sceneRenderers: { 0: renderTranslHook, 2: renderTransl, 3: renderCodonPicker, 4: () => startQuiz('translation') },
+          next: 'regulation',
+        },
+        regulation: {
+          name: 'Gene Regulation',
+          icon: '🎛️',
+          iconBg: 'var(--sun-100)',
+          intro: 'Every cell has the same DNA. So why is a brain cell different from a skin cell? Different genes are turned ON.',
+          quiz: REG_QUIZ,
+          quizCardSel: '#reg-quiz-card',
+          sceneRenderers: { 0: renderRegHook, 2: renderCelltypeToggle, 4: () => startQuiz('regulation') },
+          next: 'evolve',
+        },
+        evolve: {
+          name: 'Mutations & Evolution',
+          icon: '🦎',
+          iconBg: 'var(--leaf-100)',
+          intro: 'Tiny copy errors. Most do nothing. Rare ones change everything. Stack them across millions of years and you get all of life.',
+          quiz: MUT_QUIZ,
+          quizCardSel: '#mut-quiz-card',
+          sceneRenderers: { 0: renderMutHook, 2: renderMutationStage, 3: renderSickleCompare, 4: () => startQuiz('evolve') },
+          next: null,
+        },
+      };

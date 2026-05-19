@@ -1,0 +1,147 @@
+        <!-- ============= MODULE: TRANSLATION ============= -->
+        <div class="module-section" data-module="translation" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">20</span>
+                <div class="big-number-label">amino acids — the building blocks of every protein in you.</div>
+                <h2>Now we <em>actually build</em> the protein.</h2>
+                <p>
+                  You have an mRNA strand sitting next to a ribosome outside
+                  the nucleus. The ribosome doesn't read English. It reads
+                  <strong>codons</strong>: 3-letter chunks of mRNA.
+                </p>
+                <p>
+                  Each codon picks one amino acid. The amino acids snap together
+                  into a chain. The chain folds up — and that's a working protein.
+                </p>
+              </div>
+              <div class="hook-stage" id="transl-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 4 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Crack the code →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea (3 letters → 1 amino acid) -->
+          <div class="scene" data-scene="1">
+            <h2>3 letters → 1 amino acid.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              The genetic code links codons (mRNA words) to amino acids
+              (protein building blocks). It's the same in bacteria, plants,
+              fungi, and you. Pretty incredible.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">📜</div>
+                <div class="pair"><span class="biology">The codon</span></div>
+                <p class="desc">A 3-letter word in mRNA. Like AUG, UCA, GGC. There are 64 possible.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🧱</div>
+                <div class="pair"><span class="biology">The amino acid</span></div>
+                <p class="desc">A small molecule. There are 20 different ones — chained, they make proteins.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🚚</div>
+                <div class="pair"><span class="biology">tRNA (delivery truck)</span></div>
+                <p class="desc">For each codon, a tRNA shows up carrying the matching amino acid.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🏭</div>
+                <div class="pair"><span class="biology">Ribosome (assembly line)</span></div>
+                <p class="desc">Reads mRNA, accepts tRNAs, links amino acids together.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Watch the assembly line</span>
+              <button class="btn btn-primary" data-action="next">Watch translation happen →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive ribosome -->
+          <div class="scene" data-scene="2">
+            <h2>The ribosome at work.</h2>
+            <p style="margin-top: 8px; max-width: 720px; color: var(--ink-700);">
+              The ribosome (gray) reads mRNA (blue) one codon at a time. tRNAs
+              (orange) bring amino acids (colored circles), which snap onto the
+              growing protein chain. Press play.
+            </p>
+            <div class="anim-stage tall" id="transl-stage"></div>
+            <div class="anim-controls">
+              <button class="btn btn-pill btn-ghost" id="transl-play">▶ Play</button>
+              <button class="btn btn-pill btn-ghost" id="transl-step">Step ▶</button>
+              <button class="btn btn-pill btn-ghost" id="transl-reset">↺ Reset</button>
+              <span style="margin-left: auto; color: var(--ink-500); font-size: 0.9rem;">
+                Codons: <span id="transl-pos">0</span> / <span id="transl-len">8</span>
+              </span>
+            </div>
+            <div class="anim-readout" id="transl-readout"></div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · Try the codon table</span>
+              <button class="btn btn-primary" data-action="next">Try the codon picker →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Codon picker -->
+          <div class="scene" data-scene="3">
+            <h2>Pick a codon, see the amino acid.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Click codons below. Notice that several codons code for the
+              <em>same</em> amino acid — that "redundancy" is why a single
+              random letter change often doesn't ruin the protein.
+            </p>
+            <div class="codon-picker" id="codon-picker"></div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px; background: var(--grape-100); border: 1px solid var(--grape-300);">
+              <strong>📐 What's protein folding?</strong>
+              <p>Once the amino acid chain is built, it folds into a 3D shape — like crumpling a string into a specific knot. That shape is what makes the protein actually <em>do</em> something. Hemoglobin's shape catches oxygen. An antibody's shape grips a virus. Insulin's shape signals your liver to take in sugar.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="transl-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap + tease -->
+          <div class="scene" data-scene="5">
+            <h2>You just did the central dogma. 🎯</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              <strong>DNA → mRNA → Protein.</strong> That's the master flow of
+              information in every living cell on Earth. You now understand it.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">📜</span><span class="lbl">3 mRNA letters = 1 codon</span></div>
+              <div class="recap-pill"><span class="ic">🧱</span><span class="lbl">1 codon = 1 amino acid</span></div>
+              <div class="recap-pill"><span class="ic">🏭</span><span class="lbl">Ribosomes read mRNA</span></div>
+              <div class="recap-pill"><span class="ic">🚚</span><span class="lbl">tRNAs deliver amino acids</span></div>
+              <div class="recap-pill"><span class="ic">📐</span><span class="lbl">Chain folds into 3D protein</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🎛️</div>
+              <div>
+                <h3>Coming up next: Gene Regulation</h3>
+                <p>
+                  Every cell in your body has the same DNA. So why is a brain
+                  cell different from a skin cell? Different genes are turned ON.
+                  Let's see how cells decide.
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 4 complete · Gene Regulation unlocked</span>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="regulation">Continue to Gene Regulation →</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="translation" -->

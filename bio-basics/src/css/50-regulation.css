@@ -1,0 +1,85 @@
+    /* ============================================================
+       Gene-grid + cell-type toggle (Module 5 / Scene 3)
+       ============================================================ */
+    .celltype-toggle {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 6px;
+      background: var(--ink-100);
+      border-radius: 999px;
+      margin: 24px 0 16px;
+    }
+    .celltype-toggle button {
+      border: none; background: transparent;
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      color: var(--ink-700);
+      transition: background 0.18s, color 0.18s;
+    }
+    .celltype-toggle button.active {
+      background: var(--paper);
+      color: var(--ink-900);
+      box-shadow: var(--shadow-sm);
+    }
+    .gene-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+      padding: 22px;
+      background: var(--bg-alt);
+      border-radius: var(--radius-lg);
+    }
+    .gene-cell {
+      padding: 14px 8px;
+      background: var(--paper);
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--ink-200);
+      text-align: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: var(--ink-500);
+      transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease, transform 0.18s;
+      position: relative;
+      cursor: default;
+    }
+    .gene-cell.on {
+      background: var(--leaf-100);
+      border-color: var(--leaf-500);
+      color: var(--leaf-600);
+    }
+    .gene-cell.on::after {
+      content: "ON";
+      position: absolute;
+      top: 4px; right: 4px;
+      font-size: 0.6rem;
+      letter-spacing: 0.06em;
+      color: var(--leaf-500);
+      font-weight: 800;
+    }
+    .gene-cell .gene-name {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--ink-300);
+      letter-spacing: 0.04em;
+    }
+    .gene-cell.on .gene-name { color: var(--leaf-500); }
+    .celltype-explain {
+      margin-top: 18px;
+      padding: 16px 20px;
+      background: var(--leaf-50);
+      border: 1.5px solid var(--leaf-200);
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      line-height: 1.5;
+    }
+    .celltype-explain strong { color: var(--leaf-600); }

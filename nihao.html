@@ -1825,6 +1825,312 @@
     }
 
     /* ============================================================
+       Module 4 — Chars hook stage (Scene 0)
+       ============================================================ */
+    .chars-hook-stage {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .coverage-bar {
+      background: var(--cream);
+      border: 1.5px solid var(--gold-light);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .coverage-bar .cb-label {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .coverage-bar .cb-pct {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.4rem;
+      color: var(--vermilion);
+    }
+    .coverage-bar .cb-track {
+      position: relative;
+      height: 12px;
+      background: var(--ink-100);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .coverage-bar .cb-fill {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: linear-gradient(90deg, var(--gold), var(--vermilion));
+      border-radius: 999px;
+      transition: width 1.2s cubic-bezier(.2, .9, .3, 1);
+    }
+    .chars-hook-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      gap: 10px;
+    }
+    .chars-hook-cell {
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      padding: 14px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .chars-hook-cell:hover {
+      transform: translateY(-2px);
+      border-color: var(--vermilion);
+      box-shadow: var(--shadow-sm);
+    }
+    .chars-hook-cell .ch-cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 2rem;
+      color: var(--vermilion);
+      line-height: 1;
+    }
+    .chars-hook-cell .ch-py {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--ink-700);
+      margin-top: 6px;
+    }
+    .chars-hook-cell .ch-en {
+      font-size: 0.75rem;
+      color: var(--ink-500);
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       Module 4 — Flashcards (Scene 2)
+       ============================================================ */
+    .flashcard-stage {
+      display: grid;
+      gap: 18px;
+      max-width: 720px;
+      margin: 22px auto 0;
+    }
+    .fc-progress {
+      display: flex; align-items: center; gap: 12px;
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: var(--ink-700);
+    }
+    .fc-progress .fcp-track {
+      flex: 1;
+      height: 8px;
+      background: var(--ink-100);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .fc-progress .fcp-fill {
+      height: 100%;
+      background: var(--t3);
+      border-radius: 999px;
+      transition: width .25s ease;
+    }
+    .flashcard {
+      background: var(--paper);
+      border: 1.5px solid var(--gold-light);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-md);
+      display: grid;
+      gap: 18px;
+      animation: fadeIn .25s ease;
+    }
+    .fc-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px;
+    }
+    .fc-counter {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--ink-500);
+      background: var(--cream);
+      border-radius: 999px;
+      padding: 4px 12px;
+    }
+    .fc-rating-badge {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .fc-rating-badge.know { background: var(--t3-pale); color: #0e7a58; }
+    .fc-rating-badge.hard { background: var(--gold-pale); color: #8a6612; }
+    .fc-bigchar {
+      text-align: center;
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: clamp(5rem, 14vw, 8rem);
+      color: var(--vermilion);
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+      transition: transform .15s ease;
+    }
+    .fc-bigchar:hover { transform: scale(1.04); }
+    .fc-meta {
+      text-align: center;
+    }
+    .fc-meta .fc-py {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: var(--ink-900);
+    }
+    .fc-meta .fc-en {
+      font-size: 1rem;
+      color: var(--ink-700);
+      margin-top: 4px;
+    }
+    .fc-decomp {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 14px;
+      background: var(--cream);
+      border-radius: var(--radius);
+    }
+    .fc-decomp .fcd-piece {
+      text-align: center;
+    }
+    .fc-decomp .fcd-piece .cn {
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: var(--ink-900);
+    }
+    .fc-decomp .fcd-piece .lbl {
+      font-size: 0.78rem;
+      color: var(--ink-500);
+      margin-top: 2px;
+    }
+    .fc-decomp .fcd-plus {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--gold);
+      font-size: 1.2rem;
+    }
+    .fc-story {
+      font-size: 0.95rem;
+      color: var(--ink-900);
+      line-height: 1.55;
+      padding: 12px 16px;
+      background: var(--bg-alt);
+      border-left: 3px solid var(--vermilion);
+      border-radius: 8px;
+    }
+    .fc-story .cn {
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+    .fc-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .fc-actions .btn { width: 100%; }
+    .fc-rate-hard { background: var(--gold-pale); color: var(--ink-900); border: 1.5px solid var(--gold-light); }
+    .fc-rate-hard:hover:not(:disabled) { background: var(--gold-light); }
+    .fc-rate-know { background: var(--t3-pale); color: #0e7a58; border: 1.5px solid var(--t3); }
+    .fc-rate-know:hover:not(:disabled) { background: var(--t3); color: var(--paper); }
+    .fc-nav {
+      display: flex; justify-content: space-between; gap: 10px;
+    }
+
+    /* ============================================================
+       Module 4 — Tier view (Scene 3)
+       ============================================================ */
+    .tier-summary {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px;
+      padding: 16px 20px;
+      background: var(--cream);
+      border: 1.5px solid var(--gold-light);
+      border-radius: var(--radius);
+      margin-bottom: 22px;
+    }
+    .tier-summary .ts-num {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2rem;
+      color: var(--vermilion);
+      line-height: 1;
+    }
+    .tier-summary .ts-label {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--ink-700);
+    }
+    .tier-section {
+      margin-bottom: 24px;
+    }
+    .tier-head {
+      display: flex; align-items: baseline; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .tier-head .th-num {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--vermilion);
+    }
+    .tier-head .th-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+    .tier-head .th-cov {
+      font-size: 0.85rem;
+      color: var(--ink-500);
+      margin-left: auto;
+    }
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 8px;
+    }
+    .tier-cell {
+      position: relative;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius-sm);
+      padding: 12px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease;
+    }
+    .tier-cell:hover { transform: translateY(-2px); border-color: var(--vermilion); }
+    .tier-cell .tc-cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: var(--ink-900);
+    }
+    .tier-cell .tc-py {
+      font-size: 0.7rem;
+      color: var(--ink-500);
+      margin-top: 4px;
+    }
+    .tier-cell.know { border-color: var(--t3); background: var(--t3-pale); }
+    .tier-cell.know .tc-cn { color: #0e7a58; }
+    .tier-cell.hard { border-color: var(--gold); background: var(--gold-pale); }
+    .tier-cell.placeholder {
+      opacity: 0.4;
+      cursor: default;
+      background: var(--bg-alt);
+    }
+    .tier-cell.placeholder:hover { transform: none; border-color: var(--ink-100); }
+    .tier-cell.placeholder .tc-cn { color: var(--ink-300); }
+
+    /* ============================================================
        Mobile (≤720px)
        ============================================================ */
     @media (max-width: 720px) {
@@ -1866,6 +2172,13 @@
       .radicals-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
       .radical-cell .rc-char { font-size: 1.4rem; }
       .ctype-examples { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+      /* Module 4 mobile */
+      .chars-hook-row { grid-template-columns: repeat(3, 1fr); }
+      .flashcard { padding: 22px 18px; }
+      .fc-actions { grid-template-columns: 1fr; }
+      .fc-decomp { gap: 8px; }
+      .tier-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); }
+      .tier-cell .tc-cn { font-size: 1.25rem; }
     }
   </style>
 </head>
@@ -2486,17 +2799,166 @@
                 Now that you can read pinyin <em>and</em> you know how
                 characters are built, let's actually meet some. The 100
                 highest-frequency characters cover ~50% of all written
-                Chinese — yes, really. (Coming soon!)
+                Chinese — yes, really.
               </p>
             </div>
           </div>
           <div class="scene-foot">
-            <span class="left">Module 3 complete · You finished the foundations</span>
-            <button class="btn btn-ghost" data-action="restart">↺ Restart</button>
+            <span class="left">Module 3 complete · 100 chars unlocked</span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-ghost" data-action="restart">↺ Restart</button>
+              <button class="btn btn-primary" data-action="goto" data-mod="chars">Continue to 100 chars →</button>
+            </div>
           </div>
         </div>
 
       </div><!-- /module-section data-module="radicals" -->
+
+      <!-- ============= MODULE 4: 100 CHARACTERS ============= -->
+      <div class="module-section" data-module="chars" hidden>
+
+        <!-- Scene 0: Hook -->
+        <div class="scene active" data-scene="0">
+          <div class="hook-grid">
+            <div class="hook-text">
+              <span class="big-number">100</span>
+              <div class="big-number-label">characters cover ~50% of typical written Chinese.</div>
+              <h2>Meet the characters that do <em>half the work</em>.</h2>
+              <p>
+                Chinese has tens of thousands of characters — but you don't
+                need most of them. The 100 most frequent characters appear
+                in roughly half of every page, message, and headline you'll
+                ever see. Learn these and the world starts to look readable.
+              </p>
+              <p>
+                Each card pairs a character with a 1-sentence <strong>story</strong>
+                rooted in the radicals you just learned. You self-rate "still
+                hard" or "got it" — no auto-grading, just replay what you need.
+              </p>
+            </div>
+            <div class="chars-hook-stage">
+              <div class="coverage-bar">
+                <div class="cb-label">
+                  <span>Top-100 coverage of typical text</span>
+                  <span class="cb-pct" id="cb-pct">0%</span>
+                </div>
+                <div class="cb-track"><div class="cb-fill" id="cb-fill" style="width: 0%;"></div></div>
+              </div>
+              <div class="chars-hook-row" id="chars-hook-row"><!-- rendered by JS --></div>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 4 of 11 · Scene 1 of 6</span>
+            <button class="btn btn-primary" data-action="next">Show me how →</button>
+          </div>
+        </div>
+
+        <!-- Scene 1: Big idea -->
+        <div class="scene" data-scene="1">
+          <h2>How to actually learn 100 characters.</h2>
+          <p style="margin-top: 14px; max-width: 720px;">
+            Memorizing characters one stroke at a time is slow. Memorizing
+            them as <em>stories</em> built from the radicals you already
+            know — that's fast, and it sticks.
+          </p>
+          <div class="city-grid">
+            <div class="city-card">
+              <div class="icons">📊</div>
+              <div class="pair"><span class="biology">Frequency first</span></div>
+              <p class="desc">The top 10 chars alone cover ~25% of running text. Top 100 covers ~50%. We learn in the order that pays off fastest.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">🧩</div>
+              <div class="pair"><span class="biology">Stories from radicals</span></div>
+              <p class="desc">Every card breaks the character into the M3 radicals you already know, plus a 1-sentence story. <span class="cn">好</span> = <span class="cn">女</span> woman + <span class="cn">子</span> child = good.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">✋</div>
+              <div class="pair"><span class="biology">You self-rate</span></div>
+              <p class="desc">No quizzes between you and the next card. Tap "still hard" to flag it for replay; tap "got it" to mark it learned. Your call.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">🎵</div>
+              <div class="pair"><span class="biology">Sound + meaning together</span></div>
+              <p class="desc">Each card plays the character with a native zh-CN voice. You learn the tone and meaning at the same moment — not as separate flashcard decks.</p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 2 of 6 · The deck</span>
+            <button class="btn btn-primary" data-action="next">Open the flashcards →</button>
+          </div>
+        </div>
+
+        <!-- Scene 2: Flashcards (interactive centerpiece) -->
+        <div class="scene" data-scene="2">
+          <h2>Story-mnemonic flashcards.</h2>
+          <p style="margin-top: 8px; color: var(--ink-700); max-width: 720px;">
+            Tap the character to hear it. Read the story. Then tap
+            <strong>"got it"</strong> or <strong>"still hard"</strong> — your
+            ratings shape the tier view in the next scene.
+          </p>
+          <div class="flashcard-stage" id="flashcard-stage"><!-- rendered by JS --></div>
+          <div class="scene-foot">
+            <span class="left">Scene 3 of 6 · See your progress by tier</span>
+            <button class="btn btn-primary" data-action="next">View tiers →</button>
+          </div>
+        </div>
+
+        <!-- Scene 3: Tier view (deep dive) -->
+        <div class="scene" data-scene="3">
+          <h2>Frequency tiers.</h2>
+          <p style="margin-top: 8px; color: var(--ink-700); max-width: 720px;">
+            The 100 chars aren't equal. The top 10 alone cover ~25% of running
+            text. Tap any character to revisit its flashcard.
+          </p>
+          <div id="tier-view"><!-- rendered by JS --></div>
+          <div class="scene-foot">
+            <span class="left">Scene 4 of 6 · Quick check</span>
+            <button class="btn btn-primary" data-action="next">Quiz me →</button>
+          </div>
+        </div>
+
+        <!-- Scene 4: Quiz -->
+        <div class="scene" data-scene="4">
+          <div id="chars-quiz-card-wrap"><!-- rendered by JS --></div>
+        </div>
+
+        <!-- Scene 5: Recap + Module 5 tease -->
+        <div class="scene" data-scene="5">
+          <h2>100 characters in your head. 🎯</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            You've met the characters that do half the work in any Chinese
+            text. From here on, every paragraph you read should have at least
+            a few you recognize.
+          </p>
+          <div class="recap-grid">
+            <div class="recap-pill"><span class="ic" style="font-family: var(--font-display); font-weight: 800;">100</span><span class="lbl">chars = ~50% coverage</span></div>
+            <div class="recap-pill"><span class="ic" style="font-family: var(--font-display); font-weight: 800;">10</span><span class="lbl">top 10 = ~25% alone</span></div>
+            <div class="recap-pill"><span class="ic">📖</span><span class="lbl">Stories root chars in radicals</span></div>
+            <div class="recap-pill"><span class="ic">✋</span><span class="lbl">Self-rate, replay anytime</span></div>
+            <div class="recap-pill"><span class="ic">🔊</span><span class="lbl">Tone + meaning together</span></div>
+          </div>
+          <div class="next-tease">
+            <div class="icon"><span class="cn">词</span></div>
+            <div>
+              <h3>Coming up next: Compound words</h3>
+              <p>
+                Single characters carry meaning, but most Chinese
+                <em>words</em> are two characters glued together — and the
+                glue often makes sense once you know the parts.
+                <span class="cn">电</span> electric + <span class="cn">脑</span>
+                brain = computer. <span class="cn">飞</span> fly +
+                <span class="cn">机</span> machine = airplane. (Coming soon!)
+              </p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 4 complete · Compound words next</span>
+            <button class="btn btn-ghost" data-action="restart">↺ Restart</button>
+          </div>
+        </div>
+
+      </div><!-- /module-section data-module="chars" -->
     </div>
   </main>
 
@@ -2522,13 +2984,15 @@
       }
 
       const state = {
-        activeModule: 'tones',     // 'tones' | 'pinyin' | 'radicals'
+        activeModule: 'tones',     // 'tones' | 'pinyin' | 'radicals' | 'chars'
         sceneIndex: 0,
         targetTone: 1,
         mic: { recording: false, ctx: null, source: null, analyser: null, stream: null,
                buffer: null, pitches: [], startTime: 0, raf: null, sampleRate: 44100 },
         quiz: { i: 0, correct: 0, locked: false, items: [], cardSel: '#quiz-card-wrap', moduleId: 'tones' },
         activeRadical: null,       // module 3
+        charsCardIdx: 0,           // module 4 — current flashcard index
+        charsRated: loadState().charsRated || {},   // { '我': 'know' | 'hard' }
         completed: loadState().completed || {},
       };
 
@@ -3947,6 +4411,676 @@
       }
 
       // =====================================================================
+      // MODULE 4 — 100 CHARACTERS: data + renderers
+      // =====================================================================
+
+      // First-pass scaffold: 10 entries (top-frequency tier 1).
+      // To extend to 100: add entries with tier: 2 (next ~40, chars 11–50)
+      // and tier: 3 (long tail, chars 51–100). The flashcard / tier-grid
+      // renderers iterate the array — no other changes needed.
+      const CHAR_DATA_100 = [
+        { cn: '的', py: 'de',  tone: 5, en: 'possessive particle (\'s, of)', tier: 1,
+          radicals: ['白', '勺'],
+          decomp: [{ cn: '白', lbl: 'white' }, { cn: '勺', lbl: 'ladle' }],
+          story: 'The most common character in Chinese — a grammatical glue. <span class="cn">白</span> bright + <span class="cn">勺</span> a ladle pointing → marks WHAT belongs to whom.' },
+        { cn: '一', py: 'yī',  tone: 1, en: 'one', tier: 1,
+          radicals: ['一'],
+          decomp: [{ cn: '一', lbl: 'one stroke' }],
+          story: 'A single horizontal stroke. The simplest character in the entire language. Literally drawn with one finger: ONE.' },
+        { cn: '是', py: 'shì', tone: 4, en: 'to be / yes', tier: 1,
+          radicals: ['日', '正'],
+          decomp: [{ cn: '日', lbl: 'sun' }, { cn: '正', lbl: 'upright' }],
+          story: 'Under the <span class="cn">日</span> sun, what stands <span class="cn">正</span> upright IS the truth. To BE.' },
+        { cn: '不', py: 'bù',  tone: 4, en: 'not / no', tier: 1,
+          radicals: ['一'],
+          decomp: [{ cn: '一', lbl: 'a barrier' }, { cn: '小', lbl: 'roots blocked' }],
+          story: 'A horizontal bar with roots that <em>can\'t</em> sprout through. Blocked. NOT, NO, can\'t.' },
+        { cn: '了', py: 'le',  tone: 5, en: 'completed-action particle', tier: 1,
+          radicals: ['乙'],
+          decomp: [{ cn: '了', lbl: 'a finishing hook' }],
+          story: 'A single hooked stroke — the action curls to a close. Marks something just done: ate <span class="cn">了</span>, went <span class="cn">了</span>, finished <span class="cn">了</span>.' },
+        { cn: '人', py: 'rén', tone: 2, en: 'person', tier: 1,
+          radicals: ['人'],
+          decomp: [{ cn: '人', lbl: 'pictograph' }],
+          story: 'Two legs walking. The simplest pictograph in Chinese: a PERSON. Stand it up — that\'s a human.' },
+        { cn: '我', py: 'wǒ',  tone: 3, en: 'I / me', tier: 1,
+          radicals: ['手', '戈'],
+          decomp: [{ cn: '手', lbl: 'hand' }, { cn: '戈', lbl: 'spear' }],
+          story: 'A <span class="cn">手</span> hand holding a <span class="cn">戈</span> spear — defending what\'s mine. The "I" of Chinese was originally a warrior\'s claim: ME.' },
+        { cn: '在', py: 'zài', tone: 4, en: 'at / in / located', tier: 1,
+          radicals: ['才', '土'],
+          decomp: [{ cn: '才', lbl: 'just-arrived' }, { cn: '土', lbl: 'earth' }],
+          story: '<span class="cn">才</span> just-arrived on <span class="cn">土</span> the earth — that\'s where you ARE. Marks location: AT, IN, ON.' },
+        { cn: '有', py: 'yǒu', tone: 3, en: 'to have / there is', tier: 1,
+          radicals: ['手', '月'],
+          decomp: [{ cn: '𠂇', lbl: 'a hand' }, { cn: '月', lbl: 'meat' }],
+          story: 'A hand holding <span class="cn">月</span> meat (the moon radical here means flesh) — you HAVE food. Possession or existence: there IS.' },
+        { cn: '他', py: 'tā',  tone: 1, en: 'he / him', tier: 1,
+          radicals: ['亻', '也'],
+          decomp: [{ cn: '亻', lbl: 'person' }, { cn: '也', lbl: '"also"' }],
+          story: '<span class="cn">亻</span> a person + <span class="cn">也</span> "also" = "that other person too". HE, HIM. (For "she", swap 亻 → 女: <span class="cn">她</span>.)' },
+
+        // ----- Tier 2 — numbers, core verbs, contrast pairs -----
+        { cn: '你', py: 'nǐ',  tone: 3, en: 'you', tier: 2,
+          radicals: ['亻', '尔'],
+          decomp: [{ cn: '亻', lbl: 'person' }, { cn: '尔', lbl: 'archaic "thou"' }],
+          story: '<span class="cn">亻</span> a person + <span class="cn">尔</span> the archaic "thou" = the person I\'m pointing at: YOU. Completes the trio: <span class="cn">我</span> me · <span class="cn">你</span> you · <span class="cn">他</span> him.' },
+        { cn: '好', py: 'hǎo', tone: 3, en: 'good / OK', tier: 2,
+          radicals: ['女', '子'],
+          decomp: [{ cn: '女', lbl: 'woman' }, { cn: '子', lbl: 'child' }],
+          story: 'The canonical compound character. <span class="cn">女</span> woman + <span class="cn">子</span> child = harmony. Pair it with <span class="cn">你</span>: <span class="cn">你好</span> = "hello".' },
+        { cn: '大', py: 'dà',  tone: 4, en: 'big', tier: 2,
+          radicals: ['大'],
+          decomp: [{ cn: '大', lbl: 'arms outstretched' }],
+          story: 'A person (<span class="cn">人</span>) stretching their arms wide to show "this BIG". One of the few characters that\'s its own radical.' },
+        { cn: '小', py: 'xiǎo', tone: 3, en: 'small', tier: 2,
+          radicals: ['小'],
+          decomp: [{ cn: '小', lbl: 'three tiny marks' }],
+          story: 'Three tiny marks splitting apart — a small thing breaking into smaller pieces. SMALL. (Contrast pair with <span class="cn">大</span>.)' },
+        { cn: '这', py: 'zhè', tone: 4, en: 'this', tier: 2,
+          radicals: ['辶', '文'],
+          decomp: [{ cn: '辶', lbl: 'walk' }, { cn: '文', lbl: 'writing' }],
+          story: '<span class="cn">辶</span> walking up to <span class="cn">文</span> the writing → THIS, right here. (Contrast pair with <span class="cn">那</span> = that.)' },
+        { cn: '那', py: 'nà',  tone: 4, en: 'that', tier: 2,
+          radicals: ['阝'],
+          decomp: [{ cn: '冄', lbl: '"that one"' }, { cn: '阝', lbl: 'town (right)' }],
+          story: 'Originally "the town over there" — <span class="cn">阝</span> on the right is a hill/town radical. THAT one, far away.' },
+        { cn: '来', py: 'lái', tone: 2, en: 'to come', tier: 2,
+          radicals: ['木'],
+          decomp: [{ cn: '来', lbl: 'wheat plant' }],
+          story: 'Originally a pictograph of a wheat plant — wheat "came" to the village as harvest. Modern shape evokes branches reaching out: COME.' },
+        { cn: '去', py: 'qù',  tone: 4, en: 'to go', tier: 2,
+          radicals: ['土', '厶'],
+          decomp: [{ cn: '土', lbl: 'earth' }, { cn: '厶', lbl: 'private path' }],
+          story: 'Leaving <span class="cn">土</span> the earth behind, a <span class="cn">厶</span> private path curls away — to GO. (Contrast pair with <span class="cn">来</span> = come.)' },
+        { cn: '说', py: 'shuō', tone: 1, en: 'to speak / say', tier: 2,
+          radicals: ['讠', '兑'],
+          decomp: [{ cn: '讠', lbl: 'speech' }, { cn: '兑', lbl: 'exchange' }],
+          story: '<span class="cn">讠</span> the speech radical you learned in M3 + <span class="cn">兑</span> exchange = words exchanged. To SPEAK.' },
+        { cn: '看', py: 'kàn', tone: 4, en: 'to look / see', tier: 2,
+          radicals: ['手', '目'],
+          decomp: [{ cn: '手', lbl: 'hand' }, { cn: '目', lbl: 'eye' }],
+          story: '<span class="cn">手</span> a hand shielding <span class="cn">目</span> the eye — the gesture you make to LOOK at something far. To SEE.' },
+        { cn: '吃', py: 'chī', tone: 1, en: 'to eat', tier: 2,
+          radicals: ['口', '乞'],
+          decomp: [{ cn: '口', lbl: 'mouth' }, { cn: '乞', lbl: 'sound (qǐ)' }],
+          story: '<span class="cn">口</span> mouth (M3 radical) + <span class="cn">乞</span> qǐ (also means "to beg") = a mouth begging for food. EAT.' },
+        { cn: '二', py: 'èr',  tone: 4, en: 'two', tier: 2,
+          radicals: ['二'],
+          decomp: [{ cn: '二', lbl: 'two strokes' }],
+          story: 'Two horizontal strokes. Even simpler than <span class="cn">一</span>. The pattern continues: <span class="cn">一</span>, <span class="cn">二</span>, <span class="cn">三</span> — count the strokes.' },
+        { cn: '三', py: 'sān', tone: 1, en: 'three', tier: 2,
+          radicals: ['三'],
+          decomp: [{ cn: '三', lbl: 'three strokes' }],
+          story: 'Three stacked strokes. The stroke-count pattern stops here — <span class="cn">四</span> through <span class="cn">十</span> all break the rule.' },
+        { cn: '四', py: 'sì',  tone: 4, en: 'four', tier: 2,
+          radicals: ['口'],
+          decomp: [{ cn: '口', lbl: 'mouth/box' }, { cn: '儿', lbl: 'splay' }],
+          story: 'A box <span class="cn">口</span> with bits inside splaying out. Originally a pictograph of a mouth showing teeth (or maybe nostrils!). Means FOUR.' },
+        { cn: '五', py: 'wǔ',  tone: 3, en: 'five', tier: 2,
+          radicals: ['五'],
+          decomp: [{ cn: '五', lbl: 'crossed sticks' }],
+          story: 'Crossed sticks — like a tally mark. Has 5 strokes (mostly), and the stroke count gives you a memory hook for FIVE.' },
+        { cn: '六', py: 'liù', tone: 4, en: 'six', tier: 2,
+          radicals: ['亠', '八'],
+          decomp: [{ cn: '亠', lbl: 'roof/lid' }, { cn: '八', lbl: 'splay' }],
+          story: 'A roof <span class="cn">亠</span> over two splayed legs <span class="cn">八</span>. The shape doesn\'t map cleanly to "six" — best to just memorize. (Cantonese: "luk".)' },
+        { cn: '七', py: 'qī',  tone: 1, en: 'seven', tier: 2,
+          radicals: ['七'],
+          decomp: [{ cn: '七', lbl: 'cross + hook' }],
+          story: 'A cross with a hook — like a sickle. Lucky for some, unlucky for others. Just SEVEN.' },
+        { cn: '八', py: 'bā',  tone: 1, en: 'eight', tier: 2,
+          radicals: ['八'],
+          decomp: [{ cn: '八', lbl: 'two strokes splayed' }],
+          story: 'Two strokes diverging — split apart. EIGHT. Considered the luckiest number in Chinese: <span class="cn">八</span> bā sounds like <span class="cn">发</span> fā = "wealth/prosperity".' },
+        { cn: '九', py: 'jiǔ', tone: 3, en: 'nine', tier: 2,
+          radicals: ['九'],
+          decomp: [{ cn: '九', lbl: 'a bent arm' }],
+          story: 'Originally a pictograph of a bent arm/elbow reaching out. The highest single-digit number. NINE.' },
+        { cn: '十', py: 'shí', tone: 2, en: 'ten', tier: 2,
+          radicals: ['十'],
+          decomp: [{ cn: '十', lbl: 'cross of cardinal directions' }],
+          story: 'A vertical and horizontal line crossing — the four cardinal directions complete. The number TEN. (Bonus: 十 is itself a radical meaning "complete".)' },
+
+        // ----- Tier 2 fill — top-30 frequency function words & verbs -----
+        { cn: '中', py: 'zhōng', tone: 1, en: 'middle / China', tier: 2,
+          radicals: ['口'],
+          decomp: [{ cn: '口', lbl: 'box' }, { cn: '丨', lbl: 'vertical line' }],
+          story: 'A box <span class="cn">口</span> with a vertical line cutting through the MIDDLE. China calls itself <span class="cn">中国</span> — the "middle kingdom".' },
+        { cn: '上', py: 'shàng', tone: 4, en: 'up / above / on', tier: 2,
+          radicals: ['一'],
+          decomp: [{ cn: '一', lbl: 'horizon' }, { cn: '卜', lbl: 'mark above' }],
+          story: 'A horizontal line (the ground) with a mark <em>above</em> it. UP, ON TOP. Mirror of <span class="cn">下</span>.' },
+        { cn: '下', py: 'xià',  tone: 4, en: 'down / below', tier: 2,
+          radicals: ['一'],
+          decomp: [{ cn: '一', lbl: 'horizon' }, { cn: '卜', lbl: 'mark below' }],
+          story: 'A horizontal line (the ground) with a mark <em>below</em> it. DOWN, BELOW. Contrast pair with <span class="cn">上</span>.' },
+        { cn: '国', py: 'guó',  tone: 2, en: 'country', tier: 2,
+          radicals: ['囗', '玉'],
+          decomp: [{ cn: '囗', lbl: 'enclosure' }, { cn: '玉', lbl: 'jade' }],
+          story: '<span class="cn">囗</span> a fenced enclosure surrounding <span class="cn">玉</span> jade (treasure) — that\'s a COUNTRY worth defending.' },
+        { cn: '个', py: 'gè',   tone: 4, en: 'measure word (general)', tier: 2,
+          radicals: ['人'],
+          decomp: [{ cn: '人', lbl: 'person' }, { cn: '丨', lbl: 'standing' }],
+          story: 'A stylized "person standing alone". The most common measure word in Chinese — use it for ANY countable noun when nothing more specific fits: <span class="cn">一个人</span> = one person.' },
+        { cn: '到', py: 'dào',  tone: 4, en: 'arrive / to', tier: 2,
+          radicals: ['至', '刂'],
+          decomp: [{ cn: '至', lbl: 'reach' }, { cn: '刂', lbl: 'knife (sound dāo)' }],
+          story: '<span class="cn">至</span> reaching the destination + <span class="cn">刂</span> knife (sound hint: dāo → dào). To ARRIVE at, until.' },
+        { cn: '们', py: 'men',  tone: 5, en: 'plural marker', tier: 2,
+          radicals: ['亻', '门'],
+          decomp: [{ cn: '亻', lbl: 'person' }, { cn: '门', lbl: 'door (sound mén)' }],
+          story: '<span class="cn">亻</span> person + <span class="cn">门</span> mén (sound). Adds plural to pronouns: <span class="cn">我们</span> we, <span class="cn">你们</span> y\'all, <span class="cn">他们</span> they.' },
+        { cn: '为', py: 'wèi',  tone: 4, en: 'for / be / as', tier: 2,
+          radicals: ['为'],
+          decomp: [{ cn: '为', lbl: 'a hand making' }],
+          story: 'Originally a pictograph of a hand making something. Now means "for" or "to be": <span class="cn">因为</span> = because, <span class="cn">为什么</span> = why.' },
+        { cn: '子', py: 'zi',   tone: 5, en: 'child / noun suffix', tier: 2,
+          radicals: ['子'],
+          decomp: [{ cn: '子', lbl: 'swaddled baby' }],
+          story: 'A swaddled baby — head, arms, body. The M3 child radical itself. As a suffix it just makes nouns: <span class="cn">桌子</span> table, <span class="cn">椅子</span> chair, <span class="cn">儿子</span> son.' },
+        { cn: '和', py: 'hé',   tone: 2, en: 'and / harmony', tier: 2,
+          radicals: ['禾', '口'],
+          decomp: [{ cn: '禾', lbl: 'grain' }, { cn: '口', lbl: 'mouth' }],
+          story: '<span class="cn">禾</span> grain feeding <span class="cn">口</span> mouths — when everyone has food, there\'s HARMONY. Also "and": <span class="cn">我和你</span> = me and you.' },
+        { cn: '地', py: 'dì',   tone: 4, en: 'earth / -ly particle', tier: 2,
+          radicals: ['土', '也'],
+          decomp: [{ cn: '土', lbl: 'earth' }, { cn: '也', lbl: 'sound' }],
+          story: '<span class="cn">土</span> the earth radical (dì = earth) + <span class="cn">也</span> sound. Doubles as the adverbial "-ly" particle when read neutral: <span class="cn">慢慢地</span> = slowly.' },
+        { cn: '出', py: 'chū',  tone: 1, en: 'go out / emerge', tier: 2,
+          radicals: ['山'],
+          decomp: [{ cn: '凵', lbl: 'enclosure' }, { cn: '屮', lbl: 'foot stepping out' }],
+          story: 'A foot stepping out of an enclosure. (Modern shape looks like two stacked <span class="cn">山</span>, but the etymology is "leaving".) GO OUT, EMERGE.' },
+        { cn: '也', py: 'yě',   tone: 3, en: 'also / too', tier: 2,
+          radicals: ['也'],
+          decomp: [{ cn: '也', lbl: 'a serpent (originally)' }],
+          story: 'Originally a snake pictograph; now means "ALSO". For emphasis: <span class="cn">我也是</span> = me too. Lives inside <span class="cn">他</span>, <span class="cn">她</span>, <span class="cn">地</span>.' },
+        { cn: '时', py: 'shí',  tone: 2, en: 'time / hour', tier: 2,
+          radicals: ['日', '寸'],
+          decomp: [{ cn: '日', lbl: 'sun' }, { cn: '寸', lbl: 'sound (cùn)' }],
+          story: '<span class="cn">日</span> sun radical (TIME passes by the sun) + <span class="cn">寸</span> cùn (sound hint). Time, hour, period. <span class="cn">小时</span> = hour.' },
+        { cn: '年', py: 'nián', tone: 2, en: 'year', tier: 2,
+          radicals: ['年'],
+          decomp: [{ cn: '年', lbl: 'person carrying grain' }],
+          story: 'Originally a person carrying grain on their back — one harvest = one YEAR. <span class="cn">今年</span> = this year, <span class="cn">明年</span> = next year.' },
+        { cn: '得', py: 'de',   tone: 5, en: 'particle / to get (dé)', tier: 2,
+          radicals: ['彳', '寸'],
+          decomp: [{ cn: '彳', lbl: 'step' }, { cn: '旦', lbl: 'dawn' }, { cn: '寸', lbl: 'inch' }],
+          story: '<span class="cn">彳</span> stepping forward to seize the day. Means "to GET" (dé) or marks resultative complement (de): <span class="cn">跑得快</span> = runs <em>quickly</em>.' },
+        { cn: '就', py: 'jiù',  tone: 4, en: 'then / just / exactly', tier: 2,
+          radicals: ['京', '尤'],
+          decomp: [{ cn: '京', lbl: 'capital' }, { cn: '尤', lbl: 'especially' }],
+          story: '<span class="cn">京</span> the capital + <span class="cn">尤</span> especially = exactly there, just then. <span class="cn">就是</span> = exactly so.' },
+        { cn: '要', py: 'yào',  tone: 4, en: 'want / important / will', tier: 2,
+          radicals: ['西', '女'],
+          decomp: [{ cn: '西', lbl: 'west' }, { cn: '女', lbl: 'woman' }],
+          story: 'Originally meant "waist" (the important middle of the body) — now means "WANT" or "important". <span class="cn">我要</span> = I want.' },
+        { cn: '以', py: 'yǐ',   tone: 3, en: 'with / by means of', tier: 2,
+          radicals: ['人'],
+          decomp: [{ cn: '以', lbl: 'a person with a tool' }],
+          story: 'Originally a person carrying a tool. Now used for "with, by means of, in order to": <span class="cn">所以</span> therefore, <span class="cn">可以</span> can, <span class="cn">以前</span> before.' },
+        { cn: '生', py: 'shēng', tone: 1, en: 'life / be born / raw', tier: 2,
+          radicals: ['生'],
+          decomp: [{ cn: '生', lbl: 'sprout from earth' }],
+          story: 'A sprout rising from the earth — fresh LIFE. Also "raw" or "unfamiliar". <span class="cn">学生</span> = student (born to learn), <span class="cn">生日</span> = birthday.' },
+
+        // ----- Tier 3 — chars 51–100 of the top-100 frequency list -----
+        { cn: '会', py: 'huì',  tone: 4, en: 'can / meeting', tier: 3,
+          radicals: ['人', '云'],
+          decomp: [{ cn: '人', lbl: 'people gathering' }, { cn: '云', lbl: 'clouds' }],
+          story: '<span class="cn">人</span> people gathering under <span class="cn">云</span> clouds = a MEETING. Also "can / will be able to": <span class="cn">我会说中文</span> = I can speak Chinese.' },
+        { cn: '自', py: 'zì',   tone: 4, en: 'self', tier: 3,
+          radicals: ['自'],
+          decomp: [{ cn: '自', lbl: 'a nose pictograph' }],
+          story: 'A pictograph of a nose. Chinese speakers point at their NOSE to say "me" — so <span class="cn">自</span> means SELF: <span class="cn">自己</span> oneself, <span class="cn">自由</span> freedom.' },
+        { cn: '着', py: 'zhe',  tone: 5, en: 'progressive marker (-ing)', tier: 3,
+          radicals: ['羊', '目'],
+          decomp: [{ cn: '羊', lbl: 'sheep (top)' }, { cn: '目', lbl: 'eye' }],
+          story: 'A herder watching sheep — the watching is ongoing. Used as the "-ing" particle: <span class="cn">看着</span> = watching, <span class="cn">站着</span> = standing.' },
+        { cn: '之', py: 'zhī',  tone: 1, en: 'classical "of / it"', tier: 3,
+          radicals: ['之'],
+          decomp: [{ cn: '之', lbl: 'a foot stepping' }],
+          story: 'A classical Chinese particle, sort of like "of" or "it": <span class="cn">之一</span> = one of. Mostly survives in formal/written Chinese; rarely spoken alone.' },
+        { cn: '过', py: 'guò',  tone: 4, en: 'past / to cross', tier: 3,
+          radicals: ['辶', '寸'],
+          decomp: [{ cn: '辶', lbl: 'walk' }, { cn: '寸', lbl: 'inch' }],
+          story: '<span class="cn">辶</span> walking past a small distance = to CROSS, to PASS BY. Marks past experience: <span class="cn">吃过</span> = have eaten, <span class="cn">去过</span> = have been.' },
+        { cn: '家', py: 'jiā',  tone: 1, en: 'family / home', tier: 3,
+          radicals: ['宀', '豕'],
+          decomp: [{ cn: '宀', lbl: 'roof' }, { cn: '豕', lbl: 'pig' }],
+          story: '<span class="cn">宀</span> a roof over <span class="cn">豕</span> a pig — old China: pigs lived under your roof. Where the pig lived = the FAMILY HOME.' },
+        { cn: '学', py: 'xué',  tone: 2, en: 'to learn / study', tier: 3,
+          radicals: ['子'],
+          decomp: [{ cn: '冖', lbl: 'roof' }, { cn: '子', lbl: 'child' }],
+          story: 'A child <span class="cn">子</span> under a roof — learning. To LEARN, to STUDY. <span class="cn">学生</span> = student, <span class="cn">学校</span> = school.' },
+        { cn: '对', py: 'duì',  tone: 4, en: 'correct / face / pair', tier: 3,
+          radicals: ['又', '寸'],
+          decomp: [{ cn: '又', lbl: 'right hand' }, { cn: '寸', lbl: 'inch' }],
+          story: 'Two hands lining up measure marks — when they match, that\'s CORRECT. Also "to face" or "pair". <span class="cn">对不起</span> = sorry, <span class="cn">对</span>! = right!' },
+        { cn: '可', py: 'kě',   tone: 3, en: 'can / may', tier: 3,
+          radicals: ['口'],
+          decomp: [{ cn: '丁', lbl: 'nail/fixed' }, { cn: '口', lbl: 'mouth' }],
+          story: 'A mouth giving the OK ("yes, you can"). Means "CAN" or "may". <span class="cn">可以</span> = can/may, <span class="cn">可能</span> = possible.' },
+        { cn: '她', py: 'tā',   tone: 1, en: 'she / her', tier: 3,
+          radicals: ['女', '也'],
+          decomp: [{ cn: '女', lbl: 'woman' }, { cn: '也', lbl: 'sound (yě)' }],
+          story: '<span class="cn">女</span> woman + <span class="cn">也</span> sound (same as <span class="cn">他</span>) = SHE. Identical pronunciation to <span class="cn">他</span> — only the writing distinguishes gender.' },
+        { cn: '里', py: 'lǐ',   tone: 3, en: 'inside / village', tier: 3,
+          radicals: ['田', '土'],
+          decomp: [{ cn: '田', lbl: 'field' }, { cn: '土', lbl: 'earth' }],
+          story: '<span class="cn">田</span> a field on <span class="cn">土</span> earth → the village. Also means "INSIDE": <span class="cn">家里</span> = inside the house, <span class="cn">这里</span> = here.' },
+        { cn: '后', py: 'hòu',  tone: 4, en: 'after / behind', tier: 3,
+          radicals: ['口'],
+          decomp: [{ cn: '后', lbl: 'a person at the back' }],
+          story: 'Originally a queen / a person at the rear. Now means "AFTER, BEHIND": <span class="cn">以后</span> = after, <span class="cn">后面</span> = behind, <span class="cn">最后</span> = last.' },
+        { cn: '么', py: 'me',   tone: 5, en: 'what (suffix)', tier: 3,
+          radicals: ['么'],
+          decomp: [{ cn: '么', lbl: 'question suffix' }],
+          story: 'Almost always used as a question-word suffix: <span class="cn">什么</span> = what, <span class="cn">为什么</span> = why, <span class="cn">怎么</span> = how, <span class="cn">这么</span> = this much.' },
+        { cn: '心', py: 'xīn',  tone: 1, en: 'heart / mind', tier: 3,
+          radicals: ['心'],
+          decomp: [{ cn: '心', lbl: 'heart pictograph' }],
+          story: 'A pictograph of a heart with three chambers. The M3 heart radical itself — used in <span class="cn">想</span> think, <span class="cn">怕</span> afraid, <span class="cn">快</span> fast/happy.' },
+        { cn: '多', py: 'duō',  tone: 1, en: 'many / much', tier: 3,
+          radicals: ['夕'],
+          decomp: [{ cn: '夕', lbl: 'evening' }, { cn: '夕', lbl: 'evening' }],
+          story: '<span class="cn">夕</span> evening + <span class="cn">夕</span> evening = many evenings stacked = MANY, much. <span class="cn">多少</span> = how much/many, <span class="cn">很多</span> = very many.' },
+        { cn: '天', py: 'tiān', tone: 1, en: 'sky / day', tier: 3,
+          radicals: ['一', '大'],
+          decomp: [{ cn: '一', lbl: 'sky' }, { cn: '大', lbl: 'big person' }],
+          story: 'A horizontal line above <span class="cn">大</span> a big person = the SKY above their head. Also "day" (one revolution of the sky): <span class="cn">今天</span> = today.' },
+        { cn: '能', py: 'néng', tone: 2, en: 'can / be able', tier: 3,
+          radicals: ['能'],
+          decomp: [{ cn: '能', lbl: 'a bear (originally)' }],
+          story: 'Originally a bear pictograph — bears are strong, "able". Now means "CAN, be able to". <span class="cn">能不能</span>? = can or cannot?' },
+        { cn: '都', py: 'dōu',  tone: 1, en: 'all / both', tier: 3,
+          radicals: ['者', '阝'],
+          decomp: [{ cn: '者', lbl: 'one-who' }, { cn: '阝', lbl: 'town' }],
+          story: '<span class="cn">者</span> one-who + <span class="cn">阝</span> the town = everyone in town. Now means "ALL": <span class="cn">都是</span> = all are, <span class="cn">都好</span> = all good.' },
+        { cn: '没', py: 'méi',  tone: 2, en: 'not have / didn\'t', tier: 3,
+          radicals: ['氵'],
+          decomp: [{ cn: '氵', lbl: 'water' }, { cn: '殳', lbl: 'sinking' }],
+          story: '<span class="cn">氵</span> water swallowing something — it\'s "no longer there". Negates <span class="cn">有</span>: <span class="cn">没有</span> = don\'t have. Also negates past actions.' },
+        { cn: '日', py: 'rì',   tone: 4, en: 'sun / day', tier: 3,
+          radicals: ['日'],
+          decomp: [{ cn: '日', lbl: 'sun pictograph' }],
+          story: 'A square sun with a dot inside. The M3 sun radical itself. Means "sun" or "day": <span class="cn">日本</span> = Japan (origin of the sun), <span class="cn">生日</span> = birthday.' },
+        { cn: '起', py: 'qǐ',   tone: 3, en: 'rise / get up', tier: 3,
+          radicals: ['走', '己'],
+          decomp: [{ cn: '走', lbl: 'walk/run' }, { cn: '己', lbl: 'self' }],
+          story: '<span class="cn">走</span> running + <span class="cn">己</span> oneself = getting up and going. RISE. <span class="cn">起床</span> = get out of bed, <span class="cn">一起</span> = together.' },
+        { cn: '还', py: 'hái',  tone: 2, en: 'still / yet (also: return)', tier: 3,
+          radicals: ['辶', '不'],
+          decomp: [{ cn: '辶', lbl: 'walk' }, { cn: '不', lbl: 'not' }],
+          story: '<span class="cn">辶</span> walking + <span class="cn">不</span> not (yet finished) = STILL going. Means "still/yet" (hái) or "return" (huán). <span class="cn">还有</span> = also have.' },
+        { cn: '发', py: 'fā',   tone: 1, en: 'emit / develop', tier: 3,
+          radicals: ['发'],
+          decomp: [{ cn: '发', lbl: 'a hand drawing a bow' }],
+          story: 'Originally a hand drawing a bow — to EMIT, send forth. Also "develop, prosper": <span class="cn">发展</span> = develop. (Lucky number link: <span class="cn">八</span> bā ≈ <span class="cn">发</span> fā.)' },
+        { cn: '成', py: 'chéng', tone: 2, en: 'become / succeed', tier: 3,
+          radicals: ['戈'],
+          decomp: [{ cn: '戊', lbl: 'weapon' }, { cn: '丁', lbl: 'nail/finish' }],
+          story: 'A weapon completed = a SUCCESS achieved. Means "to become" or "to succeed": <span class="cn">成功</span> = success, <span class="cn">长大成人</span> = grow up to be an adult.' },
+        { cn: '事', py: 'shì',  tone: 4, en: 'matter / affair', tier: 3,
+          radicals: ['事'],
+          decomp: [{ cn: '事', lbl: 'a hand holding a banner' }],
+          story: 'Originally a hand grasping a banner of office — a MATTER of state. Now any "thing/affair": <span class="cn">事情</span> = matter, <span class="cn">没事</span> = no problem.' },
+        { cn: '只', py: 'zhǐ',  tone: 3, en: 'only / just', tier: 3,
+          radicals: ['口', '八'],
+          decomp: [{ cn: '口', lbl: 'mouth' }, { cn: '八', lbl: 'split' }],
+          story: '<span class="cn">口</span> a mouth saying <span class="cn">八</span> "split it" — narrowing down to one. Means "ONLY, just": <span class="cn">只有</span> = only have, <span class="cn">只是</span> = only.' },
+        { cn: '作', py: 'zuò',  tone: 4, en: 'make / do / work', tier: 3,
+          radicals: ['亻', '乍'],
+          decomp: [{ cn: '亻', lbl: 'person' }, { cn: '乍', lbl: 'briefly' }],
+          story: '<span class="cn">亻</span> a person briefly producing something = MAKING, doing. <span class="cn">工作</span> = work, <span class="cn">作家</span> = author.' },
+        { cn: '当', py: 'dāng', tone: 1, en: 'serve as / when', tier: 3,
+          radicals: ['小', '田'],
+          decomp: [{ cn: '小', lbl: 'small' }, { cn: '田', lbl: 'field' }],
+          story: 'Simplified shape: <span class="cn">小</span> over <span class="cn">田</span>. Means "to SERVE AS" or "WHEN": <span class="cn">当然</span> = of course, <span class="cn">当时</span> = at that time.' },
+        { cn: '想', py: 'xiǎng', tone: 3, en: 'think / want / miss', tier: 3,
+          radicals: ['相', '心'],
+          decomp: [{ cn: '相', lbl: 'mutual/looking' }, { cn: '心', lbl: 'heart' }],
+          story: '<span class="cn">相</span> looking + <span class="cn">心</span> heart = THINKING with your heart. Also "want" or "miss someone": <span class="cn">我想你</span> = I miss you.' },
+        { cn: '文', py: 'wén',  tone: 2, en: 'writing / culture', tier: 3,
+          radicals: ['文'],
+          decomp: [{ cn: '文', lbl: 'crossed lines (tattoos!)' }],
+          story: 'Originally a pictograph of tattoo patterns on a chest. Means "WRITING, culture, language": <span class="cn">中文</span> = Chinese language, <span class="cn">文化</span> = culture.' },
+        { cn: '开', py: 'kāi',  tone: 1, en: 'open / start', tier: 3,
+          radicals: ['开'],
+          decomp: [{ cn: '一', lbl: 'a bar' }, { cn: '廾', lbl: 'two hands lifting' }],
+          story: 'Two hands lifting a bar = to OPEN. <span class="cn">开门</span> = open the door, <span class="cn">开始</span> = start, <span class="cn">开车</span> = drive (open-up the car).' },
+        { cn: '手', py: 'shǒu', tone: 3, en: 'hand', tier: 3,
+          radicals: ['手'],
+          decomp: [{ cn: '手', lbl: 'five fingers' }],
+          story: 'A pictograph of a hand with five fingers (the wrist is the bottom hook). The M3 hand radical itself — used in <span class="cn">打</span> hit, <span class="cn">拿</span> take, <span class="cn">抱</span> hug.' },
+        { cn: '用', py: 'yòng', tone: 4, en: 'to use', tier: 3,
+          radicals: ['用'],
+          decomp: [{ cn: '用', lbl: 'a tool / bell' }],
+          story: 'Originally a pictograph of a bell or bucket — a TOOL. <span class="cn">没用</span> = useless, <span class="cn">有用</span> = useful, <span class="cn">不用</span> = no need.' },
+        { cn: '主', py: 'zhǔ',  tone: 3, en: 'host / main / lord', tier: 3,
+          radicals: ['王'],
+          decomp: [{ cn: '丶', lbl: 'a flame' }, { cn: '王', lbl: 'king' }],
+          story: '<span class="cn">丶</span> a flame above <span class="cn">王</span> the king = the HOST, the lord. <span class="cn">主人</span> = master/owner, <span class="cn">主要</span> = main.' },
+        { cn: '行', py: 'xíng', tone: 2, en: 'go / walk / OK', tier: 3,
+          radicals: ['行'],
+          decomp: [{ cn: '行', lbl: 'a crossroads' }],
+          story: 'A pictograph of a crossroads — the place to GO. Also means "OK" (as in "that\'ll do"): <span class="cn">行!</span> = OK! Or "row/line": <span class="cn">银行</span> = bank (silver line).' },
+        { cn: '方', py: 'fāng', tone: 1, en: 'direction / square', tier: 3,
+          radicals: ['方'],
+          decomp: [{ cn: '方', lbl: 'a plow blade' }],
+          story: 'Originally a plow\'s blade — straight, square. Means "DIRECTION" or "square": <span class="cn">地方</span> = place, <span class="cn">东方</span> = east.' },
+        { cn: '又', py: 'yòu',  tone: 4, en: 'again / and also', tier: 3,
+          radicals: ['又'],
+          decomp: [{ cn: '又', lbl: 'right hand' }],
+          story: 'A pictograph of the right hand — used to do something AGAIN. <span class="cn">又来了</span> = here we go again, <span class="cn">又…又…</span> = both...and...' },
+        { cn: '如', py: 'rú',   tone: 2, en: 'like / if / as', tier: 3,
+          radicals: ['女', '口'],
+          decomp: [{ cn: '女', lbl: 'woman' }, { cn: '口', lbl: 'mouth' }],
+          story: '<span class="cn">女</span> woman + <span class="cn">口</span> mouth = saying "yes" obediently, matching expectations = LIKE, as if. <span class="cn">比如</span> = for example, <span class="cn">如果</span> = if.' },
+        { cn: '前', py: 'qián', tone: 2, en: 'before / front', tier: 3,
+          radicals: ['刂', '月'],
+          decomp: [{ cn: '丷', lbl: 'horns' }, { cn: '月', lbl: 'boat' }, { cn: '刂', lbl: 'knife' }],
+          story: 'Originally a foot moving forward in a boat. Means "BEFORE" or "front": <span class="cn">以前</span> = before, <span class="cn">前面</span> = in front, <span class="cn">前年</span> = year before last.' },
+        { cn: '见', py: 'jiàn', tone: 4, en: 'see / meet', tier: 3,
+          radicals: ['目', '儿'],
+          decomp: [{ cn: '目', lbl: 'eye' }, { cn: '儿', lbl: 'legs' }],
+          story: '<span class="cn">目</span> an eye on <span class="cn">儿</span> legs walking = going to SEE someone. <span class="cn">再见</span> = goodbye (see you again), <span class="cn">见面</span> = meet face-to-face.' },
+        { cn: '头', py: 'tóu',  tone: 2, en: 'head / top', tier: 3,
+          radicals: ['头'],
+          decomp: [{ cn: '头', lbl: 'simplified head shape' }],
+          story: 'Simplified pictograph of a head with hair on top. Means "HEAD" or "top": <span class="cn">头发</span> = hair (head\'s growth), <span class="cn">里头</span> = inside.' },
+        { cn: '公', py: 'gōng', tone: 1, en: 'public / duke', tier: 3,
+          radicals: ['八', '厶'],
+          decomp: [{ cn: '八', lbl: 'split' }, { cn: '厶', lbl: 'private' }],
+          story: '<span class="cn">八</span> split + <span class="cn">厶</span> private = the OPPOSITE of private = PUBLIC. <span class="cn">公司</span> = company, <span class="cn">公园</span> = park.' },
+        { cn: '同', py: 'tóng', tone: 2, en: 'same / together', tier: 3,
+          radicals: ['口'],
+          decomp: [{ cn: '冂', lbl: 'border' }, { cn: '一', lbl: 'one' }, { cn: '口', lbl: 'mouth' }],
+          story: 'Speaking with one mouth from inside one border = SAME, together. <span class="cn">同学</span> = classmate (same school), <span class="cn">同事</span> = coworker.' },
+        { cn: '老', py: 'lǎo',  tone: 3, en: 'old', tier: 3,
+          radicals: ['老'],
+          decomp: [{ cn: '老', lbl: 'old person with cane' }],
+          story: 'An old person with a cane (the bottom hook is the cane). Means "OLD" — but used with respect: <span class="cn">老师</span> = teacher (lit. "old master"), <span class="cn">老朋友</span> = old friend.' },
+        { cn: '从', py: 'cóng', tone: 2, en: 'from / follow', tier: 3,
+          radicals: ['人'],
+          decomp: [{ cn: '人', lbl: 'person' }, { cn: '人', lbl: 'person' }],
+          story: '<span class="cn">人</span> + <span class="cn">人</span> = one person FOLLOWING another. Means "from" or "follow": <span class="cn">从这里</span> = from here, <span class="cn">从来</span> = ever (from-always).' },
+        { cn: '两', py: 'liǎng', tone: 3, en: 'two / pair (counting)', tier: 3,
+          radicals: ['两'],
+          decomp: [{ cn: '两', lbl: 'a balanced pair' }],
+          story: 'A symmetrical character — a balanced PAIR. Used when counting things: <span class="cn">两个</span> = two of them. Distinct from <span class="cn">二</span> (which is the number itself).' },
+        { cn: '长', py: 'cháng', tone: 2, en: 'long (cháng) / grow (zhǎng)', tier: 3,
+          radicals: ['长'],
+          decomp: [{ cn: '长', lbl: 'long-haired person' }],
+          story: 'An old person with long hair = both "LONG" and "GROW". <span class="cn">长城</span> = Great Wall (cháng), <span class="cn">长大</span> = grow up (zhǎng). Same character, two readings.' },
+        { cn: '月', py: 'yuè',  tone: 4, en: 'moon / month', tier: 3,
+          radicals: ['月'],
+          decomp: [{ cn: '月', lbl: 'crescent moon' }],
+          story: 'A crescent moon pictograph. The M3 moon/flesh radical itself. Means "moon" or "month": <span class="cn">月亮</span> = the moon, <span class="cn">一月</span> = January.' },
+        { cn: '名', py: 'míng', tone: 2, en: 'name', tier: 3,
+          radicals: ['夕', '口'],
+          decomp: [{ cn: '夕', lbl: 'evening' }, { cn: '口', lbl: 'mouth' }],
+          story: '<span class="cn">夕</span> evening + <span class="cn">口</span> mouth = calling out one\'s NAME in the dark when you can\'t be seen. <span class="cn">名字</span> = name, <span class="cn">有名</span> = famous.' },
+        { cn: '高', py: 'gāo',  tone: 1, en: 'tall / high', tier: 3,
+          radicals: ['高'],
+          decomp: [{ cn: '高', lbl: 'tall pavilion' }],
+          story: 'A pictograph of a watchtower or multi-story pavilion. TALL, HIGH. <span class="cn">高山</span> = high mountain, <span class="cn">高兴</span> = happy (lit. "high spirits").' },
+      ];
+
+      const CHAR_TIERS = [
+        { tier: 1, label: 'Top 10',  coverage: '~25% of running text' },
+        { tier: 2, label: 'Next 40', coverage: 'gets you to ~40%' },
+        { tier: 3, label: 'Last 50', coverage: 'closes the gap to ~50%' },
+      ];
+
+      const CHARS_QUIZ = [
+        { kind: 'mc', q: 'What does this character mean?',
+          bigChar: '我',
+          options: ['I / me', 'he', 'she', 'you'],
+          correct: 0,
+          why: 'Right — <span class="cn">我</span> (wǒ) is "I/me". A hand holding a spear: defending what\'s mine.',
+          wrongHint: 'Hint: this one\'s the first-person pronoun — the most-used way to refer to yourself.' },
+        { kind: 'mc', q: 'What does shì 是 mean?',
+          options: ['to have', 'to be / yes', 'not', 'one'],
+          correct: 1,
+          why: 'Yes — <span class="cn">是</span> (shì) is "to be" or "yes". 日 sun above 正 upright = the truth.',
+          wrongHint: 'It\'s the most common copula in Chinese — the equivalent of "is/am/are".' },
+        { kind: 'mc', q: 'How do you pronounce this character?',
+          bigChar: '不',
+          options: ['bā', 'bù', 'pū', 'fù'],
+          correct: 1,
+          why: 'Right — <span class="cn">不</span> is "bù" (4th tone), meaning "not". One of the top-5 most common characters.',
+          wrongHint: 'It\'s a 4th-tone (sharp falling) syllable — and the meaning is "not / no".' },
+        { kind: 'mc', q: 'Which radical helps build 好 (good)?',
+          bigChar: '好',
+          options: ['女 (woman)', '木 (tree)', '火 (fire)', '心 (heart)'],
+          correct: 0,
+          why: 'Yes — <span class="cn">好</span> = <span class="cn">女</span> (woman) + <span class="cn">子</span> (child). An ideographic compound: "a woman with her child = good".',
+          wrongHint: 'Look at the LEFT side of 好. You learned this radical in Module 3.' },
+        { kind: 'mc', q: 'Which character means "person"?',
+          options: ['人', '入', '八', '大'],
+          correct: 0,
+          why: 'Yes — <span class="cn">人</span> (rén) = person. The simplest pictograph: two legs walking.',
+          wrongHint: 'Look for two simple legs splayed apart. The others are visually similar but different chars (enter, eight, big).' },
+      ];
+
+      // Persistence for self-rated chars
+      function saveCharsRated(cn, rating) {
+        state.charsRated[cn] = rating;
+        const all = loadState();
+        all.charsRated = state.charsRated;
+        saveState(all);
+      }
+
+      function charsKnownCount() {
+        return Object.values(state.charsRated).filter(r => r === 'know').length;
+      }
+
+      // ---------- Scene 0: Hook ----------
+      function renderCharsHook() {
+        // Animate the coverage bar: jump to ~50% to imply "this is what 100 chars unlocks".
+        const fill = $('#cb-fill');
+        const pct  = $('#cb-pct');
+        if (fill && pct) {
+          // Defer to next frame so the transition fires
+          fill.style.width = '0%';
+          pct.textContent = '0%';
+          requestAnimationFrame(() => {
+            fill.style.width = '50%';
+            // Animate pct counter from 0 → 50 in roughly the same window as the bar.
+            const start = performance.now();
+            const dur = 1200;
+            function tick(now) {
+              const t = Math.min(1, (now - start) / dur);
+              pct.textContent = Math.round(t * 50) + '%';
+              if (t < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+          });
+        }
+        // Render 6 hook cells (overlap with the cards we'll teach).
+        const row = $('#chars-hook-row');
+        if (!row) return;
+        const hookChars = ['你', '好', '我', '是', '不', '的'];
+        row.innerHTML = hookChars.map(cn => {
+          const entry = CHAR_DATA_100.find(c => c.cn === cn);
+          const py = entry ? entry.py : '';
+          const en = entry ? entry.en.split(' ')[0] : '';
+          return `
+            <div class="chars-hook-cell" data-cn="${cn}">
+              <div class="ch-cn cn">${cn}</div>
+              <div class="ch-py">${py}</div>
+              <div class="ch-en">${en}</div>
+            </div>
+          `;
+        }).join('');
+        $$('.chars-hook-cell', row).forEach(cell => {
+          cell.addEventListener('click', () => speakTTS(cell.dataset.cn));
+        });
+      }
+
+      // ---------- Scene 2: Flashcards ----------
+      function renderCharsFlashcards() {
+        // Reset to first card on (re-)entry; ratings persist via localStorage.
+        if (state.charsCardIdx >= CHAR_DATA_100.length) state.charsCardIdx = 0;
+        flashcardRender();
+      }
+
+      function flashcardRender() {
+        const stage = $('#flashcard-stage');
+        if (!stage) return;
+        const idx = state.charsCardIdx;
+        const c = CHAR_DATA_100[idx];
+        if (!c) {
+          stage.innerHTML = `<p style="color: var(--ink-500);">No more cards in the scaffold yet.</p>`;
+          return;
+        }
+        const total = CHAR_DATA_100.length;
+        const rated = c.cn in state.charsRated ? state.charsRated[c.cn] : null;
+        const known = charsKnownCount();
+        const knownPct = Math.round((known / total) * 100);
+        const ratingBadge = rated
+          ? `<span class="fc-rating-badge ${rated}">${rated === 'know' ? '✓ got it' : '↻ still hard'}</span>`
+          : '';
+        const decompHTML = c.decomp.map((p, i) => `
+          ${i > 0 ? '<span class="fcd-plus">+</span>' : ''}
+          <div class="fcd-piece">
+            <div class="cn">${p.cn}</div>
+            <div class="lbl">${p.lbl}</div>
+          </div>
+        `).join('');
+
+        stage.innerHTML = `
+          <div class="fc-progress">
+            <span>${known} of ${total} marked "got it"</span>
+            <div class="fcp-track"><div class="fcp-fill" style="width: ${knownPct}%;"></div></div>
+            <span>${knownPct}%</span>
+          </div>
+          <div class="flashcard">
+            <div class="fc-head">
+              <span class="fc-counter">Card ${idx + 1} of ${total}</span>
+              ${ratingBadge}
+            </div>
+            <div class="fc-bigchar cn" id="fc-bigchar" title="Tap to hear">${c.cn}</div>
+            <div class="fc-meta">
+              <div class="fc-py">${c.py}</div>
+              <div class="fc-en">${c.en}</div>
+            </div>
+            <div class="fc-decomp">${decompHTML}</div>
+            <div class="fc-story">${c.story}</div>
+            <div class="fc-actions">
+              <button class="btn fc-rate-hard" id="fc-rate-hard">↻ Still hard</button>
+              <button class="btn btn-ghost" id="fc-speak">🔊 Hear it</button>
+              <button class="btn fc-rate-know" id="fc-rate-know">✓ Got it</button>
+            </div>
+            <div class="fc-nav">
+              <button class="btn btn-ghost" id="fc-prev" ${idx === 0 ? 'disabled' : ''}>← Prev</button>
+              <button class="btn btn-primary" id="fc-next">${idx === total - 1 ? 'Finish ↓' : 'Next →'}</button>
+            </div>
+          </div>
+        `;
+
+        $('#fc-bigchar').addEventListener('click', () => speakTTS(c.cn));
+        $('#fc-speak').addEventListener('click', () => speakTTS(c.cn));
+        $('#fc-rate-hard').addEventListener('click', () => flashcardRate('hard'));
+        $('#fc-rate-know').addEventListener('click', () => flashcardRate('know'));
+        $('#fc-prev').addEventListener('click', () => flashcardNav(-1));
+        $('#fc-next').addEventListener('click', () => flashcardNav(+1));
+      }
+
+      function flashcardRate(rating) {
+        const c = CHAR_DATA_100[state.charsCardIdx];
+        if (!c) return;
+        saveCharsRated(c.cn, rating);
+        flashcardRender();
+      }
+
+      function flashcardNav(delta) {
+        const next = state.charsCardIdx + delta;
+        if (next < 0) return;
+        if (next >= CHAR_DATA_100.length) {
+          // Auto-advance to the tier scene at end of deck
+          showScene(3);
+          return;
+        }
+        state.charsCardIdx = next;
+        flashcardRender();
+      }
+
+      // ---------- Scene 3: Tier view ----------
+      function renderCharsTiers() {
+        const host = $('#tier-view');
+        if (!host) return;
+        const total = CHAR_DATA_100.length;
+        const known = charsKnownCount();
+
+        // Group entries by tier
+        const byTier = { 1: [], 2: [], 3: [] };
+        CHAR_DATA_100.forEach((c, i) => {
+          if (byTier[c.tier]) byTier[c.tier].push({ ...c, idx: i });
+        });
+        // Pad empty tiers with placeholder cells so the structure is visible.
+        const placeholderCount = { 1: 10, 2: 40, 3: 50 };
+
+        const tiersHTML = CHAR_TIERS.map(t => {
+          const items = byTier[t.tier] || [];
+          const filled = items.length;
+          const placeholders = Math.max(0, placeholderCount[t.tier] - filled);
+          const cellsHTML = items.map(c => {
+            const rated = state.charsRated[c.cn];
+            const cls = rated === 'know' ? 'know' : rated === 'hard' ? 'hard' : '';
+            return `
+              <div class="tier-cell ${cls}" data-idx="${c.idx}">
+                <div class="tc-cn cn">${c.cn}</div>
+                <div class="tc-py">${c.py}</div>
+              </div>
+            `;
+          }).join('');
+          const placeholdersHTML = Array.from({ length: placeholders }, () => `
+            <div class="tier-cell placeholder">
+              <div class="tc-cn cn">·</div>
+              <div class="tc-py">soon</div>
+            </div>
+          `).join('');
+          return `
+            <div class="tier-section">
+              <div class="tier-head">
+                <span class="th-num">Tier ${t.tier}</span>
+                <span class="th-name">${t.label}</span>
+                <span class="th-cov">${t.coverage}</span>
+              </div>
+              <div class="tier-grid">${cellsHTML}${placeholdersHTML}</div>
+            </div>
+          `;
+        }).join('');
+
+        host.innerHTML = `
+          <div class="tier-summary">
+            <div>
+              <div class="ts-num">${known}<span style="color: var(--ink-300); font-weight: 400;"> / ${total}</span></div>
+              <div class="ts-label">marked "got it"</div>
+            </div>
+            <div style="text-align: right; max-width: 320px;">
+              <div style="font-family: var(--font-display); font-weight: 600; color: var(--ink-700);">Green = got it · Gold = still hard</div>
+              <div style="font-size: 0.85rem; color: var(--ink-500); margin-top: 4px;">Tap any character to revisit its flashcard.</div>
+            </div>
+          </div>
+          ${tiersHTML}
+        `;
+
+        $$('.tier-cell:not(.placeholder)', host).forEach(cell => {
+          cell.addEventListener('click', () => {
+            const idx = parseInt(cell.dataset.idx, 10);
+            if (Number.isNaN(idx)) return;
+            state.charsCardIdx = idx;
+            showScene(2);
+          });
+        });
+      }
+
+      function renderCharsQuiz() { startQuiz('chars'); }
+
+      // =====================================================================
       // MODULES — registry of all built modules
       // =====================================================================
       const MODULES = {
@@ -3983,6 +5117,17 @@
           quizCardSel: '#radicals-quiz-card-wrap',
           sceneRenderers: { 0: renderRadicalsHook, 2: renderRadicalsTable, 3: renderCompoundTypes, 4: () => startQuiz('radicals') },
           sceneCleanups: {},
+          next: 'chars',
+        },
+        chars: {
+          name: '100 chars',
+          icon: '百',
+          title: 'Your First 100 Characters',
+          intro: 'The 100 most-frequent Chinese characters cover about half of all written Chinese. Each card pairs the character with a 1-sentence story rooted in the radicals you already learned — and you self-rate, so the deck always replays what you don\'t know yet.',
+          quiz: CHARS_QUIZ,
+          quizCardSel: '#chars-quiz-card-wrap',
+          sceneRenderers: { 0: renderCharsHook, 2: renderCharsFlashcards, 3: renderCharsTiers, 4: renderCharsQuiz },
+          sceneCleanups: {},
           next: null,
         },
       };
@@ -3997,7 +5142,7 @@
         { id: 'tones',     label: 'Tones',          unlocked: true },
         { id: 'pinyin',    label: 'Pinyin',         unlocked: true },
         { id: 'radicals',  label: 'Radicals',       unlocked: true },
-        { id: 'chars',     label: '100 chars',      unlocked: false },
+        { id: 'chars',     label: '100 chars',      unlocked: true },
         { id: 'phrases',   label: 'Phrases',        unlocked: false },
       ];
 

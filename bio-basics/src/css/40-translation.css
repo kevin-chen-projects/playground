@@ -1,0 +1,78 @@
+    /* ============================================================
+       Codon picker (Module 4 / Scene 4)
+       ============================================================ */
+    .codon-picker {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      margin-top: 22px;
+      padding: 18px;
+      background: var(--cream);
+      border: 1.5px solid var(--sun-300);
+      border-radius: var(--radius-lg);
+    }
+    .codon-cell {
+      padding: 10px 0;
+      text-align: center;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      letter-spacing: 0.04em;
+    }
+    .codon-cell:hover {
+      transform: translateY(-2px);
+      border-color: var(--leaf-400);
+      background: var(--leaf-50);
+    }
+    .codon-cell.selected {
+      background: var(--leaf-500);
+      color: white;
+      border-color: var(--leaf-600);
+    }
+    .codon-cell.start { background: var(--sun-300); color: var(--ink-900); border-color: var(--sun-500); }
+    .codon-cell.stop { background: var(--coral-300); color: var(--ink-900); border-color: var(--coral-500); }
+    .codon-result {
+      margin-top: 18px;
+      padding: 18px 22px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: center;
+      min-height: 80px;
+    }
+    .codon-result .codon-big {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      background: var(--leaf-100);
+      color: var(--leaf-600);
+    }
+    .codon-result .codon-aa-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+    .codon-result .codon-aa-desc {
+      font-size: 0.92rem;
+      color: var(--ink-500);
+      line-height: 1.45;
+    }
+    .codon-result.empty .codon-big { background: var(--ink-100); color: var(--ink-500); }
+    @media (max-width: 720px) {
+      .codon-picker { grid-template-columns: repeat(4, 1fr); padding: 12px; }
+      .codon-cell { font-size: 0.72rem; padding: 8px 0; }
+      .codon-result { grid-template-columns: 1fr; text-align: center; }
+      .codon-result .codon-big { font-size: 1.5rem; justify-self: center; }
+    }

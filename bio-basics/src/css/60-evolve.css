@@ -1,0 +1,254 @@
+    /* ============================================================
+       Mutation classifier (Module 6 / Scene 3) + sickle compare (Scene 4)
+       ============================================================ */
+    .mutation-stage {
+      margin-top: 22px;
+      padding: 24px 22px 18px;
+      background: var(--cream);
+      border: 1.5px solid var(--sun-300);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .mutation-strand {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+    }
+    .mutation-codon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .mutation-codon-bases {
+      display: flex;
+      gap: 4px;
+      padding: 6px;
+      background: var(--paper);
+      border-radius: 12px;
+      border: 1.5px solid var(--ink-100);
+    }
+    .mutation-codon.changed .mutation-codon-bases {
+      background: var(--sun-100);
+      border-color: var(--sun-500);
+    }
+    .mutation-codon-label {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--ink-100);
+      color: var(--ink-700);
+    }
+    .mutation-codon-label.aa-changed {
+      background: var(--sun-300);
+      color: var(--ink-900);
+    }
+    .mutation-codon-label.aa-stop {
+      background: var(--coral-300);
+      color: var(--coral-600);
+    }
+    .mutation-base {
+      width: 36px;
+      height: 40px;
+      border: 1.5px solid var(--ink-100);
+      background: var(--paper);
+      border-radius: 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-weight: 800;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      color: var(--ink-900);
+    }
+    .mutation-base:hover {
+      transform: translateY(-2px);
+      border-color: var(--leaf-400);
+      background: var(--leaf-50);
+    }
+    .mutation-base.active {
+      background: var(--leaf-500);
+      color: white;
+      border-color: var(--leaf-600);
+    }
+    .mutation-base.changed {
+      background: var(--sun-300);
+      border-color: var(--sun-500);
+      color: var(--ink-900);
+    }
+    .mutation-options {
+      display: flex;
+      gap: 10px;
+      padding: 14px 18px;
+      background: var(--paper);
+      border-radius: var(--radius);
+      border: 1.5px dashed var(--leaf-400);
+      box-shadow: var(--shadow-sm);
+    }
+    .mutation-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      min-width: 70px;
+    }
+    .mutation-option:hover {
+      transform: translateY(-2px);
+    }
+    .mutation-option .opt-base {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--ink-900);
+    }
+    .mutation-option .opt-tag {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .mutation-option.silent {
+      background: var(--leaf-50);
+      border-color: var(--leaf-400);
+    }
+    .mutation-option.silent .opt-tag { color: var(--leaf-600); }
+    .mutation-option.missense {
+      background: var(--sun-100);
+      border-color: var(--sun-500);
+    }
+    .mutation-option.missense .opt-tag { color: #b88a00; }
+    .mutation-option.nonsense {
+      background: var(--coral-100);
+      border-color: var(--coral-500);
+    }
+    .mutation-option.nonsense .opt-tag { color: var(--coral-600); }
+    .mutation-reset {
+      align-self: flex-end;
+      background: transparent;
+      border: 1.5px solid var(--ink-200);
+      color: var(--ink-700);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 7px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .mutation-reset:hover { background: var(--ink-100); }
+
+    .mutation-verdict {
+      margin-top: 18px;
+      padding: 18px 22px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      min-height: 72px;
+    }
+    .mutation-verdict .verdict-label {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      color: var(--ink-700);
+    }
+    .mutation-verdict .verdict-detail {
+      font-size: 0.92rem;
+      color: var(--ink-500);
+      line-height: 1.45;
+    }
+    .mutation-verdict.silent {
+      background: var(--leaf-50);
+      border-color: var(--leaf-400);
+    }
+    .mutation-verdict.silent .verdict-label { color: var(--leaf-600); }
+    .mutation-verdict.missense {
+      background: var(--sun-100);
+      border-color: var(--sun-500);
+    }
+    .mutation-verdict.missense .verdict-label { color: #b88a00; }
+    .mutation-verdict.nonsense {
+      background: var(--coral-100);
+      border-color: var(--coral-500);
+    }
+    .mutation-verdict.nonsense .verdict-label { color: var(--coral-600); }
+
+    .codon-inline {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--grape-100);
+      color: var(--grape-600);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      font-size: 0.95em;
+    }
+
+    .sickle-compare {
+      margin-top: 18px;
+      padding: 20px;
+      background: var(--bg-alt);
+      border-radius: var(--radius-lg);
+      display: flex;
+      justify-content: center;
+    }
+    .sickle-compare svg {
+      width: 100%;
+      max-width: 560px;
+      height: auto;
+    }
+    .sickle-story {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .sickle-card {
+      padding: 16px 18px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+    }
+    .sickle-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+    }
+    .sickle-card-head .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sickle-card-head .dot-bad  { background: var(--coral-500); }
+    .sickle-card-head .dot-mid  { background: var(--sun-500); }
+    .sickle-card-head .dot-good { background: var(--leaf-500); }
+    .sickle-card p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--ink-700);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 720px) {
+      .mutation-base { width: 30px; height: 36px; font-size: 0.95rem; }
+      .mutation-codon-label { font-size: 0.72rem; padding: 4px 9px; }
+      .mutation-options { flex-wrap: wrap; justify-content: center; }
+      .sickle-story { grid-template-columns: 1fr; }
+    }

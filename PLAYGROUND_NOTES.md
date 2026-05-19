@@ -892,10 +892,11 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 
 **Molecular biology learning site, middle-school-friendly.** A landing page lists 11 modules of a planned curriculum (cell → DNA → transcription → translation → gene regulation → mutations/evolution → cancer/disease → viruses → immune system → vaccines/pandemics → CRISPR). **Modules 1–6 are fully built** (the central-dogma core + mutations: cell, DNA, transcription, translation, gene regulation, mutations/evolution); modules 7–11 are locked placeholders for the disease/immune/vaccine/CRISPR arc. Each built module walks the learner through 6 sequential scenes with at least one interactive centerpiece. Tone target: friendly and curious, deliberately *not* college-level — closer to a kids' science museum than a textbook.
 
-- **Lines:** ~4,900
-- **Layout:** 2-view SPA (landing ↔ module). Inside each module, a 6-scene linear flow with a progress-dot strip at the top. Modules are stored as separate `.module-section[data-module=ID]` blocks; only one is `hidden=false` at a time.
-- **Dependencies:** None (pure vanilla)
-- **No-build:** Open directly in any modern browser
+- **Lines:** ~4,860 (deployed)
+- **Source layout:** `bio-basics/src/` holds the split fragments (4 CSS files, 6 module HTML files, 9 JS files, one `template.html`). `bio-basics/build.py` (~30 lines, stdlib Python) concatenates them into `bio-basics.html`. See [bio-basics/README.md](bio-basics/README.md) for source-tree layout + add-a-module workflow. **Don't edit `bio-basics.html` directly** — there's a banner at the top warning about this.
+- **Layout (deployed):** 2-view SPA (landing ↔ module). Inside each module, a 6-scene linear flow with a progress-dot strip at the top. Modules are stored as separate `.module-section[data-module=ID]` blocks; only one is `hidden=false` at a time.
+- **Dependencies:** None at runtime (pure vanilla). Build dependency: Python 3 stdlib only.
+- **Build:** `python3 bio-basics/build.py`. No watcher; rerun after each source edit.
 
 ### Curriculum (11 modules, 6 built)
 
@@ -924,21 +925,19 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 | 4 | Quiz | 5 multiple-choice questions; instant feedback; confetti on ≥80% |
 | 5 | Recap | 5 takeaway pills + a teaser card linking to the next module (with a "Continue to X →" CTA) |
 
-### Section Map (top-level only; each `.module-section` follows the same shape)
+### Section Map (the deployed file is generated; this is what you'll see if you open it)
+
+The deployed `bio-basics.html` is a single-file artifact. The line ranges below are approximate — each `python3 bio-basics/build.py` may shift them by a few lines. **For editing, work in `bio-basics/src/` instead** (see source-tree layout in `bio-basics/README.md`).
 
 | Range | Section |
 |-------|---------|
-| 1–48 | Header comment block (TOC) |
-| 50–55 | `<head>` — meta, title |
-| 57–~1300 | `<style>` — palette, base, components |
-| ~1320 | Body / top bar |
-| ~1330–~1430 | View 1 — Landing (hero + curriculum + why-bio) |
-| ~1450–~1640 | `.module-section[data-module="cell"]` — 6 scenes (cell module, original) |
-| ~1645–~1790 | `.module-section[data-module="dna"]` — 6 scenes |
-| ~1795–~1955 | `.module-section[data-module="transcription"]` — 6 scenes |
-| ~1960–~2105 | `.module-section[data-module="translation"]` — 6 scenes |
-| ~2110–~2265 | `.module-section[data-module="regulation"]` — 6 scenes |
-| ~2270–end | `<script>` IIFE — state, all SVG factories, all renderers, MODULES dict, routing |
+| 1–14 | Header comment ("GENERATED FILE — DO NOT EDIT DIRECTLY" notice) |
+| ~17–22 | `<head>` — meta, title |
+| ~22–~1620 | `<style>` (concatenated from `src/css/00-base.css` + module CSS) |
+| ~1622 | Body / top bar |
+| ~1632–~1760 | View 1 — Landing (hero + curriculum + why-bio) |
+| ~1762–~end-of-modules | The six `.module-section[data-module=...]` blocks (cell → evolve), each from its own `src/modules/*.html` file |
+| ~end-of-modules–end | `<script>` (concatenated from `src/js/*.js` files in filename order: core → cell → dna → ... → evolve → registry → boot) |
 
 ### Key JS Architecture
 

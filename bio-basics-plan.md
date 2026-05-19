@@ -34,7 +34,7 @@ Source file: `bio-basics.html` (single-file vanilla HTML/CSS/JS, no build step).
 | 10 | Vaccines & Pandemics | 🔒 Locked | — |
 | 11 | CRISPR & Modern Tools | 🔒 Locked | — |
 
-File metrics: ~4,900 lines, ~210 KB. The 6-module foundation (central dogma + mutations) is now polished. The disease/immune/vaccines arc (modules 7–10) is the long-term goal — for helping people understand pandemics, vaccines, etc. Per the file-size split trigger (§3.5), module 7 should likely come AFTER a single-file → multi-file split, since adding it to `bio-basics.html` would push past the 6,000-line ceiling.
+File metrics: deployed `bio-basics.html` ~4,860 lines, ~210 KB. Source split into `bio-basics/src/` (4 CSS fragments + 6 module HTML files + 9 JS files + a 100-line template). The 6-module foundation (central dogma + mutations) is now polished. The disease/immune/vaccines arc (modules 7–10) is the long-term goal — for helping people understand pandemics, vaccines, etc. Adding module 7 now means dropping one file each into `src/css/`, `src/modules/`, `src/js/` and rerunning `python3 bio-basics/build.py` — the file-size split trigger that prompted this work has been resolved.
 
 ---
 
@@ -67,11 +67,27 @@ These are the strategic choices made as of 2026-05-18. Don't relitigate without 
 - Doubles as a portfolio piece.
 - Lets others contribute new modules eventually if it grows.
 
-### 3.5 Architecture: single-file until forced to split
+### 3.5 Architecture: source split, single deployed file
 
-- Stay in `bio-basics.html` through the next 2–3 modules.
-- **Trigger to split:** When file exceeds ~6,000 lines or when adding a new module forces you to read >50% of the file to find the right spot.
-- **Then:** Split into one HTML file per module + shared CSS/JS files. Or move to **Astro** (static-site generator).
+- **Source lives in `bio-basics/src/`.** Per-module HTML / CSS / JS fragments,
+  concatenated through a 30-line `bio-basics/build.py` into the deployed
+  `bio-basics.html` at the repo root.
+- **Why split:** the single file hit ~4,900 lines after module 6. Adding more
+  meant scrolling past unrelated modules to find the right spot. The split lets
+  each module live in its own ~150–400-line file you can read top-to-bottom.
+- **Why keep a single deployed file:** Cloudflare Pages / GitHub Pages serve
+  static HTML with zero config. No build artifacts to chase, no runtime
+  dependencies. The "open the file in any browser" property is preserved.
+- **Build:**
+  ```bash
+  python3 bio-basics/build.py
+  ```
+  No Node, no npm, no watcher. Just Python's stdlib.
+- **Trigger to revisit (Astro):** if the curriculum grows past ~20 modules,
+  if you want MDX for content, or if you want shared layouts beyond the
+  current single template. Until then, the concat-build approach is enough.
+- **See [bio-basics/README.md](bio-basics/README.md)** for the source-tree
+  layout, build workflow, and conventions.
 
 ### 3.6 No premature monetization
 
@@ -264,15 +280,23 @@ When adding new modules, follow these to keep the site coherent:
 
 | File | Purpose |
 |------|---------|
-| `bio-basics.html` | The site itself. Single-file vanilla HTML/CSS/JS. Open in browser to run. |
+| `bio-basics.html` | The deployed site (generated). Open in any browser to run. **Don't edit directly** — edit the source files and rebuild. |
+| `bio-basics/build.py` | 30-line Python script. Concatenates source fragments through a template into `bio-basics.html`. Run from anywhere: `python3 bio-basics/build.py`. |
+| `bio-basics/README.md` | Source-tree layout + workflow + conventions. **Read this when you want to edit a module or add a new one.** |
+| `bio-basics/src/template.html` | The wrapper boilerplate (head, body shell, landing markup). Has placeholders for CSS / modules HTML / JS. |
+| `bio-basics/src/css/*.css` | Stylesheets — `00-base.css` plus one file per module that has its own scoped CSS. |
+| `bio-basics/src/modules/*.html` | One file per module's `<div class="module-section">` block. |
+| `bio-basics/src/js/*.js` | Per-module data + renderers, plus core / registry / boot. |
 | `bio-basics-plan.md` | This file. Project plan + handoff. |
 | `PLAYGROUND_NOTES.md` | Section #13 has the technical reference: section map, JS entry points, palette, full architecture. |
 
 When moving to a dedicated repo:
-- Rename `bio-basics.html` → `index.html` (so root URL serves it)
-- Bring `bio-basics-plan.md` along (rename to `PLAN.md` or keep)
+- The `bio-basics/` source dir comes along
+- `build.py` works without modification (it walks up one directory to write `bio-basics.html`)
+- Rename the deployed `bio-basics.html` → `index.html` (so root URL serves it). Update the OUT path inside `build.py` accordingly.
+- Bring `bio-basics-plan.md` (rename to `PLAN.md` or keep as-is)
 - Copy section #13 of `PLAYGROUND_NOTES.md` into a new `ARCHITECTURE.md`
-- Write a `README.md` (template in §4 step 3 above)
+- Write a `README.md` for the repo root (template in §4 step 3 above)
 
 ---
 

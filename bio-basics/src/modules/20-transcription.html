@@ -1,0 +1,162 @@
+        <!-- ============= MODULE: TRANSCRIPTION ============= -->
+        <div class="module-section" data-module="transcription" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">~6,000</span>
+                <div class="big-number-label">mRNA copies your cells make every minute.</div>
+                <h2>How does DNA <em>get out of the nucleus?</em></h2>
+                <p>
+                  DNA is precious. The cell never lets the original leave the
+                  nucleus. But proteins get built outside, where the ribosomes are.
+                </p>
+                <p>
+                  So the cell makes a working copy. A short, single-stranded
+                  version of just the gene it needs. That copy is called
+                  <strong>mRNA</strong>, and the process is <strong>transcription</strong>.
+                </p>
+              </div>
+              <div class="hook-stage" id="trans-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 3 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Show me how →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea (photocopy machine) -->
+          <div class="scene" data-scene="1">
+            <h2>Transcription = photocopying one page.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Imagine the DNA is a giant reference book chained to a desk. You
+              can't take it home. But you can photocopy a single page at a time.
+              Your cells do this all day, every day.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">📚</div>
+                <div class="pair"><span class="biology">The original</span></div>
+                <p class="desc">DNA stays safe inside the nucleus. Never leaves.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🤖</div>
+                <div class="pair"><span class="biology">The copy machine</span></div>
+                <p class="desc">A protein called <strong>RNA polymerase</strong>. Reads DNA, builds RNA.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📋</div>
+                <div class="pair"><span class="biology">The copy (mRNA)</span></div>
+                <p class="desc">Single strand. Just one gene. Disposable.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🚪</div>
+                <div class="pair"><span class="biology">The exit (nuclear pore)</span></div>
+                <p class="desc">mRNA slips out through tiny doors in the nuclear membrane.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Watch it work</span>
+              <button class="btn btn-primary" data-action="next">Watch transcription happen →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive RNA polymerase -->
+          <div class="scene" data-scene="2">
+            <h2>RNA polymerase, in action.</h2>
+            <p style="margin-top: 8px; max-width: 720px; color: var(--ink-700);">
+              The little blue machine is RNA polymerase. It unzips the DNA, reads
+              the bottom strand, and builds a matching mRNA strand. Press play to watch.
+            </p>
+            <div class="anim-stage" id="trans-stage"></div>
+            <div class="anim-controls">
+              <button class="btn btn-pill btn-ghost" id="trans-play">▶ Play</button>
+              <button class="btn btn-pill btn-ghost" id="trans-step">Step ▶</button>
+              <button class="btn btn-pill btn-ghost" id="trans-reset">↺ Reset</button>
+              <span style="margin-left: auto; color: var(--ink-500); font-size: 0.9rem;">
+                Position: <span id="trans-pos">0</span> / <span id="trans-len">12</span>
+              </span>
+            </div>
+            <div class="anim-readout" id="trans-readout"></div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · Notice: U replaces T</span>
+              <button class="btn btn-primary" data-action="next">DNA vs RNA →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: DNA vs RNA differences -->
+          <div class="scene" data-scene="3">
+            <h2>DNA vs. RNA — what's different?</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Both store info. Both are made of base letters. But they have
+              different jobs and a few important differences:
+            </p>
+            <div class="vs-table">
+              <div class="vs-col vs-dna">
+                <h3>🧬 DNA</h3>
+                <ul>
+                  <li><strong>Two strands</strong>, twisted (the famous helix)</li>
+                  <li>Letters: <strong>A, T, G, C</strong></li>
+                  <li><strong>Long-term storage</strong> — the master file</li>
+                  <li>Stays in the <strong>nucleus</strong></li>
+                  <li>Lasts your <strong>whole lifetime</strong></li>
+                </ul>
+              </div>
+              <div class="vs-col vs-rna">
+                <h3>📝 RNA (specifically, mRNA)</h3>
+                <ul>
+                  <li><strong>Single strand</strong>, no twist</li>
+                  <li>Letters: <strong>A, U, G, C</strong> (U replaces T)</li>
+                  <li><strong>Disposable</strong> — a working copy</li>
+                  <li>Travels to the <strong>ribosomes</strong></li>
+                  <li>Lasts <strong>minutes to hours</strong>, then recycled</li>
+                </ul>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="trans-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap + tease -->
+          <div class="scene" data-scene="5">
+            <h2>You watched a copy machine work. 📋</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Now the message is out of the nucleus. But the ribosome doesn't
+              speak DNA — it speaks <em>protein</em>. So one more step is needed.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">📚</span><span class="lbl">DNA stays in the nucleus</span></div>
+              <div class="recap-pill"><span class="ic">🤖</span><span class="lbl">RNA polymerase makes mRNA</span></div>
+              <div class="recap-pill"><span class="ic">🔀</span><span class="lbl">U replaces T in RNA</span></div>
+              <div class="recap-pill"><span class="ic">🚪</span><span class="lbl">mRNA exits through pores</span></div>
+              <div class="recap-pill"><span class="ic">⏱️</span><span class="lbl">mRNA is short-lived</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🔤</div>
+              <div>
+                <h3>Coming up next: Translation</h3>
+                <p>
+                  The ribosome reads mRNA in 3-letter chunks called codons. Each
+                  codon picks one amino acid, and the chain becomes a protein.
+                  Let's go watch.
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 3 complete · Translation unlocked</span>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="translation">Continue to Translation →</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="transcription" -->

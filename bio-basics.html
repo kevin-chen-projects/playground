@@ -1,55 +1,15 @@
 <!DOCTYPE html>
 <!--
-================================================================================
-  Bio Basics — molecular biology for everyone
-================================================================================
+  ==========================================================================
+  GENERATED FILE — DO NOT EDIT DIRECTLY.
 
-  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+  Source files live under bio-basics/src/. To rebuild this file from
+  source:
 
-  FILE INDEX
-  ==============================================================================
-  HEAD
-    1–18    Header comment (this block)
-    20–40   <head>: meta, title
+      python3 bio-basics/build.py
 
-  STYLE  (~lines 41–880)
-    :root            palette, radii, shadows, typography
-    Reset + base     box-sizing, body, scroll behavior
-    .top-bar         brand, breadcrumb, home link
-    Buttons          .btn, .btn-primary, .btn-ghost, .btn-pill
-    Landing view     hero, animated cell, curriculum grid, locked cards
-    Module view      scene container, progress dots, navigation
-    Scene 1 hook     big cell, floating molecules, headline
-    Scene 2 city     city ↔ cell pair cards
-    Scene 3 tour     interactive cell SVG + info sidebar
-    Scene 4 plant    animal/plant toggle, callouts
-    Scene 5 quiz     question card, options, feedback, results, confetti
-    Scene 6 recap    summary + next-module tease
-    Animations       @keyframes (pulse, drift, glow, dnaWiggle, confetti, shake)
-    Mobile (≤720px)  layout collapses, sidebar moves below SVG, font scales
-
-  BODY  (~lines 881–1080)
-    .top-bar
-    .view.view-landing      hero + curriculum
-    .view.view-module       scene host + progress dots + nav
-
-  SCRIPT  (~lines 1081–end, single IIFE)
-    State          { view, sceneIndex, parts seen, quiz answers, completed }
-    Persistence    localStorage['biobasics_state_v1']
-    Routing        showView(name), showScene(index)
-    Curriculum     CURRICULUM array (8 modules, only #1 unlocked)
-    Scene 3 tour   wiring cell-part clicks, sidebar updates, all-seen check
-    Scene 4 plant  toggle handler crossfades extra plant features
-    Scene 5 quiz   QUIZ data, render, grade, confetti
-    Boot           wires nav, handles back/forward, restores state
-
-  Notes:
-  - Color palette: mint-green primary (life), coral, sun-yellow, grape (nucleus),
-    sky (membrane). Cream + paper background. Friendly ui-rounded font.
-  - Persistence is light: we only remember which modules are completed. Quiz
-    answers and tour-part progress reset each visit so users can replay.
-  - Inline SVG everywhere — no images, no fonts loaded, no external deps.
-================================================================================
+  See bio-basics/README.md for the source-tree layout.
+  ==========================================================================
 -->
 <html lang="en">
 <head>
@@ -3142,115 +3102,6 @@
           wrongHint: 'It\'s longer than you\'d expect — a lot longer.' },
       ];
 
-      const TRANS_QUIZ = [
-        { q: 'What\'s the name of the "copy machine" that reads DNA and builds mRNA?',
-          options: ['Ribosome', 'Mitochondrion', 'RNA polymerase', 'tRNA'],
-          correct: 2,
-          why: 'Right! RNA polymerase. It scoots along the DNA, unzipping and copying.',
-          wrongHint: 'It\'s a protein with "RNA" in the name.' },
-        { q: 'In RNA, which letter replaces T (thymine)?',
-          options: ['A', 'C', 'G', 'U'],
-          correct: 3,
-          why: 'Yep — U (uracil). RNA uses A, U, G, C instead of A, T, G, C.',
-          wrongHint: 'It\'s the only letter in RNA that doesn\'t exist in DNA.' },
-        { q: 'Why does the cell make mRNA at all? Why not just use DNA directly?',
-          options: [
-            'DNA is too valuable to leave the nucleus',
-            'mRNA is faster to read',
-            'DNA can\'t carry information',
-            'mRNA is bigger and easier to find'
-          ],
-          correct: 0,
-          why: 'Exactly — DNA is the master copy. The cell never lets it leave. mRNA is the disposable working copy.',
-          wrongHint: 'Think about why you\'d photocopy a library book instead of taking the original home.' },
-        { q: 'Where does mRNA go after being made in the nucleus?',
-          options: ['Stays in the nucleus', 'Out to the ribosomes', 'To the mitochondria', 'Out of the cell'],
-          correct: 1,
-          why: 'Right — mRNA exits the nucleus through pores and travels to ribosomes, where proteins get built.',
-          wrongHint: 'Think about who needs the message — the protein-builders.' },
-        { q: 'How long does most mRNA last before being recycled?',
-          options: ['Seconds to minutes', 'Hours to days', 'Months', 'A lifetime'],
-          correct: 0,
-          why: 'Yep — mRNA is short-lived on purpose. The cell wants tight control over what gets built when.',
-          wrongHint: 'Disposable means disposable. Think very short.' },
-      ];
-
-      const TRANSL_QUIZ = [
-        { q: 'How many mRNA letters does it take to specify ONE amino acid?',
-          options: ['1', '2', '3', '4'],
-          correct: 2,
-          why: 'Right — 3. Each 3-letter "word" of mRNA is called a codon, and it picks one amino acid.',
-          wrongHint: 'It\'s a small number. Codons are 3-letter words.' },
-        { q: 'About how many different amino acids are used to build proteins in your body?',
-          options: ['4', '20', '64', '20,000'],
-          correct: 1,
-          why: 'Yes — about 20. They chain together in different orders to make every protein in you.',
-          wrongHint: 'It\'s more than DNA letters but fewer than codons.' },
-        { q: 'What does tRNA do?',
-          options: [
-            'Stores DNA',
-            'Cuts DNA',
-            'Delivers amino acids to the ribosome',
-            'Makes more ribosomes'
-          ],
-          correct: 2,
-          why: 'Exactly — tRNA is the delivery truck. Each one carries an amino acid that matches a specific codon.',
-          wrongHint: 'It has "transfer" in the name. Think delivery.' },
-        { q: 'Where does translation happen?',
-          options: ['Inside the nucleus', 'On the ribosome', 'On the cell membrane', 'Inside mitochondria'],
-          correct: 1,
-          why: 'Right — translation happens at the ribosome. mRNA threads through it; amino acids snap together on top.',
-          wrongHint: 'Think of the assembly line. Where do proteins get built?' },
-        { q: 'What happens AFTER the amino acid chain is built?',
-          options: [
-            'It\'s erased',
-            'It folds into a 3D shape',
-            'It turns back into DNA',
-            'It leaves the cell'
-          ],
-          correct: 1,
-          why: 'Yes — the chain folds into a 3D shape. That shape is what makes the protein actually do its job.',
-          wrongHint: 'A flat string can\'t do much. Proteins have to take a specific shape.' },
-      ];
-
-      const REG_QUIZ = [
-        { q: 'A brain cell and a skin cell in your body have:',
-          options: [
-            'Different DNA',
-            'The same DNA, but different active genes',
-            'The same DNA and the same active genes',
-            'No DNA in the skin cell'
-          ],
-          correct: 1,
-          why: 'Right — same DNA, different active genes. That\'s the whole trick of cell specialization.',
-          wrongHint: 'The DNA is identical. The difference is which switches are flipped.' },
-        { q: 'About how many genes does a typical human cell have ON at any moment?',
-          options: ['~20', '~200', 'A few thousand', 'All 20,000'],
-          correct: 2,
-          why: 'Yep — a few thousand. Out of ~20,000 total. Different cell types pick different subsets.',
-          wrongHint: 'Way more than a handful, but way less than all of them.' },
-        { q: 'What are transcription factors?',
-          options: [
-            'Tools to count how fast mRNA is made',
-            'Proteins that turn genes on or off',
-            'Bacteria that infect cells',
-            'A type of vitamin'
-          ],
-          correct: 1,
-          why: 'Right — they\'re proteins whose job is to bind DNA and decide which genes get copied.',
-          wrongHint: 'They\'re proteins. They\'re regulators. The clue is in the word "factor".' },
-        { q: 'Which of these can change which genes are active in your cells right now?',
-          options: ['Food you eat', 'Sleep', 'Stress', 'All of the above'],
-          correct: 3,
-          why: 'All of them. Your DNA stays fixed, but your body is constantly tuning which genes are on.',
-          wrongHint: 'Think about it — all of these are real signals your body responds to.' },
-        { q: 'True or false: your DNA alone determines exactly who you are.',
-          options: ['True', 'False'],
-          correct: 1,
-          why: 'False — your DNA gives you possibilities. Environment, choices, and timing all shape what actually happens.',
-          wrongHint: 'Remember: same DNA, very different cells. Context matters a lot.' },
-      ];
-
       // =====================================================================
       // MODULE 2 — DNA: data + SVG + renderers
       // =====================================================================
@@ -3440,6 +3291,39 @@
         }, 150);
       }
 
+      const TRANS_QUIZ = [
+        { q: 'What\'s the name of the "copy machine" that reads DNA and builds mRNA?',
+          options: ['Ribosome', 'Mitochondrion', 'RNA polymerase', 'tRNA'],
+          correct: 2,
+          why: 'Right! RNA polymerase. It scoots along the DNA, unzipping and copying.',
+          wrongHint: 'It\'s a protein with "RNA" in the name.' },
+        { q: 'In RNA, which letter replaces T (thymine)?',
+          options: ['A', 'C', 'G', 'U'],
+          correct: 3,
+          why: 'Yep — U (uracil). RNA uses A, U, G, C instead of A, T, G, C.',
+          wrongHint: 'It\'s the only letter in RNA that doesn\'t exist in DNA.' },
+        { q: 'Why does the cell make mRNA at all? Why not just use DNA directly?',
+          options: [
+            'DNA is too valuable to leave the nucleus',
+            'mRNA is faster to read',
+            'DNA can\'t carry information',
+            'mRNA is bigger and easier to find'
+          ],
+          correct: 0,
+          why: 'Exactly — DNA is the master copy. The cell never lets it leave. mRNA is the disposable working copy.',
+          wrongHint: 'Think about why you\'d photocopy a library book instead of taking the original home.' },
+        { q: 'Where does mRNA go after being made in the nucleus?',
+          options: ['Stays in the nucleus', 'Out to the ribosomes', 'To the mitochondria', 'Out of the cell'],
+          correct: 1,
+          why: 'Right — mRNA exits the nucleus through pores and travels to ribosomes, where proteins get built.',
+          wrongHint: 'Think about who needs the message — the protein-builders.' },
+        { q: 'How long does most mRNA last before being recycled?',
+          options: ['Seconds to minutes', 'Hours to days', 'Months', 'A lifetime'],
+          correct: 0,
+          why: 'Yep — mRNA is short-lived on purpose. The cell wants tight control over what gets built when.',
+          wrongHint: 'Disposable means disposable. Think very short.' },
+      ];
+
       // =====================================================================
       // MODULE 3 — TRANSCRIPTION: data + SVG + renderers
       // =====================================================================
@@ -3626,6 +3510,44 @@
         const btn = $('#trans-play');
         if (btn) btn.innerHTML = '▶ Play';
       }
+
+      const TRANSL_QUIZ = [
+        { q: 'How many mRNA letters does it take to specify ONE amino acid?',
+          options: ['1', '2', '3', '4'],
+          correct: 2,
+          why: 'Right — 3. Each 3-letter "word" of mRNA is called a codon, and it picks one amino acid.',
+          wrongHint: 'It\'s a small number. Codons are 3-letter words.' },
+        { q: 'About how many different amino acids are used to build proteins in your body?',
+          options: ['4', '20', '64', '20,000'],
+          correct: 1,
+          why: 'Yes — about 20. They chain together in different orders to make every protein in you.',
+          wrongHint: 'It\'s more than DNA letters but fewer than codons.' },
+        { q: 'What does tRNA do?',
+          options: [
+            'Stores DNA',
+            'Cuts DNA',
+            'Delivers amino acids to the ribosome',
+            'Makes more ribosomes'
+          ],
+          correct: 2,
+          why: 'Exactly — tRNA is the delivery truck. Each one carries an amino acid that matches a specific codon.',
+          wrongHint: 'It has "transfer" in the name. Think delivery.' },
+        { q: 'Where does translation happen?',
+          options: ['Inside the nucleus', 'On the ribosome', 'On the cell membrane', 'Inside mitochondria'],
+          correct: 1,
+          why: 'Right — translation happens at the ribosome. mRNA threads through it; amino acids snap together on top.',
+          wrongHint: 'Think of the assembly line. Where do proteins get built?' },
+        { q: 'What happens AFTER the amino acid chain is built?',
+          options: [
+            'It\'s erased',
+            'It folds into a 3D shape',
+            'It turns back into DNA',
+            'It leaves the cell'
+          ],
+          correct: 1,
+          why: 'Yes — the chain folds into a 3D shape. That shape is what makes the protein actually do its job.',
+          wrongHint: 'A flat string can\'t do much. Proteins have to take a specific shape.' },
+      ];
 
       // =====================================================================
       // MODULE 4 — TRANSLATION: data + SVG + renderers
@@ -3988,6 +3910,44 @@
           </div>
         `;
       }
+
+      const REG_QUIZ = [
+        { q: 'A brain cell and a skin cell in your body have:',
+          options: [
+            'Different DNA',
+            'The same DNA, but different active genes',
+            'The same DNA and the same active genes',
+            'No DNA in the skin cell'
+          ],
+          correct: 1,
+          why: 'Right — same DNA, different active genes. That\'s the whole trick of cell specialization.',
+          wrongHint: 'The DNA is identical. The difference is which switches are flipped.' },
+        { q: 'About how many genes does a typical human cell have ON at any moment?',
+          options: ['~20', '~200', 'A few thousand', 'All 20,000'],
+          correct: 2,
+          why: 'Yep — a few thousand. Out of ~20,000 total. Different cell types pick different subsets.',
+          wrongHint: 'Way more than a handful, but way less than all of them.' },
+        { q: 'What are transcription factors?',
+          options: [
+            'Tools to count how fast mRNA is made',
+            'Proteins that turn genes on or off',
+            'Bacteria that infect cells',
+            'A type of vitamin'
+          ],
+          correct: 1,
+          why: 'Right — they\'re proteins whose job is to bind DNA and decide which genes get copied.',
+          wrongHint: 'They\'re proteins. They\'re regulators. The clue is in the word "factor".' },
+        { q: 'Which of these can change which genes are active in your cells right now?',
+          options: ['Food you eat', 'Sleep', 'Stress', 'All of the above'],
+          correct: 3,
+          why: 'All of them. Your DNA stays fixed, but your body is constantly tuning which genes are on.',
+          wrongHint: 'Think about it — all of these are real signals your body responds to.' },
+        { q: 'True or false: your DNA alone determines exactly who you are.',
+          options: ['True', 'False'],
+          correct: 1,
+          why: 'False — your DNA gives you possibilities. Environment, choices, and timing all shape what actually happens.',
+          wrongHint: 'Remember: same DNA, very different cells. Context matters a lot.' },
+      ];
 
       // =====================================================================
       // MODULE 5 — REGULATION: data + SVG + renderers
@@ -4486,6 +4446,7 @@
           next: null,
         },
       };
+
 
       // =====================================================================
       // Routing & rendering

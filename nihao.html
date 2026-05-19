@@ -1092,11 +1092,745 @@
     }
 
     /* ============================================================
+       Module switcher — top-bar pill nav (added when ≥2 modules exist)
+       ============================================================ */
+    .module-switcher {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px;
+      background: var(--ink-100);
+      border-radius: 999px;
+    }
+    .module-switcher button {
+      border: none; background: transparent;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--ink-700);
+      transition: background 0.15s, color 0.15s;
+      display: flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+    }
+    .module-switcher button:hover:not(:disabled):not(.active) {
+      background: rgba(255, 255, 255, 0.5);
+      color: var(--ink-900);
+    }
+    .module-switcher button.active {
+      background: var(--paper);
+      color: var(--ink-900);
+      box-shadow: var(--shadow-sm);
+    }
+    .module-switcher button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .module-switcher button .num {
+      font-size: 0.7rem;
+      color: var(--vermilion);
+      font-weight: 700;
+    }
+
+    /* Module-section visibility */
+    .module-section[hidden] { display: none; }
+
+    /* ============================================================
+       City-grid (4-card explainer used in Big-Idea scenes)
+       ============================================================ */
+    .city-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .city-card {
+      background: var(--cream);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      padding: 22px;
+      transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+    }
+    .city-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--gold);
+    }
+    .city-card .icons {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    .city-card .pair {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .city-card .pair .biology {
+      color: var(--vermilion);
+    }
+    .city-card .desc {
+      font-size: 0.92rem;
+      color: var(--ink-500);
+      line-height: 1.45;
+    }
+
+    /* Generic callout */
+    .callout {
+      padding: 16px 22px;
+      border-radius: var(--radius);
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+    }
+    .callout strong {
+      display: block;
+      margin-bottom: 6px;
+      font-family: var(--font-display);
+    }
+    .callout p { font-size: 0.95rem; line-height: 1.5; }
+
+    /* ============================================================
+       Module 2 — Pinyin: hook stage
+       ============================================================ */
+    .pinyin-hook-stage {
+      display: flex; flex-direction: column;
+      gap: 14px;
+    }
+    .py-headline {
+      display: flex; align-items: center; gap: 14px;
+      padding: 22px 24px;
+      background: var(--cream);
+      border: 2px solid var(--gold);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+    .py-headline .cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 3rem;
+      color: var(--ink-900);
+    }
+    .py-headline .py-arrow {
+      color: var(--ink-300);
+      font-size: 1.5rem;
+    }
+    .py-headline .py-pinyin {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 2.2rem;
+    }
+    .py-examples {
+      display: flex; flex-direction: column;
+      gap: 8px;
+    }
+    .py-example {
+      display: grid;
+      grid-template-columns: 80px 1fr 100px;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .py-example:hover {
+      border-color: var(--vermilion);
+      transform: translateX(2px);
+    }
+    .py-example .cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.6rem;
+    }
+    .py-example .py-pinyin {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+    .py-example .py-en {
+      font-size: 0.85rem;
+      color: var(--ink-500);
+      text-align: right;
+    }
+
+    /* ============================================================
+       Module 2 — Syllable builder (Big-Idea scene)
+       ============================================================ */
+    .syllable-builder {
+      display: flex; align-items: stretch; justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 26px;
+    }
+    .sb-piece, .sb-result {
+      flex: 1; min-width: 130px;
+      background: var(--paper);
+      border: 2px solid var(--ink-200);
+      border-radius: var(--radius);
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .sb-result {
+      background: linear-gradient(135deg, var(--cream), var(--gold-pale));
+      border-color: var(--gold);
+    }
+    .sb-piece.sb-tone { border-color: var(--t1); background: var(--t1-pale); }
+    .sb-label {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      margin-bottom: 10px;
+    }
+    .sb-letter {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2.4rem;
+      color: var(--ink-900);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .sb-result .sb-letter { color: var(--vermilion); }
+    .sb-desc {
+      font-size: 0.78rem;
+      color: var(--ink-500);
+      line-height: 1.3;
+    }
+    .sb-plus, .sb-equals {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.6rem;
+      color: var(--ink-300);
+      align-self: center;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       Module 2 — Pinyin chart (Scene 2)
+       ============================================================ */
+    .pinyin-chart-wrap {
+      margin-top: 22px;
+      background: var(--cream);
+      padding: 16px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+    }
+    .pinyin-chart {
+      display: grid;
+      gap: 4px;
+      min-width: 720px;
+    }
+    .py-row {
+      display: grid;
+      grid-template-columns: 60px repeat(12, 1fr);
+      gap: 4px;
+    }
+    .py-row.head .py-cell {
+      cursor: default;
+      background: transparent;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: var(--ink-500);
+    }
+    .py-cell {
+      padding: 8px 4px;
+      text-align: center;
+      background: var(--paper);
+      border: 1.5px solid transparent;
+      border-radius: 6px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.12s, background 0.12s;
+    }
+    .py-cell:hover:not(.empty):not(.head) {
+      transform: translateY(-1px);
+      border-color: var(--vermilion);
+      background: var(--cream);
+    }
+    .py-cell.empty {
+      cursor: default;
+      background: var(--ink-100);
+      opacity: 0.4;
+      font-size: 0.7rem;
+      color: var(--ink-300);
+    }
+    .py-cell.tricky {
+      background: var(--t1-pale);
+      border-color: var(--vermilion);
+    }
+    .py-cell.tricky:hover {
+      background: var(--vermilion);
+      color: white;
+    }
+    .py-row .py-init {
+      cursor: default;
+      background: transparent;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--vermilion);
+      align-self: center;
+      padding: 8px 4px;
+      text-align: center;
+    }
+    .py-row .py-init.tricky-init {
+      color: var(--vermilion-dark);
+      background: var(--t1-pale);
+      border-radius: 6px;
+    }
+
+    .pinyin-readout {
+      margin-top: 18px;
+      padding: 22px 26px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      min-height: 100px;
+      display: flex; align-items: center; gap: 24px;
+      flex-wrap: wrap;
+    }
+    .pinyin-readout .placeholder {
+      color: var(--ink-500);
+      font-style: italic;
+    }
+    .pinyin-readout .ro-big {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 3rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .pinyin-readout .ro-cn {
+      font-family: var(--font-cn);
+      font-size: 2.4rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .pinyin-readout .ro-info { flex: 1; min-width: 200px; }
+    .pinyin-readout .ro-meaning {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+    }
+    .pinyin-readout .ro-note {
+      font-size: 0.9rem;
+      color: var(--ink-500);
+      line-height: 1.45;
+    }
+
+    /* ============================================================
+       Module 2 — Gotcha cards (Scene 3)
+       ============================================================ */
+    .gotcha-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+    .gotcha-card {
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .gotcha-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--vermilion);
+      box-shadow: var(--shadow-md);
+    }
+    .gotcha-card .gc-letter {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2.6rem;
+      color: var(--vermilion);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .gotcha-card .gc-not {
+      font-size: 0.78rem;
+      color: var(--ink-300);
+      margin-bottom: 4px;
+      letter-spacing: 0.02em;
+    }
+    .gotcha-card .gc-not-text {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--ink-700);
+      font-size: 0.95rem;
+      text-decoration: line-through;
+      margin-bottom: 10px;
+    }
+    .gotcha-card .gc-but {
+      font-size: 0.78rem;
+      color: var(--vermilion);
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .gotcha-card .gc-but-text {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--ink-900);
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+    .gotcha-card .gc-example {
+      padding-top: 10px;
+      border-top: 1px dashed var(--ink-200);
+      font-size: 0.85rem;
+      color: var(--ink-700);
+    }
+    .gotcha-card .gc-example .cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-right: 6px;
+    }
+    .gotcha-card .gc-example .py {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--vermilion);
+    }
+    .gotcha-card .gc-play {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: var(--ink-300);
+    }
+
+    /* ============================================================
+       Module 3 — Radical hook stage (decompose demos)
+       ============================================================ */
+    .radical-hook-stage {
+      display: flex; flex-direction: column;
+      gap: 14px;
+    }
+    .char-decompose-demo {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 14px;
+      align-items: center;
+      padding: 16px 20px;
+      background: var(--cream);
+      border: 1.5px solid var(--gold-light);
+      border-radius: var(--radius);
+    }
+    .cd-result, .cd-piece {
+      text-align: center;
+    }
+    .cd-char {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 2.4rem;
+      color: var(--ink-900);
+      line-height: 1;
+    }
+    .cd-result .cd-char {
+      color: var(--vermilion);
+      font-size: 2.8rem;
+    }
+    .cd-meaning {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.78rem;
+      color: var(--ink-500);
+      margin-top: 4px;
+    }
+    .cd-equals, .cd-plus {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.4rem;
+      color: var(--ink-300);
+      align-self: center;
+    }
+    .cd-pieces {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .cd-pieces .cd-piece { padding: 6px 10px; }
+
+    /* ============================================================
+       Module 3 — Radicals grid (Scene 2)
+       ============================================================ */
+    .radicals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+      margin-top: 22px;
+      padding: 16px;
+      background: var(--cream);
+      border-radius: var(--radius);
+    }
+    .radical-cell {
+      padding: 12px 8px 10px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.15s;
+    }
+    .radical-cell:hover {
+      transform: translateY(-2px);
+      border-color: var(--vermilion);
+    }
+    .radical-cell.active {
+      background: var(--cream);
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px var(--gold-pale);
+    }
+    .radical-cell .rc-char {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.7rem;
+      color: var(--ink-900);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .radical-cell.active .rc-char { color: var(--vermilion); }
+    .radical-cell .rc-meaning {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.72rem;
+      color: var(--ink-500);
+      letter-spacing: 0.02em;
+    }
+
+    .radical-detail {
+      margin-top: 18px;
+      padding: 24px 26px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      min-height: 140px;
+    }
+    .radical-detail .placeholder {
+      color: var(--ink-500);
+      font-style: italic;
+      text-align: center;
+      padding: 30px 0;
+    }
+    .radical-detail .rd-head {
+      display: flex; align-items: center; gap: 18px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed var(--ink-100);
+    }
+    .radical-detail .rd-char {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 4rem;
+      color: var(--vermilion);
+      line-height: 1;
+    }
+    .radical-detail .rd-info { flex: 1; }
+    .radical-detail .rd-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+    .radical-detail .rd-position {
+      font-size: 0.85rem;
+      color: var(--ink-500);
+    }
+    .radical-detail .rd-examples-label {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      margin-bottom: 10px;
+    }
+    .radical-detail .rd-examples {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .radical-detail .rd-example {
+      padding: 10px 12px;
+      background: var(--cream);
+      border: 1.5px solid var(--ink-100);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .radical-detail .rd-example:hover {
+      border-color: var(--vermilion);
+      transform: translateY(-1px);
+    }
+    .radical-detail .rd-example .rdx-char {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: var(--ink-900);
+      line-height: 1;
+    }
+    .radical-detail .rd-example .rdx-info {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .radical-detail .rd-example .rdx-py {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .radical-detail .rd-example .rdx-en {
+      font-size: 0.75rem;
+      color: var(--ink-500);
+    }
+
+    /* Char decomposition popover (after clicking an example) */
+    .rd-decomp {
+      margin-top: 14px;
+      padding: 14px 16px;
+      background: var(--gold-pale);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; gap: 12px;
+      flex-wrap: wrap;
+      animation: slideUp 0.3s ease;
+    }
+    .rd-decomp .rdd-char {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 2.4rem;
+      color: var(--vermilion);
+      line-height: 1;
+    }
+    .rd-decomp .rdd-eq { font-weight: 800; font-size: 1.4rem; color: var(--ink-300); }
+    .rd-decomp .rdd-piece {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: var(--ink-700);
+      padding: 6px 12px;
+      background: var(--paper);
+      border-radius: 8px;
+    }
+    .rd-decomp .rdd-plus { color: var(--ink-300); font-weight: 800; }
+    .rd-decomp .rdd-explain {
+      flex: 1; min-width: 200px;
+      font-size: 0.88rem;
+      color: var(--ink-700);
+      line-height: 1.45;
+    }
+
+    /* ============================================================
+       Module 3 — Compound types (Scene 3)
+       ============================================================ */
+    .compound-types {
+      display: flex; flex-direction: column;
+      gap: 18px;
+      margin-top: 22px;
+    }
+    .ctype {
+      background: var(--cream);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+    }
+    .ctype-head {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 8px;
+    }
+    .ctype-num {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--vermilion);
+      color: white;
+      display: grid; place-items: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+    .ctype-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+    .ctype-pct {
+      color: var(--ink-500);
+      font-weight: 500;
+      font-size: 0.85rem;
+      margin-left: 4px;
+    }
+    .ctype-desc {
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .ctype-examples {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .ctype-example {
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .ctype-example:hover {
+      border-color: var(--vermilion);
+      transform: translateY(-2px);
+    }
+    .ctype-example .ce-char {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 2rem;
+      color: var(--vermilion);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .ctype-example .ce-py {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--ink-900);
+    }
+    .ctype-example .ce-en {
+      font-size: 0.78rem;
+      color: var(--ink-500);
+    }
+    .ctype-example .ce-build {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--ink-200);
+      font-size: 0.78rem;
+      color: var(--ink-700);
+      line-height: 1.4;
+    }
+    .ctype-example .ce-build .cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    /* ============================================================
        Mobile (≤720px)
        ============================================================ */
     @media (max-width: 720px) {
-      .top-bar { padding: 12px 18px; }
-      .module-subtitle { font-size: 0.85rem; }
+      .top-bar { padding: 12px 18px; flex-direction: column; gap: 10px; align-items: flex-start; }
+      .module-switcher { font-size: 0.78rem; flex-wrap: wrap; padding: 3px; }
+      .module-switcher button { padding: 6px 10px; font-size: 0.78rem; }
       .module-wrap { padding: 16px 18px 80px; }
       .scene { padding: 26px 22px; border-radius: var(--radius-lg); }
       .hook-grid { grid-template-columns: 1fr; gap: 26px; }
@@ -1112,6 +1846,26 @@
       .scene-foot { flex-direction: column; gap: 14px; align-items: stretch; }
       .scene-foot .btn { width: 100%; }
       .scene-foot > .left { text-align: center; }
+      /* Module 2/3 mobile */
+      .py-headline { padding: 16px 18px; }
+      .py-headline .cn { font-size: 2.2rem; }
+      .py-headline .py-pinyin { font-size: 1.6rem; }
+      .py-example { grid-template-columns: 60px 1fr 80px; gap: 8px; padding: 10px 12px; }
+      .py-example .cn { font-size: 1.3rem; }
+      .syllable-builder { gap: 6px; }
+      .sb-piece, .sb-result { min-width: 110px; padding: 12px 8px; }
+      .sb-letter { font-size: 1.8rem; }
+      .sb-plus, .sb-equals { font-size: 1.2rem; }
+      .pinyin-readout { padding: 16px; gap: 12px; }
+      .pinyin-readout .ro-big { font-size: 2.2rem; }
+      .pinyin-readout .ro-cn { font-size: 1.8rem; }
+      .gotcha-grid { grid-template-columns: 1fr; }
+      .char-decompose-demo { grid-template-columns: 1fr; gap: 8px; text-align: center; }
+      .char-decompose-demo .cd-equals { transform: rotate(90deg); }
+      .char-decompose-demo .cd-pieces { justify-content: center; }
+      .radicals-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+      .radical-cell .rc-char { font-size: 1.4rem; }
+      .ctype-examples { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     }
   </style>
 </head>
@@ -1124,26 +1878,16 @@
       </div>
     </div>
     <!--
-      When module 2+ is added, replace this line with a module switcher
-      (a horizontal pill nav) that lets users jump between modules.
+      Module switcher — populated by JS from MODULES registry.
+      Each entry: pill button. Click switches to that module (only unlocked are clickable).
     -->
-    <div class="module-subtitle"><span class="num">M1.</span>The 4 Tones</div>
+    <nav class="module-switcher" id="module-switcher"></nav>
   </header>
 
   <main>
     <div class="module-wrap">
-      <div class="module-head">
-        <div class="module-title-row">
-          <div class="module-icon"><span class="cn">声</span></div>
-          <h1>The 4 Tones</h1>
-        </div>
-        <p class="intro">
-          In Mandarin, the same syllable spoken with a different pitch contour
-          becomes a completely different word. Master the 4 tones and you've
-          unlocked the door to the whole language.
-        </p>
-        <div class="progress-dots" id="progress-dots"></div>
-      </div>
+      <!-- Module head — dynamic (icon + title + intro + progress dots), rendered by JS based on activeModule. -->
+      <div class="module-head" id="module-head"></div>
 
       <div class="module-section" data-module="tones">
 
@@ -1329,12 +2073,430 @@
             </div>
           </div>
           <div class="scene-foot">
-            <span class="left">Module 1 complete · Pinyin module coming soon</span>
-            <button class="btn btn-ghost" data-action="restart">↺ Restart module</button>
+            <span class="left">Module 1 complete · Pinyin unlocked</span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-ghost" data-action="restart">↺ Restart</button>
+              <button class="btn btn-primary" data-action="goto" data-mod="pinyin">Continue to Pinyin →</button>
+            </div>
           </div>
         </div>
 
-      </div><!-- /module-section -->
+      </div><!-- /module-section data-module="tones" -->
+
+      <!-- ============= MODULE 2: PINYIN ============= -->
+      <div class="module-section" data-module="pinyin" hidden>
+
+        <!-- Scene 0: Hook -->
+        <div class="scene active" data-scene="0">
+          <div class="hook-grid">
+            <div class="hook-text">
+              <span class="big-number">~400</span>
+              <div class="big-number-label">unique syllables in all of Mandarin.</div>
+              <h2>Pinyin: read Mandarin <em>without</em> learning a single character.</h2>
+              <p>
+                Pinyin (拼音, "spell sound") is the romanization system that
+                maps Chinese sounds to letters you already know. Once you can
+                read pinyin, you can pronounce any Chinese word — even ones
+                written in characters you've never seen.
+              </p>
+              <p>
+                Tones taught you <em>how</em> to say things. Pinyin teaches
+                you <em>what</em>.
+              </p>
+            </div>
+            <div class="pinyin-hook-stage">
+              <div class="py-headline">
+                <span class="cn">妈</span>
+                <span class="py-arrow">→</span>
+                <span class="py-pinyin"><span class="py-t1">mā</span></span>
+              </div>
+              <div class="py-examples">
+                <div class="py-example">
+                  <span class="cn">你好</span>
+                  <span class="py-pinyin"><span class="py-t3">nǐ</span> <span class="py-t3">hǎo</span></span>
+                  <span class="py-en">hello</span>
+                </div>
+                <div class="py-example">
+                  <span class="cn">谢谢</span>
+                  <span class="py-pinyin"><span class="py-t4">xiè</span> <span class="py-tn">xie</span></span>
+                  <span class="py-en">thank you</span>
+                </div>
+                <div class="py-example">
+                  <span class="cn">中国</span>
+                  <span class="py-pinyin"><span class="py-t1">Zhōng</span> <span class="py-t2">guó</span></span>
+                  <span class="py-en">China</span>
+                </div>
+                <div class="py-example">
+                  <span class="cn">学校</span>
+                  <span class="py-pinyin"><span class="py-t2">xué</span> <span class="py-t4">xiào</span></span>
+                  <span class="py-en">school</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 2 of 11 · Scene 1 of 6</span>
+            <button class="btn btn-primary" data-action="next">How does it work? →</button>
+          </div>
+        </div>
+
+        <!-- Scene 1: Big idea -->
+        <div class="scene" data-scene="1">
+          <h2>Every Mandarin syllable = initial + final + tone.</h2>
+          <p style="margin-top: 14px; max-width: 720px;">
+            That's the recipe. Pick one of 21 starting consonants (the "initial"),
+            add one of ~36 vowel endings (the "final"), top with one of 4 tones
+            (or no tone). About 400 valid combinations cover all of Mandarin.
+          </p>
+          <div class="syllable-builder">
+            <div class="sb-piece">
+              <div class="sb-label">Initial</div>
+              <div class="sb-letter">m</div>
+              <div class="sb-desc">like English "m"</div>
+            </div>
+            <span class="sb-plus">+</span>
+            <div class="sb-piece">
+              <div class="sb-label">Final</div>
+              <div class="sb-letter">a</div>
+              <div class="sb-desc">"ah" sound</div>
+            </div>
+            <span class="sb-plus">+</span>
+            <div class="sb-piece sb-tone">
+              <div class="sb-label">Tone</div>
+              <div class="sb-letter"><span class="py-t1">¯</span></div>
+              <div class="sb-desc">tone 1: high &amp; flat</div>
+            </div>
+            <span class="sb-equals">=</span>
+            <div class="sb-result">
+              <div class="sb-label">Syllable</div>
+              <div class="sb-letter"><span class="py-t1">mā</span></div>
+              <div class="sb-desc">妈 · "mom"</div>
+            </div>
+          </div>
+          <div class="city-grid" style="margin-top: 32px;">
+            <div class="city-card">
+              <div class="icons" style="font-family: var(--font-display); font-weight: 800; font-size: 1.6rem;">b·p·m·f</div>
+              <div class="pair"><span class="biology">Initials (21)</span></div>
+              <p class="desc">Starting consonants: b p m f, d t n l, g k h, j q x, zh ch sh r, z c s, plus semi-consonants y w.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons" style="font-family: var(--font-display); font-weight: 800; font-size: 1.6rem;">a·o·e</div>
+              <div class="pair"><span class="biology">Finals (~36)</span></div>
+              <p class="desc">Everything after the initial: simple vowels (a, o, e, i, u, ü), diphthongs (ai, ei, ao, ou), and nasal endings (an, en, ang, eng, ong).</p>
+            </div>
+            <div class="city-card">
+              <div class="icons" style="font-family: var(--font-display); font-weight: 800; font-size: 1.6rem;">¯ ´ ˇ ` ˙</div>
+              <div class="pair"><span class="biology">Tone marks</span></div>
+              <p class="desc">Always sit on the strongest vowel. Priority: a → o → e → i → u → ü. (E.g. "hao" gets the mark on "a", not "o".)</p>
+            </div>
+            <div class="city-card">
+              <div class="icons" style="font-family: var(--font-display); font-weight: 800; font-size: 1.6rem;">~400</div>
+              <div class="pair"><span class="biology">Total syllables</span></div>
+              <p class="desc">Not 21 × 36 × 4 = 3,024 — most combos don't exist. Mandarin has only ~400 valid syllables. (Compare: English has ~10,000.)</p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 2 of 6 · Now click some syllables</span>
+            <button class="btn btn-primary" data-action="next">Open the chart →</button>
+          </div>
+        </div>
+
+        <!-- Scene 2: Pinyin chart (interactive) -->
+        <div class="scene" data-scene="2">
+          <h2>The pinyin chart. <span style="color: var(--ink-500); font-weight: 400; font-size: 0.65em;">Tap any syllable to hear it.</span></h2>
+          <p style="margin-top: 8px; color: var(--ink-700); max-width: 720px;">
+            Each cell is one valid Mandarin syllable. Tricky-for-English-speakers initials
+            (<span style="color: var(--vermilion); font-weight: 700;">q, x, zh, ch, sh, c, j</span>)
+            are highlighted — they're the ones we'll spotlight in the next scene.
+          </p>
+          <div class="pinyin-chart-wrap">
+            <div class="pinyin-chart" id="pinyin-chart"><!-- rendered by JS --></div>
+          </div>
+          <div class="pinyin-readout" id="pinyin-readout">
+            <div class="placeholder">Tap a syllable above. The big version + meaning shows up here.</div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 3 of 6 · The tricky letters next</span>
+            <button class="btn btn-primary" data-action="next">The 8 gotchas →</button>
+          </div>
+        </div>
+
+        <!-- Scene 3: Deep dive — pinyin gotchas -->
+        <div class="scene" data-scene="3">
+          <h2>The pinyin letters that aren't what you think.</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            English approximations for these are notoriously misleading. Tap any card to hear the right pronunciation.
+          </p>
+          <div class="gotcha-grid" id="gotcha-grid"><!-- rendered by JS --></div>
+          <div class="callout" style="margin-top: 22px; max-width: 720px; background: var(--gold-pale); border: 1px solid var(--gold-light); padding: 16px 22px; border-radius: var(--radius);">
+            <strong>📝 Tone mark placement rule.</strong>
+            <p>The tone mark sits on the <strong>strongest vowel</strong>: a → o → e → i → u → ü, in that order. So "hao" gets it on "a" (hǎo, not haǒ), "hui" gets it on "i" (huì), and "you" gets it on "o" (yòu).</p>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 4 of 6 · Quick check</span>
+            <button class="btn btn-primary" data-action="next">Quiz me →</button>
+          </div>
+        </div>
+
+        <!-- Scene 4: Quiz -->
+        <div class="scene" data-scene="4">
+          <div id="pinyin-quiz-card-wrap"><!-- rendered by JS --></div>
+        </div>
+
+        <!-- Scene 5: Recap + Radicals tease -->
+        <div class="scene" data-scene="5">
+          <h2>You can read every sound in Mandarin. 🔊</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            Pinyin unlocks every later module — without it, characters and
+            phrases would feel like guessing. With it, you can pronounce any
+            Chinese word out loud, even before you know its character.
+          </p>
+          <div class="recap-grid">
+            <div class="recap-pill"><span class="ic" style="font-family: var(--font-display); font-weight: 800; font-size: 1.05rem;">21</span><span class="lbl">initials, ~36 finals</span></div>
+            <div class="recap-pill"><span class="ic">¯</span><span class="lbl">Tone mark = strongest vowel</span></div>
+            <div class="recap-pill"><span class="ic">⚠️</span><span class="lbl">q ≈ "ch", x ≈ "sh"</span></div>
+            <div class="recap-pill"><span class="ic">⚠️</span><span class="lbl">zh, ch, sh = retroflex</span></div>
+            <div class="recap-pill"><span class="ic" style="font-family: var(--font-display); font-weight: 800; font-size: 0.9rem;">~400</span><span class="lbl">total Mandarin syllables</span></div>
+          </div>
+          <div class="next-tease">
+            <div class="icon"><span class="cn">部</span></div>
+            <div>
+              <h3>Coming up next: Radicals</h3>
+              <p>
+                Now you can <em>say</em> Chinese. Time to <em>read</em> it.
+                Characters look intimidating until you see they're built from
+                a small set of pieces called radicals. About 50 radicals cover
+                80%+ of common characters. Once you see the building blocks,
+                the wall starts to look like LEGO.
+              </p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 2 complete · Radicals unlocked</span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-ghost" data-action="restart">↺ Restart</button>
+              <button class="btn btn-primary" data-action="goto" data-mod="radicals">Continue to Radicals →</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /module-section data-module="pinyin" -->
+
+      <!-- ============= MODULE 3: RADICALS ============= -->
+      <div class="module-section" data-module="radicals" hidden>
+
+        <!-- Scene 0: Hook -->
+        <div class="scene active" data-scene="0">
+          <div class="hook-grid">
+            <div class="hook-text">
+              <span class="big-number">~50</span>
+              <div class="big-number-label">radicals cover 80% of common Chinese characters.</div>
+              <h2>Characters look random. <em>Until you see the pieces.</em></h2>
+              <p>
+                A Chinese character looks like a maze of strokes — until you
+                realize it's actually a stack of smaller, reusable pieces
+                called <strong>radicals</strong>. Once you see them, you stop
+                memorizing characters and start <em>reading</em> them.
+              </p>
+              <p>
+                The big idea: you don't need to memorize 3,000+ characters.
+                You memorize ~50 building blocks and the rules for how they combine.
+              </p>
+            </div>
+            <div class="radical-hook-stage">
+              <div class="char-decompose-demo">
+                <div class="cd-result">
+                  <div class="cd-char cn">好</div>
+                  <div class="cd-meaning">good · hǎo</div>
+                </div>
+                <span class="cd-equals">=</span>
+                <div class="cd-pieces">
+                  <div class="cd-piece">
+                    <div class="cd-char cn">女</div>
+                    <div class="cd-meaning">woman</div>
+                  </div>
+                  <span class="cd-plus">+</span>
+                  <div class="cd-piece">
+                    <div class="cd-char cn">子</div>
+                    <div class="cd-meaning">child</div>
+                  </div>
+                </div>
+              </div>
+              <div class="char-decompose-demo">
+                <div class="cd-result">
+                  <div class="cd-char cn">明</div>
+                  <div class="cd-meaning">bright · míng</div>
+                </div>
+                <span class="cd-equals">=</span>
+                <div class="cd-pieces">
+                  <div class="cd-piece">
+                    <div class="cd-char cn">日</div>
+                    <div class="cd-meaning">sun</div>
+                  </div>
+                  <span class="cd-plus">+</span>
+                  <div class="cd-piece">
+                    <div class="cd-char cn">月</div>
+                    <div class="cd-meaning">moon</div>
+                  </div>
+                </div>
+              </div>
+              <div class="char-decompose-demo">
+                <div class="cd-result">
+                  <div class="cd-char cn">林</div>
+                  <div class="cd-meaning">forest · lín</div>
+                </div>
+                <span class="cd-equals">=</span>
+                <div class="cd-pieces">
+                  <div class="cd-piece">
+                    <div class="cd-char cn">木</div>
+                    <div class="cd-meaning">tree</div>
+                  </div>
+                  <span class="cd-plus">+</span>
+                  <div class="cd-piece">
+                    <div class="cd-char cn">木</div>
+                    <div class="cd-meaning">tree</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 3 of 11 · Scene 1 of 6</span>
+            <button class="btn btn-primary" data-action="next">Show me how →</button>
+          </div>
+        </div>
+
+        <!-- Scene 1: Big idea -->
+        <div class="scene" data-scene="1">
+          <h2>Characters are LEGO.</h2>
+          <p style="margin-top: 14px; max-width: 720px;">
+            Most Chinese characters are made of 2 or 3 smaller pieces.
+            Linguists call them <strong>radicals</strong> or <strong>components</strong>.
+            Pieces slot together in fixed positions — left/right, top/bottom, or surround.
+          </p>
+          <div class="city-grid">
+            <div class="city-card">
+              <div class="icons">🧱</div>
+              <div class="pair"><span class="biology">~50 building blocks</span></div>
+              <p class="desc">Most everyday characters are built from a small set of common radicals — about 50 of them cover 80%+ of common characters.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">📍</div>
+              <div class="pair"><span class="biology">Position is fixed</span></div>
+              <p class="desc">When 木 (tree) is on the left of a character (e.g. 林, 树), it's always written left. When on bottom (e.g. 杏), always bottom. Recognizing position helps you find parts.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">🖼️</div>
+              <div class="pair"><span class="biology">Pictographs (oldest)</span></div>
+              <p class="desc">Some radicals look like the thing they mean: 山 mountain, 月 moon, 木 tree, 火 fire. The simplest characters started as drawings.</p>
+            </div>
+            <div class="city-card">
+              <div class="icons">🔊</div>
+              <div class="pair"><span class="biology">Phonetic + semantic</span></div>
+              <p class="desc">Most modern characters combine a meaning radical + a sound radical. 妈 (mā mom) = 女 (woman, meaning) + 马 (mǎ horse, sound).</p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 2 of 6 · Browse the radicals</span>
+            <button class="btn btn-primary" data-action="next">Open the radical table →</button>
+          </div>
+        </div>
+
+        <!-- Scene 2: Interactive radical table -->
+        <div class="scene" data-scene="2">
+          <h2>The radical table.</h2>
+          <p style="margin-top: 8px; color: var(--ink-700); max-width: 720px;">
+            Tap any radical to see what it means and which characters contain it.
+            <strong>Tap example characters</strong> to see them decompose into their pieces.
+          </p>
+          <div class="radicals-grid" id="radicals-grid"><!-- rendered by JS --></div>
+          <div class="radical-detail" id="radical-detail">
+            <div class="placeholder">Tap a radical above to see its meaning and example characters.</div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 3 of 6 · How they combine</span>
+            <button class="btn btn-primary" data-action="next">3 ways characters are built →</button>
+          </div>
+        </div>
+
+        <!-- Scene 3: Deep dive — 3 types of compounds -->
+        <div class="scene" data-scene="3">
+          <h2>3 ways characters are built.</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            Once you know the building blocks, the next thing is how they
+            combine. Three patterns dominate. Tap any example to hear it spoken.
+          </p>
+          <div class="compound-types">
+            <div class="ctype">
+              <div class="ctype-head">
+                <div class="ctype-num">1</div>
+                <div class="ctype-name">Pictographs <span class="ctype-pct">(~10% of common chars)</span></div>
+              </div>
+              <p class="ctype-desc">The character looks like the thing. Often the oldest characters in the language.</p>
+              <div class="ctype-examples" id="pict-examples"><!-- rendered by JS --></div>
+            </div>
+            <div class="ctype">
+              <div class="ctype-head">
+                <div class="ctype-num">2</div>
+                <div class="ctype-name">Ideographs <span class="ctype-pct">(~5%)</span></div>
+              </div>
+              <p class="ctype-desc">Two simple meanings combined into a new meaning. Like rebus puzzles.</p>
+              <div class="ctype-examples" id="ideo-examples"><!-- rendered by JS --></div>
+            </div>
+            <div class="ctype">
+              <div class="ctype-head">
+                <div class="ctype-num">3</div>
+                <div class="ctype-name">Phonetic-semantic compounds <span class="ctype-pct">(~80% — most common)</span></div>
+              </div>
+              <p class="ctype-desc">One radical hints at meaning; another hints at sound. The vast majority of modern characters work this way.</p>
+              <div class="ctype-examples" id="phon-examples"><!-- rendered by JS --></div>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 4 of 6 · Quick check</span>
+            <button class="btn btn-primary" data-action="next">Quiz me →</button>
+          </div>
+        </div>
+
+        <!-- Scene 4: Quiz -->
+        <div class="scene" data-scene="4">
+          <div id="radicals-quiz-card-wrap"><!-- rendered by JS --></div>
+        </div>
+
+        <!-- Scene 5: Recap + Module 4 tease -->
+        <div class="scene" data-scene="5">
+          <h2>Characters are puzzles, not chaos. 🧩</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            You've learned the building blocks and the rules for how they
+            combine. Every character you encounter from now on will be a
+            little less mysterious than the last.
+          </p>
+          <div class="recap-grid">
+            <div class="recap-pill"><span class="ic"><span class="cn">部</span></span><span class="lbl">~50 radicals = 80% of chars</span></div>
+            <div class="recap-pill"><span class="ic">📍</span><span class="lbl">Position is fixed</span></div>
+            <div class="recap-pill"><span class="ic">🖼️</span><span class="lbl">Pictographs: look like the thing</span></div>
+            <div class="recap-pill"><span class="ic">🧠</span><span class="lbl">Ideographs: meanings combined</span></div>
+            <div class="recap-pill"><span class="ic">🔊</span><span class="lbl">Phon-sem: meaning + sound</span></div>
+          </div>
+          <div class="next-tease">
+            <div class="icon"><span class="cn">百</span></div>
+            <div>
+              <h3>Coming up next: Your first 100 characters</h3>
+              <p>
+                Now that you can read pinyin <em>and</em> you know how
+                characters are built, let's actually meet some. The 100
+                highest-frequency characters cover ~50% of all written
+                Chinese — yes, really. (Coming soon!)
+              </p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 3 complete · You finished the foundations</span>
+            <button class="btn btn-ghost" data-action="restart">↺ Restart</button>
+          </div>
+        </div>
+
+      </div><!-- /module-section data-module="radicals" -->
     </div>
   </main>
 
@@ -1360,11 +2522,13 @@
       }
 
       const state = {
+        activeModule: 'tones',     // 'tones' | 'pinyin' | 'radicals'
         sceneIndex: 0,
         targetTone: 1,
         mic: { recording: false, ctx: null, source: null, analyser: null, stream: null,
                buffer: null, pitches: [], startTime: 0, raf: null, sampleRate: 44100 },
-        quiz: { i: 0, correct: 0, locked: false, items: [] },
+        quiz: { i: 0, correct: 0, locked: false, items: [], cardSel: '#quiz-card-wrap', moduleId: 'tones' },
+        activeRadical: null,       // module 3
         completed: loadState().completed || {},
       };
 
@@ -1912,7 +3076,7 @@
       // =====================================================================
 
       // 5 questions: 3 ear-training + 2 production (mic-based)
-      const QUIZ_QUESTIONS = [
+      const TONES_QUIZ = [
         { kind: 'ear', audioKey: 'ma2', correct: 2,
           why: 'Yes — that was the rising tone (tone 2). Sounds like "really?"',
           wrongHint: 'Listen for the direction. That one was rising, not flat or falling.' },
@@ -1926,13 +3090,21 @@
         { kind: 'production', tone: 4, prompt: { py: 'mà', cn: '骂', en: 'to scold — tone 4 (sharp fall)' } },
       ];
 
-      function renderQuiz() {
-        state.quiz = { i: 0, correct: 0, locked: false, items: QUIZ_QUESTIONS };
+      function renderQuiz() { startQuiz('tones'); }
+
+      function startQuiz(moduleId) {
+        const mod = MODULES[moduleId];
+        if (!mod) return;
+        state.quiz = {
+          i: 0, correct: 0, locked: false,
+          items: mod.quiz, cardSel: mod.quizCardSel, moduleId,
+        };
         renderQuizQuestion();
       }
 
       function renderQuizQuestion() {
-        const wrap = $('#quiz-card-wrap');
+        const wrap = $(state.quiz.cardSel);
+        if (!wrap) return;
         if (state.quiz.i >= state.quiz.items.length) {
           renderQuizResults();
           return;
@@ -2016,14 +3188,77 @@
           $('#quiz-skip').onclick = () => {
             advanceQuizQuestion(false);
           };
+        } else if (q.kind === 'mc') {
+          // Generic multiple-choice question (used by Pinyin + Radicals quizzes).
+          // Optional q.audioKey auto-plays once + offers a replay button.
+          // Optional q.bigChar shown above the options as a focal element.
+          // Up to 4 options; 2-column layout.
+          const cnHTML = q.bigChar ? `<div style="text-align: center; margin: 8px 0 18px;"><span class="cn" style="font-size: 4rem; font-weight: 700; color: var(--vermilion);">${q.bigChar}</span></div>` : '';
+          wrap.innerHTML = `
+            <div class="quiz-card">
+              <div class="quiz-counter">${counter}</div>
+              <div class="quiz-q">${q.q}</div>
+              ${q.audioKey ? `<button class="quiz-prompt-audio" id="quiz-replay">Play the audio</button>` : ''}
+              ${cnHTML}
+              <div class="quiz-options" style="grid-template-columns: 1fr 1fr;">
+                ${q.options.map((opt, idx) => `
+                  <button class="quiz-option" data-idx="${idx}">
+                    <span class="b" style="background: var(--ink-200); color: var(--ink-700);">${String.fromCharCode(65 + idx)}</span>
+                    <span class="lbl">${opt}</span>
+                  </button>
+                `).join('')}
+              </div>
+              <div class="quiz-feedback" id="quiz-feedback"></div>
+              <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" id="quiz-next" style="display: none;">
+                  ${state.quiz.i === state.quiz.items.length - 1 ? 'See results →' : 'Next question →'}
+                </button>
+              </div>
+            </div>
+          `;
+          if (q.audioKey) {
+            setTimeout(() => playAudio(q.audioKey), 300);
+            const replay = $('#quiz-replay', wrap);
+            if (replay) replay.onclick = () => playAudio(q.audioKey);
+          }
+          $$('.quiz-option', wrap).forEach(btn => {
+            btn.addEventListener('click', () => answerMC(parseInt(btn.dataset.idx, 10), q));
+          });
         }
+      }
+
+      function answerMC(picked, q) {
+        if (state.quiz.locked) return;
+        state.quiz.locked = true;
+        const wrap = $(state.quiz.cardSel);
+        const opts = $$('.quiz-option', wrap);
+        const fb = $('#quiz-feedback', wrap);
+        const isRight = picked === q.correct;
+        opts.forEach((b, i) => {
+          b.classList.add('locked');
+          if (i === q.correct) b.classList.add('correct');
+          else if (i === picked && !isRight) b.classList.add('incorrect');
+          else b.classList.add('dimmed');
+        });
+        if (isRight) {
+          state.quiz.correct++;
+          fb.className = 'quiz-feedback show right';
+          fb.innerHTML = `<strong>✓ Yes!</strong>${q.why || 'Correct.'}`;
+        } else {
+          fb.className = 'quiz-feedback show wrong';
+          fb.innerHTML = `<strong>Not quite</strong>${q.wrongHint || ''} The correct answer is highlighted in green.`;
+        }
+        const nextBtn = $('#quiz-next', wrap);
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.onclick = () => advanceQuizQuestion(isRight);
       }
 
       function answerEar(picked, q) {
         if (state.quiz.locked) return;
         state.quiz.locked = true;
-        const opts = $$('.quiz-option');
-        const fb = $('#quiz-feedback');
+        const wrap = $(state.quiz.cardSel);
+        const opts = $$('.quiz-option', wrap);
+        const fb = $('#quiz-feedback', wrap);
         const isRight = picked === q.correct;
         opts.forEach(b => {
           b.classList.add('locked');
@@ -2040,7 +3275,7 @@
           fb.className = 'quiz-feedback show wrong';
           fb.innerHTML = `<strong>Not quite</strong>${q.wrongHint} The correct answer is highlighted in green.`;
         }
-        const nextBtn = $('#quiz-next');
+        const nextBtn = $('#quiz-next', wrap);
         nextBtn.style.display = 'inline-flex';
         nextBtn.onclick = () => advanceQuizQuestion(isRight);
       }
@@ -2154,15 +3389,17 @@
       }
 
       function renderQuizResults() {
-        const wrap = $('#quiz-card-wrap');
+        const wrap = $(state.quiz.cardSel);
+        if (!wrap) return;
         const score = state.quiz.correct;
         const total = state.quiz.items.length;
         const pct = score / total;
+        const moduleId = state.quiz.moduleId || 'tones';
         let emoji, title, msg;
-        if (pct === 1)        { emoji = '🌟'; title = 'Perfect!';     msg = 'Tones are clearly clicking. You\'re ready for Pinyin.'; }
-        else if (pct >= 0.8)  { emoji = '🎉'; title = 'Great job!';   msg = 'You got the big stuff — solid foundation in tones.'; }
-        else if (pct >= 0.6)  { emoji = '😊'; title = 'Good effort.'; msg = 'You\'re close. Skim back through scene 2 (the trainer) and re-take.'; }
-        else                  { emoji = '🌱'; title = 'Keep going.';  msg = 'Tones take time. Spend a few minutes on the trainer and try again — you\'ll level up fast.'; }
+        if (pct === 1)        { emoji = '🌟'; title = 'Perfect!';     msg = 'You\'re crushing it. On to the next module.'; }
+        else if (pct >= 0.8)  { emoji = '🎉'; title = 'Great job!';   msg = 'You got the big stuff — solid foundation.'; }
+        else if (pct >= 0.6)  { emoji = '😊'; title = 'Good effort.'; msg = 'You\'re close. Skim back through and re-take.'; }
+        else                  { emoji = '🌱'; title = 'Keep going.';  msg = 'A few minutes more and you\'ll have it. Tap "Try again" when ready.'; }
 
         wrap.innerHTML = `
           <div class="quiz-results">
@@ -2176,8 +3413,8 @@
             </div>
           </div>
         `;
-        $('#quiz-retry').onclick = () => renderQuiz();
-        $('#quiz-finish').onclick = () => nextScene();
+        $('#quiz-retry', wrap).onclick = () => startQuiz(moduleId);
+        $('#quiz-finish', wrap).onclick = () => nextScene();
 
         if (pct === 1) fireConfetti(60);
         else if (pct >= 0.8) fireConfetti(30);
@@ -2220,21 +3457,648 @@
         }
       }
 
+      // =====================================================================
+      // MODULE 2 — PINYIN: data + renderers
+      // =====================================================================
+
+      // Valid Mandarin syllables (curated set, ~400) — used by the chart to skip empty cells
+      const PINYIN_SYLLABLES = new Set((
+        'a ai ao an ang e ei en eng er o ou ' +
+        'yi ya ye yao you yan yin yang ying yong yu yue yuan yun ' +
+        'wu wa wo wai wei wan wang weng ' +
+        'ba bo bai bao bei ban bang ben beng bi biao bie bian bin bing bu ' +
+        'pa po pai pao pou pan pang pen peng pi piao pie pian pin ping pu ' +
+        'ma mo me mai mao mou man men mang meng mi miao mie miu mian min ming mu ' +
+        'fa fo fei fou fan fen fang feng fu ' +
+        'da de dai dao dou dan dang deng di diao diu dian ding dong du duo dui duan dun ' +
+        'ta te tai tao tou tan tang teng ti tiao tie tian ting tong tu tuo tui tuan tun ' +
+        'na nai nei nao nou nan nen nang neng ni niao nie niu nian nin niang ning nu nuo ' +
+        'la le lai lei lao lou lan lang leng li liao lie liu lian lin liang ling long lu luo luan lun lü ' +
+        'ga ge gai gei gao gou gan gen gang geng gong gu guo gui guan gun guang ' +
+        'ka ke kai kao kou kan ken kang keng kong ku kuo kui kuan kun kuang ' +
+        'ha he hai hei hao hou han hen hang heng hong hu huo hui huan hun huang ' +
+        'ji jia jie jiao jiu jian jin jiang jing jiong ju jue juan jun ' +
+        'qi qia qie qiao qiu qian qin qiang qing qiong qu que quan qun ' +
+        'xi xia xie xiao xiu xian xin xiang xing xiong xu xue xuan xun ' +
+        'zha zhe zhi zhai zhao zhou zhan zhen zhang zheng zhong zhu zhuo zhui zhuan zhun zhuang ' +
+        'cha che chi chai chao chou chan chen chang cheng chong chu chuo chui chuan chun chuang ' +
+        'sha she shi shai shao shou shan shen shang sheng shu shuo shui shuan shun shuang ' +
+        're ri rao rou ran ren rang reng rong ru ruo rui ruan run ' +
+        'za ze zi zai zei zao zou zan zen zang zeng zong zu zuo zui zuan zun ' +
+        'ca ce ci cao cou can cen cang ceng cong cu cuo cui cuan cun ' +
+        'sa se si sai sao sou san sen sang seng song su suo sui suan sun'
+      ).split(' '));
+
+      const PINYIN_INITIALS_GRID = ['', 'b','p','m','f','d','t','n','l','g','k','h','j','q','x','zh','ch','sh','r','z','c','s','y','w'];
+      // Compact representative set for the chart columns. Covers most common syllable shapes.
+      const PINYIN_FINALS_GRID = ['a','o','e','i','u','ai','ao','an','ang','ei','en','ou'];
+      const PINYIN_TRICKY_INITIALS = new Set(['j','q','x','zh','ch','sh','r','c']);
+
+      // Per-syllable annotations: high-frequency words shown in the readout when clicked.
+      const PINYIN_NOTES = {
+        ma: { cn: '妈/麻/马/骂', en: 'mom / hemp / horse / to scold' },
+        ba: { cn: '吧/八/把',   en: 'particle / eight / hold' },
+        ni: { cn: '你',          en: 'you' },
+        hao: { cn: '好',         en: 'good' },
+        wo: { cn: '我',          en: 'I / me' },
+        ta: { cn: '他/她/它',    en: 'he / she / it' },
+        de: { cn: '的',          en: 'possessive particle' },
+        shi: { cn: '是',         en: 'to be' },
+        bu: { cn: '不',          en: 'not' },
+        le: { cn: '了',          en: 'completion particle' },
+        you: { cn: '有',         en: 'to have' },
+        zai: { cn: '在',         en: 'at / in / on' },
+        ren: { cn: '人',         en: 'person' },
+        da: { cn: '大',          en: 'big' },
+        xiao: { cn: '小',        en: 'small' },
+        jia: { cn: '家',         en: 'home / family' },
+        xie: { cn: '谢',         en: 'thanks' },
+        qing: { cn: '请',        en: 'please' },
+        zhong: { cn: '中',       en: 'middle / center' },
+        guo: { cn: '国',         en: 'country' },
+        xue: { cn: '学',         en: 'to study / learn' },
+        ju: { cn: '句',          en: 'sentence' },
+        nü: { cn: '女',          en: 'woman / female' },
+      };
+
+      const PINYIN_GOTCHAS = [
+        { letter: 'q', not: 'kw or k', butIs: 'CH like in cheek', explain: 'Tongue forward, tip near front teeth, like a sharp "ch".', cn: '请', py: 'qǐng', en: 'please', audioKey: 'pinyin-qing' },
+        { letter: 'x', not: 'KS or Z',  butIs: 'SH like in sheep', explain: 'Like "sh" but lighter, with the tongue tip tucked behind the bottom teeth.', cn: '谢', py: 'xiè', en: 'thanks', audioKey: 'pinyin-xie' },
+        { letter: 'zh', not: 'Z',       butIs: 'J like in juice',  explain: 'Voiced "j" but with the tongue curled back (retroflex). Heavier than English "j".', cn: '中', py: 'zhōng', en: 'middle / China', audioKey: 'pinyin-zhong' },
+        { letter: 'ch', not: 'CH in chair', butIs: 'CH but heavier', explain: 'Same as English "ch", but tongue is curled back. Compare with "q" — q is lighter and forward.', cn: '茶', py: 'chá', en: 'tea', audioKey: 'pinyin-cha' },
+        { letter: 'sh', not: 'SH in shoe', butIs: 'SH but heavier', explain: 'English "sh" with the tongue curled back (retroflex). Compare with "x" — x is lighter and forward.', cn: '是', py: 'shì', en: 'to be', audioKey: 'pinyin-shi' },
+        { letter: 'c',  not: 'K',        butIs: 'TS like in cats',  explain: 'A sharp "ts" sound. Common mistake: pronouncing it like English "c". 草 (cǎo) starts with "ts", not "k".', cn: '草', py: 'cǎo', en: 'grass', audioKey: 'pinyin-cao' },
+        { letter: 'j',  not: 'J in jam', butIs: 'J like in jeep',   explain: 'Lighter and tongue-forward, with no aspiration. Compare with "zh" — j is forward, zh is back.', cn: '家', py: 'jiā', en: 'home', audioKey: 'pinyin-jia' },
+        { letter: 'ü',  not: 'U',        butIs: 'German Ü / French U', explain: 'Round your lips like for "oo", but try to say "ee" through them. Often written as "u" after j/q/x (e.g. "ju" is actually "jü").', cn: '女', py: 'nǚ', en: 'woman', audioKey: 'pinyin-nu' },
+      ];
+
+      const PINYIN_QUIZ = [
+        { kind: 'mc', q: 'Which pinyin spelling is pronounced like English "cheek"?',
+          options: ['qī (1st tone)', 'kī (1st tone)', 'chī (1st tone)', 'tī (1st tone)'],
+          correct: 0,
+          why: 'Yes — "q" sounds like "ch" in cheek. Tongue forward, light.',
+          wrongHint: 'Remember: "q" is forward and light, "ch" is heavy and tongue-back.' },
+        { kind: 'mc', q: 'Which pinyin letter is pronounced like English "ts" in "cats"?',
+          options: ['z', 'c', 's', 'ch'],
+          correct: 1,
+          why: 'Right — "c" is "ts". A common mistake is to pronounce it like "k". 草 (cǎo) sounds like "tsao", not "kao".',
+          wrongHint: 'Hint: it\'s NOT "k". Listen for the "ts" sound at the start of cats.' },
+        { kind: 'mc', q: 'In Mandarin, where does the tone mark go on "hao"?',
+          options: ['hāo (on the a)', 'haō (on the o)', 'hāō (both)', 'hao (no mark needed)'],
+          correct: 0,
+          why: 'Right — the rule is a → o → e → i → u → ü. "a" wins, so it gets the mark.',
+          wrongHint: 'Tone marks always sit on the strongest vowel. The order is a, o, e, i, u, ü.' },
+        { kind: 'mc', q: 'What does "ü" sound like (as in 女 nǚ)?',
+          options: ['Like English "u" in "umbrella"', 'Like English "oo" in "moon"',
+                    'Like German "ü" — round your lips for "oo" but say "ee"', 'Like English "ew"'],
+          correct: 2,
+          why: 'Yes — round lips for "oo", say "ee". Tricky but distinct.',
+          wrongHint: 'Round your lips for "oo", but try to say "ee" through them. That\'s "ü".' },
+        { kind: 'mc', q: 'How many valid syllables exist in Mandarin (without counting tones)?',
+          options: ['~50', '~150', '~400', '~3,000'],
+          correct: 2,
+          why: 'About 400. Few enough to memorize the chart; not bad for a whole language.',
+          wrongHint: 'Less than you\'d think. English has ~10,000; Mandarin is much more constrained.' },
+      ];
+
+      function renderPinyinHook() {
+        // The hook scene is mostly static HTML. Wire any clickable .py-example chips to play the audio.
+        const examples = $$('.py-example');
+        examples.forEach(el => {
+          const cn = el.querySelector('.cn');
+          if (!cn) return;
+          el.addEventListener('click', () => speakTTS(cn.textContent));
+        });
+      }
+
+      function renderPinyinChart() {
+        const wrap = $('#pinyin-chart');
+        if (!wrap) return;
+        // Header row
+        let html = `<div class="py-row head">
+          <div class="py-cell">×</div>
+          ${PINYIN_FINALS_GRID.map(f => `<div class="py-cell">${f}</div>`).join('')}
+        </div>`;
+        // Body rows
+        for (const ini of PINYIN_INITIALS_GRID) {
+          const display = ini === '' ? '∅' : ini;
+          const trickyInit = PINYIN_TRICKY_INITIALS.has(ini) ? ' tricky-init' : '';
+          html += `<div class="py-row"><div class="py-cell py-init${trickyInit}">${display}</div>`;
+          for (const fin of PINYIN_FINALS_GRID) {
+            const syllable = (ini === '' ? fin : ini + fin);
+            // Adjustments for spelling rules
+            const spelled = syllable;
+            if (PINYIN_SYLLABLES.has(spelled)) {
+              const tricky = PINYIN_TRICKY_INITIALS.has(ini) ? ' tricky' : '';
+              html += `<div class="py-cell${tricky}" data-syllable="${spelled}">${spelled}</div>`;
+            } else {
+              html += `<div class="py-cell empty">—</div>`;
+            }
+          }
+          html += `</div>`;
+        }
+        wrap.innerHTML = html;
+        $$('.py-cell[data-syllable]', wrap).forEach(cell => {
+          cell.addEventListener('click', () => selectPinyin(cell.dataset.syllable));
+        });
+      }
+
+      function selectPinyin(syllable) {
+        const ro = $('#pinyin-readout');
+        if (!ro) return;
+        const note = PINYIN_NOTES[syllable];
+        ro.innerHTML = `
+          <div class="ro-big">${syllable}</div>
+          <div class="ro-cn">${note ? note.cn.split('/')[0] : '—'}</div>
+          <div class="ro-info">
+            <div class="ro-meaning">${note ? note.cn : 'No common word indexed.'}</div>
+            <div class="ro-note">${note ? note.en : 'Tap "play" to hear the syllable; the chart includes about 400 valid Mandarin syllables.'}</div>
+          </div>
+        `;
+        // Use a representative character for TTS so tone is implied
+        const cn = (note && note.cn) ? note.cn.split('/')[0] : null;
+        speakTTS(cn || syllable);
+      }
+
+      function renderPinyinGotchas() {
+        const wrap = $('#gotcha-grid');
+        if (!wrap) return;
+        wrap.innerHTML = PINYIN_GOTCHAS.map(g => `
+          <div class="gotcha-card" data-cn="${g.cn}">
+            <div class="gc-letter">${g.letter}</div>
+            <div class="gc-not">English would expect:</div>
+            <div class="gc-not-text">${g.not}</div>
+            <div class="gc-but">It's actually:</div>
+            <div class="gc-but-text">${g.butIs}</div>
+            <div class="gc-example">
+              <span class="cn">${g.cn}</span>
+              <span class="py">${g.py}</span>
+              <span> · ${g.en}</span>
+              <div class="gc-play">▶ tap to hear · ${g.explain}</div>
+            </div>
+          </div>
+        `).join('');
+        $$('.gotcha-card', wrap).forEach(card => {
+          card.addEventListener('click', () => speakTTS(card.dataset.cn));
+        });
+      }
+
+      function renderPinyinQuiz()  { startQuiz('pinyin'); }
+      function renderRadicalsQuiz(){ startQuiz('radicals'); }
+
+      // =====================================================================
+      // MODULE 3 — RADICALS: data + renderers
+      // =====================================================================
+
+      const RADICALS = [
+        { rad: '人',  py: 'rén',   meaning: 'person',
+          examples: [
+            { cn: '休', py: 'xiū', en: 'rest', build: '人 (person) + 木 (tree) → person leaning on tree' },
+            { cn: '从', py: 'cóng', en: 'follow', build: '人 + 人 → one person following another' },
+            { cn: '众', py: 'zhòng', en: 'crowd', build: '人 + 人 + 人 → many people' },
+            { cn: '今', py: 'jīn', en: 'now/today', build: '人 (person) above 一 (something present)' },
+          ]},
+        { rad: '女',  py: 'nǚ',    meaning: 'woman',
+          examples: [
+            { cn: '好', py: 'hǎo', en: 'good', build: '女 (woman) + 子 (child) → ideographic: a happy combo' },
+            { cn: '妈', py: 'mā',  en: 'mom', build: '女 (meaning) + 马 (mǎ horse, sound) → phonetic-semantic' },
+            { cn: '姐', py: 'jiě', en: 'older sister', build: '女 + 且 (sound)' },
+            { cn: '她', py: 'tā',  en: 'she', build: '女 + 也 (sound) → "she" pronoun' },
+          ]},
+        { rad: '子',  py: 'zǐ',    meaning: 'child',
+          examples: [
+            { cn: '字', py: 'zì',  en: 'character/word', build: '宀 (roof) + 子 → original meaning: babies/words bred under roof' },
+            { cn: '学', py: 'xué', en: 'learn', build: 'child working under roof — derived' },
+            { cn: '孩', py: 'hái', en: 'child', build: '子 + 亥 (sound)' },
+          ]},
+        { rad: '木',  py: 'mù',    meaning: 'tree / wood',
+          examples: [
+            { cn: '林', py: 'lín', en: 'forest', build: '木 + 木 → two trees' },
+            { cn: '森', py: 'sēn', en: 'deep forest', build: '木 × 3 → many trees' },
+            { cn: '树', py: 'shù', en: 'tree', build: '木 (meaning) + 对 (sound, simplified)' },
+            { cn: '桥', py: 'qiáo', en: 'bridge', build: '木 (wood) + 乔 (sound)' },
+          ]},
+        { rad: '火',  py: 'huǒ',   meaning: 'fire',
+          examples: [
+            { cn: '炎', py: 'yán', en: 'flame/inflame', build: '火 + 火 → double fire = inflammation' },
+            { cn: '烧', py: 'shāo', en: 'burn', build: '火 (meaning) + sound' },
+            { cn: '热', py: 'rè',  en: 'hot', build: 'fire radical at bottom (灬 form)' },
+          ]},
+        { rad: '氵',  py: '(shuǐ)', meaning: 'water (left form)',
+          examples: [
+            { cn: '河', py: 'hé',  en: 'river', build: '氵 (water, meaning) + 可 (kě, sound) → "ke" close to "he"' },
+            { cn: '海', py: 'hǎi', en: 'sea', build: '氵 + 每 (sound)' },
+            { cn: '洗', py: 'xǐ',  en: 'wash', build: '氵 + 先 (sound)' },
+            { cn: '汁', py: 'zhī', en: 'juice', build: '氵 + 十 (sound)' },
+          ]},
+        { rad: '日',  py: 'rì',    meaning: 'sun / day',
+          examples: [
+            { cn: '明', py: 'míng', en: 'bright', build: '日 (sun) + 月 (moon) → ideographic: both shining' },
+            { cn: '早', py: 'zǎo', en: 'early/morning', build: '日 (sun) + 十 → sun is up' },
+            { cn: '春', py: 'chūn', en: 'spring', build: '日 underneath' },
+            { cn: '时', py: 'shí', en: 'time', build: '日 + 寸 (sound)' },
+          ]},
+        { rad: '月',  py: 'yuè',   meaning: 'moon / flesh',
+          examples: [
+            { cn: '朋', py: 'péng', en: 'friend', build: '月 + 月 → two moons (or two pieces of flesh)' },
+            { cn: '服', py: 'fú',  en: 'clothes/serve', build: '月 (flesh radical here) + sound' },
+            { cn: '期', py: 'qī',  en: 'period', build: '其 (sound) + 月' },
+          ]},
+        { rad: '山',  py: 'shān',  meaning: 'mountain (pictograph)',
+          examples: [
+            { cn: '岩', py: 'yán', en: 'rock', build: '山 (mountain) + 石 (stone)' },
+            { cn: '峰', py: 'fēng', en: 'peak', build: '山 + sound' },
+            { cn: '岛', py: 'dǎo', en: 'island', build: '鸟 (bird) on 山 (mountain) — original ideograph' },
+          ]},
+        { rad: '口',  py: 'kǒu',   meaning: 'mouth',
+          examples: [
+            { cn: '吃', py: 'chī', en: 'eat', build: '口 (mouth) + 乞 (sound)' },
+            { cn: '喝', py: 'hē',  en: 'drink', build: '口 + 曷 (sound)' },
+            { cn: '叫', py: 'jiào', en: 'call', build: '口 + 丩 (sound)' },
+            { cn: '唱', py: 'chàng', en: 'sing', build: '口 + 昌 (sound)' },
+          ]},
+        { rad: '心',  py: 'xīn',   meaning: 'heart',
+          examples: [
+            { cn: '想', py: 'xiǎng', en: 'think', build: '相 (sound) + 心 (heart)' },
+            { cn: '怕', py: 'pà',   en: 'afraid', build: '忄 (heart, left form) + 白 (sound)' },
+            { cn: '快', py: 'kuài', en: 'fast/happy', build: '忄 + sound' },
+          ]},
+        { rad: '手',  py: 'shǒu',  meaning: 'hand (扌 left form)',
+          examples: [
+            { cn: '打', py: 'dǎ',  en: 'hit', build: '扌 (hand) + 丁 (sound)' },
+            { cn: '拿', py: 'ná',  en: 'take', build: '合 (combine) + 手 (hand)' },
+            { cn: '抱', py: 'bào', en: 'hug', build: '扌 + 包 (sound)' },
+          ]},
+        { rad: '言',  py: 'yán',   meaning: 'speech (讠 left form)',
+          examples: [
+            { cn: '说', py: 'shuō', en: 'speak', build: '讠 + 兑 (sound)' },
+            { cn: '请', py: 'qǐng', en: 'please', build: '讠 + 青 (qīng, sound)' },
+            { cn: '问', py: 'wèn', en: 'ask', build: '门 (door) + 口 (mouth) — historical "ask at the door"' },
+          ]},
+        { rad: '土',  py: 'tǔ',    meaning: 'earth / soil',
+          examples: [
+            { cn: '地', py: 'dì',  en: 'ground/earth', build: '土 (earth) + 也 (sound)' },
+            { cn: '场', py: 'chǎng', en: 'field/site', build: '土 + sound' },
+            { cn: '坐', py: 'zuò', en: 'sit', build: '人 + 人 + 土 → two people on the ground' },
+          ]},
+        { rad: '大',  py: 'dà',    meaning: 'big',
+          examples: [
+            { cn: '太', py: 'tài', en: 'too / very', build: '大 with extra mark' },
+            { cn: '天', py: 'tiān', en: 'sky/day', build: '一 (sky) + 大 (person) — symbolic' },
+            { cn: '夫', py: 'fū',  en: 'husband/man', build: '大 with hat — adult man' },
+          ]},
+        { rad: '小',  py: 'xiǎo',  meaning: 'small',
+          examples: [
+            { cn: '少', py: 'shǎo', en: 'few/less', build: '小 with extra stroke' },
+            { cn: '尖', py: 'jiān', en: 'tip/sharp', build: '小 above 大 → small on top of big = pointy' },
+          ]},
+        { rad: '田',  py: 'tián',  meaning: 'field (looks like a paddy)',
+          examples: [
+            { cn: '男', py: 'nán', en: 'male/man', build: '田 (field) + 力 (strength) — historical "man works the field"' },
+            { cn: '电', py: 'diàn', en: 'electricity', build: 'derived from 雨 (rain) + 田' },
+          ]},
+        { rad: '目',  py: 'mù',    meaning: 'eye',
+          examples: [
+            { cn: '看', py: 'kàn', en: 'look', build: '手 (hand) + 目 (eye) — shielding eye to look' },
+            { cn: '眼', py: 'yǎn', en: 'eye', build: '目 + 艮 (sound)' },
+            { cn: '睡', py: 'shuì', en: 'sleep', build: '目 + 垂 (drooping)' },
+          ]},
+        { rad: '门',  py: 'mén',   meaning: 'door (gate)',
+          examples: [
+            { cn: '问', py: 'wèn', en: 'ask', build: '门 + 口 → ask at the door' },
+            { cn: '间', py: 'jiān', en: 'between', build: '门 + 日 → sun between doors' },
+            { cn: '们', py: 'men', en: 'plural marker', build: '亻 (person) + 门 (sound) → "they"' },
+          ]},
+        { rad: '雨',  py: 'yǔ',    meaning: 'rain (pictograph: cloud + drops)',
+          examples: [
+            { cn: '雪', py: 'xuě', en: 'snow', build: '雨 + sound piece' },
+            { cn: '电', py: 'diàn', en: 'electricity (lightning)', build: 'derived from 雨' },
+            { cn: '雷', py: 'léi', en: 'thunder', build: '雨 + 田 (sound)' },
+          ]},
+        { rad: '钅',  py: '(jīn)', meaning: 'metal (left form of 金)',
+          examples: [
+            { cn: '钱', py: 'qián', en: 'money', build: '钅 + 戋 (sound)' },
+            { cn: '银', py: 'yín', en: 'silver', build: '钅 + 艮 (sound)' },
+            { cn: '钟', py: 'zhōng', en: 'clock/bell', build: '钅 + 中 (sound)' },
+          ]},
+        { rad: '力',  py: 'lì',    meaning: 'strength / power',
+          examples: [
+            { cn: '加', py: 'jiā', en: 'add', build: '力 + 口 → "voice with effort"' },
+            { cn: '助', py: 'zhù', en: 'help', build: '且 + 力' },
+            { cn: '动', py: 'dòng', en: 'move', build: '云 + 力 (force, simplified)' },
+          ]},
+        { rad: '食',  py: 'shí',   meaning: 'food (饣 left form)',
+          examples: [
+            { cn: '饭', py: 'fàn', en: 'rice/meal', build: '饣 (food) + 反 (sound)' },
+            { cn: '饿', py: 'è',   en: 'hungry', build: '饣 + 我 (sound)' },
+            { cn: '馆', py: 'guǎn', en: 'restaurant/hall', build: '饣 + 官 (sound)' },
+          ]},
+        { rad: '艹',  py: '(cǎo)', meaning: 'grass / plant (top form of 草)',
+          examples: [
+            { cn: '花', py: 'huā', en: 'flower', build: '艹 + 化 (sound)' },
+            { cn: '茶', py: 'chá', en: 'tea', build: '艹 (grass) + 余 piece' },
+            { cn: '菜', py: 'cài', en: 'vegetable', build: '艹 + sound' },
+          ]},
+      ];
+
+      // 3 categories of compound types — for Scene 3 of Module 3
+      const COMPOUND_PICTOGRAPHS = [
+        { cn: '山', py: 'shān', en: 'mountain', build: 'Three peaks. Drawn from above.' },
+        { cn: '月', py: 'yuè',  en: 'moon',     build: 'A crescent shape.' },
+        { cn: '木', py: 'mù',   en: 'tree',     build: 'Trunk with branches and roots.' },
+        { cn: '火', py: 'huǒ',  en: 'fire',     build: 'Flames flickering up.' },
+        { cn: '人', py: 'rén',  en: 'person',   build: 'Two legs walking.' },
+      ];
+      const COMPOUND_IDEOGRAPHS = [
+        { cn: '好', py: 'hǎo',  en: 'good',     build: '<span class="cn">女</span> woman + <span class="cn">子</span> child = harmony' },
+        { cn: '明', py: 'míng', en: 'bright',   build: '<span class="cn">日</span> sun + <span class="cn">月</span> moon = bright' },
+        { cn: '林', py: 'lín',  en: 'forest',   build: '<span class="cn">木</span> + <span class="cn">木</span> = forest' },
+        { cn: '休', py: 'xiū',  en: 'rest',     build: '<span class="cn">人</span> person + <span class="cn">木</span> tree = leaning to rest' },
+        { cn: '看', py: 'kàn',  en: 'look',     build: '<span class="cn">手</span> hand + <span class="cn">目</span> eye = shielding to see' },
+      ];
+      const COMPOUND_PHONETIC = [
+        { cn: '妈', py: 'mā',   en: 'mom',      build: '<span class="cn">女</span> woman (meaning) + <span class="cn">马</span> horse (sound: mǎ → mā)' },
+        { cn: '河', py: 'hé',   en: 'river',    build: '<span class="cn">氵</span> water (meaning) + <span class="cn">可</span> kě (sound: kě → hé)' },
+        { cn: '清', py: 'qīng', en: 'clear',    build: '<span class="cn">氵</span> water (meaning) + <span class="cn">青</span> qīng (sound)' },
+        { cn: '请', py: 'qǐng', en: 'please',   build: '<span class="cn">讠</span> speech (meaning) + <span class="cn">青</span> qīng (sound)' },
+        { cn: '钟', py: 'zhōng', en: 'clock',   build: '<span class="cn">钅</span> metal (meaning) + <span class="cn">中</span> zhōng (sound)' },
+      ];
+
+      const RADICALS_QUIZ = [
+        { kind: 'mc', q: 'Which radical means "water" (left-side form)?',
+          options: ['氵', '心', '木', '口'],
+          correct: 0,
+          why: 'Yes — 氵 is the left-side form of 水 (water). It appears in 河, 海, 洗, etc.',
+          wrongHint: '心 = heart, 木 = tree, 口 = mouth. The water radical is 3 dots stacked.' },
+        { kind: 'mc', q: 'The character 好 (good) is built from which two radicals?',
+          options: ['人 + 子', '女 + 子', '女 + 人', '木 + 子'],
+          correct: 1,
+          bigChar: '好',
+          why: 'Right — 女 (woman) + 子 (child). An ideographic compound.',
+          wrongHint: 'The left side is 女 (woman), the right side is 子 (child).' },
+        { kind: 'mc', q: 'About what % of common characters use the phonetic-semantic compound pattern?',
+          options: ['~10%', '~25%', '~50%', '~80%'],
+          correct: 3,
+          why: 'Yep — about 80%. Most modern characters are meaning-radical + sound-radical.',
+          wrongHint: 'It\'s the dominant pattern — far more than half.' },
+        { kind: 'mc', q: 'Which character is NOT built around the 木 (tree) radical?',
+          options: ['林', '森', '树', '河'],
+          correct: 3,
+          why: 'Correct — 河 (river) uses 氵 (water), not 木 (tree). The first three are all tree-based.',
+          wrongHint: 'Look for the radical 木 in each. River = 河 = water + something.' },
+        { kind: 'mc', q: 'In 妈 (mā, mom), 马 (mǎ, horse) is acting as the:',
+          options: ['Pictograph', 'Meaning radical', 'Sound radical', 'Tone marker'],
+          correct: 2,
+          why: 'Right — 马 (mǎ) suggests the SOUND. 女 carries the meaning. This is a phonetic-semantic compound.',
+          wrongHint: 'Hint: 马 (mǎ horse) and 妈 (mā mom) sound similar. What does that tell you?' },
+      ];
+
+      function renderRadicalsHook() {
+        // Wire decompose-demo card clicks to play the result character.
+        $$('.char-decompose-demo .cd-result .cd-char').forEach(el => {
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', () => speakTTS(el.textContent));
+        });
+      }
+
+      function renderRadicalsTable() {
+        const grid = $('#radicals-grid');
+        if (!grid) return;
+        grid.innerHTML = RADICALS.map((r, i) => `
+          <div class="radical-cell" data-idx="${i}">
+            <div class="rc-char cn">${r.rad}</div>
+            <div class="rc-meaning">${r.meaning}</div>
+          </div>
+        `).join('');
+        $$('.radical-cell', grid).forEach(cell => {
+          cell.addEventListener('click', () => selectRadical(parseInt(cell.dataset.idx, 10)));
+        });
+        // Reset detail panel
+        const detail = $('#radical-detail');
+        if (detail) detail.innerHTML = `<div class="placeholder">Tap a radical above to see its meaning and example characters.</div>`;
+        state.activeRadical = null;
+      }
+
+      function selectRadical(idx) {
+        const r = RADICALS[idx];
+        if (!r) return;
+        state.activeRadical = idx;
+        $$('.radical-cell').forEach((c, i) => c.classList.toggle('active', i === idx));
+        const detail = $('#radical-detail');
+        detail.innerHTML = `
+          <div class="rd-head">
+            <div class="rd-char cn">${r.rad}</div>
+            <div class="rd-info">
+              <div class="rd-name">${r.meaning}<span style="color: var(--ink-300); font-weight: 400; margin-left: 8px;">${r.py ? '· ' + r.py : ''}</span></div>
+              <div class="rd-position">Used as a meaning radical in many common characters.</div>
+            </div>
+          </div>
+          <div class="rd-examples-label">Example characters · tap to decompose</div>
+          <div class="rd-examples">
+            ${r.examples.map((e, i) => `
+              <div class="rd-example" data-rad="${idx}" data-ex="${i}">
+                <div class="rdx-char cn">${e.cn}</div>
+                <div class="rdx-info">
+                  <div class="rdx-py">${e.py}</div>
+                  <div class="rdx-en">${e.en}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div id="rd-decomp-host"></div>
+        `;
+        $$('.rd-example', detail).forEach(ex => {
+          ex.addEventListener('click', () => {
+            const rIdx = parseInt(ex.dataset.rad, 10);
+            const eIdx = parseInt(ex.dataset.ex, 10);
+            const exData = RADICALS[rIdx].examples[eIdx];
+            speakTTS(exData.cn);
+            const host = $('#rd-decomp-host');
+            host.innerHTML = `
+              <div class="rd-decomp">
+                <div class="rdd-char cn">${exData.cn}</div>
+                <div class="rdd-eq">=</div>
+                <div class="rdd-explain">${exData.build}</div>
+              </div>
+            `;
+          });
+        });
+      }
+
+      function renderCompoundTypes() {
+        const renderInto = (id, list) => {
+          const w = $('#' + id);
+          if (!w) return;
+          w.innerHTML = list.map(item => `
+            <div class="ctype-example" data-cn="${item.cn}">
+              <div class="ce-char cn">${item.cn}</div>
+              <div class="ce-py">${item.py}</div>
+              <div class="ce-en">${item.en}</div>
+              <div class="ce-build">${item.build}</div>
+            </div>
+          `).join('');
+          $$('.ctype-example', w).forEach(el => {
+            el.addEventListener('click', () => speakTTS(el.dataset.cn));
+          });
+        };
+        renderInto('pict-examples', COMPOUND_PICTOGRAPHS);
+        renderInto('ideo-examples', COMPOUND_IDEOGRAPHS);
+        renderInto('phon-examples', COMPOUND_PHONETIC);
+      }
+
+      // =====================================================================
+      // MODULES — registry of all built modules
+      // =====================================================================
+      const MODULES = {
+        tones: {
+          name: 'Tones',
+          icon: '声',
+          title: 'The 4 Tones',
+          intro: 'In Mandarin, the same syllable spoken with a different pitch contour becomes a completely different word. Master the 4 tones and you\'ve unlocked the door to the whole language.',
+          quiz: TONES_QUIZ,
+          quizCardSel: '#quiz-card-wrap',
+          // Per-scene lazy renderers
+          sceneRenderers: { 1: renderBigIdea, 2: renderTrainer, 3: renderPairs, 4: () => startQuiz('tones') },
+          // Per-scene cleanup hooks (called when leaving the scene)
+          sceneCleanups: { 2: () => state.mic.recording && stopMicRecording(), 4: () => quizMic.recording && quizStopMic() },
+          next: 'pinyin',
+        },
+        pinyin: {
+          name: 'Pinyin',
+          icon: '拼',
+          title: 'Pinyin',
+          intro: 'Pinyin is the romanization system that maps Chinese sounds to letters you already know. Master it and you can pronounce any Chinese word — even ones written in characters you\'ve never seen.',
+          quiz: PINYIN_QUIZ,
+          quizCardSel: '#pinyin-quiz-card-wrap',
+          sceneRenderers: { 0: renderPinyinHook, 2: renderPinyinChart, 3: renderPinyinGotchas, 4: () => startQuiz('pinyin') },
+          sceneCleanups: {},
+          next: 'radicals',
+        },
+        radicals: {
+          name: 'Radicals',
+          icon: '部',
+          title: 'Radicals',
+          intro: 'Most Chinese characters are built from a small set of reusable pieces called radicals. About 50 radicals cover 80%+ of common characters. Once you see the building blocks, the wall starts to look like LEGO.',
+          quiz: RADICALS_QUIZ,
+          quizCardSel: '#radicals-quiz-card-wrap',
+          sceneRenderers: { 0: renderRadicalsHook, 2: renderRadicalsTable, 3: renderCompoundTypes, 4: () => startQuiz('radicals') },
+          sceneCleanups: {},
+          next: null,
+        },
+      };
+
+      // =====================================================================
+      // Module switcher + multi-module routing
+      // =====================================================================
+
+      // The module switcher pill nav at the top — also includes locked modules so
+      // future ones can be added without HTML changes (just add a `locked` entry).
+      const SWITCHER_ENTRIES = [
+        { id: 'tones',     label: 'Tones',          unlocked: true },
+        { id: 'pinyin',    label: 'Pinyin',         unlocked: true },
+        { id: 'radicals',  label: 'Radicals',       unlocked: true },
+        { id: 'chars',     label: '100 chars',      unlocked: false },
+        { id: 'phrases',   label: 'Phrases',        unlocked: false },
+      ];
+
+      function renderModuleSwitcher() {
+        const wrap = $('#module-switcher');
+        if (!wrap) return;
+        wrap.innerHTML = SWITCHER_ENTRIES.map((e, i) => `
+          <button data-mod="${e.id}" ${e.unlocked ? '' : 'disabled'} ${state.activeModule === e.id ? 'class="active"' : ''}>
+            <span class="num">M${i+1}</span>
+            <span>${e.label}</span>
+          </button>
+        `).join('');
+        $$('button', wrap).forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            const id = btn.dataset.mod;
+            if (id !== state.activeModule) startModule(id);
+          });
+        });
+      }
+
+      function renderModuleHead() {
+        const mod = MODULES[state.activeModule];
+        if (!mod) return;
+        $('#module-head').innerHTML = `
+          <div class="module-title-row">
+            <div class="module-icon"><span class="cn">${mod.icon}</span></div>
+            <h1>${mod.title}</h1>
+          </div>
+          <p class="intro">${mod.intro}</p>
+          <div class="progress-dots" id="progress-dots"></div>
+        `;
+      }
+
+      function startModule(id) {
+        if (!MODULES[id]) return;
+        // Run cleanup for the outgoing module's current scene
+        const oldMod = MODULES[state.activeModule];
+        if (oldMod && oldMod.sceneCleanups && oldMod.sceneCleanups[state.sceneIndex]) {
+          oldMod.sceneCleanups[state.sceneIndex]();
+        }
+
+        state.activeModule = id;
+        state.sceneIndex = 0;
+        state.quiz = { i: 0, correct: 0, locked: false, items: [], cardSel: '#quiz-card-wrap', moduleId: 'tones' };
+        state.activeRadical = null;
+
+        // Show only the active module's section
+        $$('.module-section').forEach(sec => {
+          sec.hidden = (sec.dataset.module !== id);
+          // Reset .active scene class to scene 0 within each module
+          $$('.scene', sec).forEach(s => s.classList.remove('active'));
+          const first = sec.querySelector('.scene[data-scene="0"]');
+          if (first) first.classList.add('active');
+        });
+
+        renderModuleSwitcher();
+        renderModuleHead();
+        showScene(0);
+      }
+
+      // =====================================================================
+      // Routing
+      // =====================================================================
+
+      function renderProgressDots() {
+        const dots = $('#progress-dots');
+        if (!dots) return;
+        dots.innerHTML = '';
+        for (let i = 0; i < 6; i++) {
+          const d = document.createElement('span');
+          d.className = 'dot' + (i === state.sceneIndex ? ' active' :
+                                 i < state.sceneIndex ? ' done' : '');
+          d.title = `Scene ${i + 1}`;
+          d.addEventListener('click', () => {
+            if (i <= state.sceneIndex) showScene(i);
+          });
+          dots.appendChild(d);
+        }
+      }
+
       function showScene(i) {
+        const mod = MODULES[state.activeModule];
+        if (!mod) return;
+        // Cleanup outgoing scene if needed
+        if (mod.sceneCleanups && mod.sceneCleanups[state.sceneIndex] && state.sceneIndex !== i) {
+          mod.sceneCleanups[state.sceneIndex]();
+        }
+
         state.sceneIndex = i;
-        $$('.scene').forEach(s => s.classList.remove('active'));
-        const scene = $(`.scene[data-scene="${i}"]`);
+        const section = $(`.module-section[data-module="${state.activeModule}"]`);
+        if (!section) return;
+        $$('.scene', section).forEach(s => s.classList.remove('active'));
+        const scene = $(`.scene[data-scene="${i}"]`, section);
         if (scene) scene.classList.add('active');
         renderProgressDots();
-        // Lazy render
-        if (i === 1) renderBigIdea();
-        if (i === 2) renderTrainer();
-        if (i === 3) renderPairs();
-        if (i === 4) renderQuiz();
+
+        // Lazy render scene content using module's renderers
+        if (mod.sceneRenderers && mod.sceneRenderers[i]) mod.sceneRenderers[i]();
         if (i === 5) markCompleted();
-        // Stop any active mic when leaving the trainer
-        if (i !== 2 && state.mic.recording) stopMicRecording();
-        if (i !== 4 && quizMic.recording) quizStopMic();
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
@@ -2244,14 +4108,15 @@
 
       function restartModule() {
         state.sceneIndex = 0;
-        state.quiz = { i: 0, correct: 0, locked: false, items: [] };
+        state.quiz = { i: 0, correct: 0, locked: false, items: [], cardSel: MODULES[state.activeModule].quizCardSel, moduleId: state.activeModule };
         showScene(0);
       }
 
       function markCompleted() {
+        if (!state.activeModule) return;
         const all = loadState();
         all.completed = all.completed || {};
-        all.completed.tones = true;
+        all.completed[state.activeModule] = true;
         saveState(all);
         state.completed = all.completed;
       }
@@ -2266,6 +4131,10 @@
           const a = t.dataset.action;
           if (a === 'next') nextScene();
           else if (a === 'restart') restartModule();
+          else if (a === 'goto') {
+            const target = t.dataset.mod;
+            if (target && MODULES[target]) startModule(target);
+          }
         });
       }
 
@@ -2273,9 +4142,13 @@
       // Boot
       // =====================================================================
       function boot() {
+        // Always render the hook scene of M1 (it's static HTML driven by render fn)
         renderHook();
-        renderProgressDots();
         wire();
+        // Render module switcher + start the active module
+        renderModuleSwitcher();
+        renderModuleHead();
+        renderProgressDots();
         // Pre-warm zh voice list (some browsers need this)
         if ('speechSynthesis' in window) speechSynthesis.getVoices();
       }

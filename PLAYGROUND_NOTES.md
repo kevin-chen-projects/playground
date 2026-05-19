@@ -23,7 +23,7 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html`
 12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html`
 13. [Bio Basics (Molecular Biology for Everyone)](#13-bio-basicshtml) — `bio-basics.html`
-14. [NiHao (Mandarin Tone Trainer)](#14-nihaohtml) — `nihao.html`
+14. [NiHao (Mandarin Learning Site)](#14-nihaohtml) — `nihao.html`
 15. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
@@ -1024,22 +1024,22 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 
 ## 14. `nihao.html`
 
-**Mandarin tone trainer with live pitch feedback — module 1 of a planned 11-module Chinese-learning curriculum.** Same overall pattern as bio-basics (6-scene narrative module, vanilla single-file), but the centerpiece is a real-time pitch-detection trainer: user picks a target tone, presses a mic button, says "ma", and sees their pitch contour drawn live on top of the target curve with a 0–100 score and shape-aware feedback. Tone target: friendly + interactive, lean into the magic of "you sang the right shape!"
+**Mandarin learning site — modules 1–3 of a planned 11-module curriculum.** Same overall pattern as bio-basics (multi-module SPA, 6-scene narrative per module, vanilla single-file), but the centerpieces are audio + visual: live pitch-detection trainer (M1), interactive pinyin chart (M2), and a clickable radical table with character decomposition (M3). Tone target: friendly + interactive — when you sing the right tone, when you hear "qing" pronounced correctly for the first time, when you see 好 = 女 + 子, those are the dopamine moments.
 
-- **Lines:** 2,287
-- **Layout:** No landing page — the page opens directly into module 1. Top bar shows brand mark + "M1. The 4 Tones" subtitle. Single `.module-section` with 6 scenes; progress-dot strip above scenes.
+- **Lines:** 4,158
+- **Layout:** No landing page — page opens directly into the active module. Top bar shows brand mark + a horizontal **module switcher** (pill nav with M1/M2/M3 unlocked, M4/M5 visible-but-locked). 3 `.module-section[data-module=ID]` blocks; only one is `hidden=false` at a time. Each module has 6 scenes with a progress-dot strip.
 - **Dependencies:** None (pure vanilla). Uses **Web Audio API** (AudioContext, AnalyserNode, getUserMedia) for live pitch detection, and `speechSynthesis` (zh-CN voice) as a TTS fallback when MP3 audio files are missing.
 - **No-build:** Open directly in any modern browser. *Microphone requires HTTPS or localhost; `file://` works locally.*
 
-### Curriculum (11 modules, 1 built)
+### Curriculum (11 modules, 3 built)
 
 | # | Module | Status | Centerpiece |
 |---|--------|--------|-------------|
-| 1 | The 4 Tones | **Built** | Live pitch detector with shape-aware scoring |
-| 2 | Pinyin | Soon | Click syllables to hear; spotlight tricky pairs (q/x/zh, ü) |
-| 3 | Radicals | Soon | Click 50 high-coverage radicals → carousel of common chars |
+| 1 | The 4 Tones | **Built** | Live pitch detector with shape-aware scoring (mic + autocorrelation) |
+| 2 | Pinyin | **Built** | Interactive pinyin chart (~400 valid syllables) + 8 "gotcha" cards for tricky letters (q, x, zh, ch, sh, c, j, ü) |
+| 3 | Radicals | **Built** | 24-radical periodic table with click-to-decompose example characters; 3-card explanation of pictographic / ideographic / phonetic-semantic compounds |
 | 4 | First 100 characters | Soon | Story-mnemonic flashcards |
-| 5 | Compound words | Soon | Tap-to-decompose chars |
+| 5 | Compound words | Soon | Tap-to-decompose words |
 | 6 | Stroke order & handwriting | Soon | Animated SVG + trace-along |
 | 7 | Survival phrases | Soon | 8 scenarios with mic-based grading (reuses M1 pitch detector) |
 | 8 | Sentence patterns | Soon | Drag-to-build sentences |
@@ -1047,70 +1047,107 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 | 10 | Numbers, dates, money + sandhi | Soon | Tap-to-pronounce scrubber |
 | 11 | Modern Chinese & internet culture | Soon | Slang dictionary with audio |
 
-### Module 1 Scene Map
+### Scene Maps (each module: 6 scenes following hook → big idea → interactive → deep dive → quiz → recap+tease)
 
-| # | Scene | What it does |
-|---|-------|--------------|
-| 0 | Hook | "4 tones. 1 syllable. 4 different words." 4 character cards (妈麻马骂 / mom-hemp-horse-scold) — tap any to play it. |
-| 1 | Big idea | 4 tone-track SVGs (flat / rising / dipping / falling) — one card per tone, click to hear. Plus a callout for the 5th (neutral) tone. |
-| 2 | **Pitch trainer** | Pick a target tone (4 pills), tap the mic, say "ma". Real-time pitch curve drawn over a faded target curve. 0–100 score with shape-aware feedback ("Smooth rise — that's tone 2.") |
-| 3 | Tone pairs | 16-cell tone-pair grid (1+1, 1+2 ... 4+4) with a real Chinese word in each cell — tap to hear. Sandhi callout (3+3 → 2+3) highlighted in gold. 6 common 2-syllable words below. |
-| 4 | Quiz | 5 questions: 3 ear-training (hear → identify tone) + 2 production (speak → mic-graded with shared pitch detector). Confetti for ≥80%. |
-| 5 | Recap | 5-pill summary + Pinyin module tease. |
+**Module 1 — The 4 Tones**
+
+| # | What it does |
+|---|--------------|
+| 0 | "4 tones. 1 syllable. 4 different words." 4 character cards (妈麻马骂 / mom-hemp-horse-scold) — tap any to hear it. |
+| 1 | 4 tone-track SVGs (flat / rising / dipping / falling) — click to hear. Plus a callout for the 5th (neutral) tone. |
+| 2 | **Pitch trainer.** Pick a target tone, tap mic, say "ma". Real-time pitch curve drawn over a faded target curve. 0–100 score with shape-aware feedback. |
+| 3 | 16-cell tone-pair grid with a real Chinese word in each cell. Sandhi callout (3+3 → 2+3) highlighted. 6 common 2-syllable words below. |
+| 4 | 5 questions: 3 ear-training + 2 production (mic-graded). |
+| 5 | Recap + Pinyin tease. |
+
+**Module 2 — Pinyin**
+
+| # | What it does |
+|---|--------------|
+| 0 | Hook: "你好" → "nǐ hǎo" examples + tagline "read Mandarin without learning a character". Examples are clickable (TTS playback). |
+| 1 | "Initial + Final + Tone = Syllable" — visual syllable-builder + 4 cards explaining initials (21), finals (~36), tone-mark placement, total syllable count. |
+| 2 | **Pinyin chart.** 22 initials × 12 finals grid (264 cells). Each valid syllable is clickable → TTS + readout panel showing the syllable, a representative character, and meaning. Tricky-for-English-speakers initials (j/q/x/zh/ch/sh/r/c) highlighted in red. |
+| 3 | 8 "gotcha" cards (q, x, zh, ch, sh, c, j, ü) — each shows English-expectation vs. actual pronunciation, plus a real-word example with TTS. Tone-mark placement rule callout. |
+| 4 | 5 multiple-choice questions covering pronunciation gotchas + tone-mark placement rule. |
+| 5 | Recap + Radicals tease. |
+
+**Module 3 — Radicals**
+
+| # | What it does |
+|---|--------------|
+| 0 | 3 char-decomposition demos (好 = 女+子, 明 = 日+月, 林 = 木+木) + tagline "Characters look random until you see the pieces". |
+| 1 | 4 cards introducing radicals as building blocks: ~50 cover 80%, position is fixed, pictographs vs. phonetic-semantic. |
+| 2 | **Radical periodic table.** 24 high-frequency radicals (人, 女, 子, 木, 火, 氵, 日, 月, 山, 口, 心, 手, 言, 土, 大, 小, 田, 目, 门, 雨, 钅, 力, 食, 艹). Click → detail panel with meaning + 3-5 example characters. Click an example → expandable decomposition card explaining how the character is built. |
+| 3 | 3 categories of compounds with 5 examples each: pictographs (~10%), ideographs (~5%), phonetic-semantic (~80%). Each example tappable for TTS. |
+| 4 | 5 multiple-choice questions on radical recognition + decomposition + compound types. |
+| 5 | Recap + "Your first 100 characters" tease (Module 4). |
 
 ### Key JS Architecture
 
 | Concept | Description |
 |---------|-------------|
-| **Audio fallback chain** | Each clip has `{ file, tts }`. `playAudio(key)` tries the MP3 first; on 404 (cached in `fileCache`) falls back to `speakTTS(text)` with zh-CN voice. Drop MP3s into `audio/` to auto-upgrade — no code change. |
-| **Pitch detection** | `autoCorrelate(buf, sampleRate)` — autocorrelation with parabolic interpolation for sub-sample accuracy. Adapted from public-domain Chris-Wilson example. ~50 lines. Returns Hz or -1. Plausibility filter: 60–700 Hz. |
-| **Live mic loop** | `getUserMedia` → `AudioContext` → `AnalyserNode` (fftSize 2048). `requestAnimationFrame` reads time-domain buffer, runs autocorrelation, pushes `{t, hz}` into `state.mic.pitches`. Records 1.5s, then scores. |
-| **Pitch curve normalization** | Each user recording is normalized to its own min/max range and drawn into a 400×200 viewBox. Absolute pitch is irrelevant — only shape matters (works for low and high voices alike). |
-| **Tone scoring** | `scorePitch(pitches, toneNum)` — shape-aware heuristics per tone: tone 1 measures flatness, tone 2 measures rise (slope), tone 3 measures middle dip + position, tone 4 measures fall. Returns `{ score 0-100, reason: "human-readable feedback" }`. |
-| **Production-quiz reuses detector** | Scene 4 has 2 mic-graded questions; uses a separate `quizMic` state object (not the trainer's) so they don't collide. ≥60 score = correct. |
+| **`MODULES[id]` registry** | Per-module metadata `{name, icon, title, intro, quiz, quizCardSel, sceneRenderers, sceneCleanups, next}`. `sceneRenderers` is a sparse map of scene-index → render fn (called lazily by `showScene`). `sceneCleanups` is a parallel map of scene-index → cleanup fn (called when leaving a scene with side-effects, e.g. an active mic stream). |
+| **Module-section visibility** | `startModule(id)` sets `hidden` on each `.module-section` based on the active module ID. Cleanup of the outgoing scene runs first to stop active mics / animations. |
+| **Module switcher** | `SWITCHER_ENTRIES` controls the top-bar pill nav. Each pill has `{id, label, unlocked}`. Unlocked → button calls `startModule(id)`; locked → disabled visually but visible (hints at the curriculum). New modules unlock by adding to MODULES + setting `unlocked: true`. |
+| **Module-aware quiz engine** | `startQuiz(moduleId)` sets `state.quiz = {items, cardSel, moduleId}`. `renderQuizQuestion` picks the right card to render into. Questions support 3 kinds: `ear` (audio + 4 tone options), `production` (mic-graded with target curve), `mc` (4 generic multiple-choice options, with optional `audioKey` and `bigChar` for character-based questions). |
+| **Audio fallback chain** | Each clip in `AUDIO` has `{file, tts}`. `playAudio(key)` tries the MP3 first; on 404 (cached in `fileCache`) falls back to `speakTTS(text)` with zh-CN voice. Drop MP3s into `audio/` to auto-upgrade — no code change. |
+| **Pitch detection** | `autoCorrelate(buf, sampleRate)` — autocorrelation with parabolic interpolation for sub-sample accuracy. ~50 lines. Used by both M1 trainer and M1 quiz. |
 
-### Section Map
+### Module 2 Data
 
-| Range | Section |
-|-------|---------|
-| 1–46 | Header comment block (TOC + audio-asset notes) |
-| 48–55 | `<head>` — meta, title |
-| 57–680 | `<style>` — palette, components, mobile breakpoint |
-| 60–105 | `:root` — vermilion + gold + cream surfaces; per-tone color vars (--t1..t4) |
-| 690–870 | `<body>` HTML — top bar, module head, 6 scenes |
-| 905–end | `<script>` IIFE |
+| Piece | What |
+|-------|------|
+| `PINYIN_SYLLABLES` (Set) | ~400 curated valid Mandarin syllables. Used by the chart to skip empty cells. |
+| `PINYIN_INITIALS_GRID`, `PINYIN_FINALS_GRID` | Row/col headers for the chart (22 initials × 12 finals). |
+| `PINYIN_TRICKY_INITIALS` (Set) | 8 initials highlighted in red as "gotchas". |
+| `PINYIN_NOTES` (map) | 22 popular syllables → `{cn, en}` for the readout when tapped. |
+| `PINYIN_GOTCHAS` (array) | 8 cards: each `{letter, not, butIs, explain, cn, py, en}` — Scene 3. |
+| `PINYIN_QUIZ` (array) | 5 multiple-choice questions. |
+
+### Module 3 Data
+
+| Piece | What |
+|-------|------|
+| `RADICALS` (array, 24) | Each `{rad, py, meaning, examples: [{cn, py, en, build}, ...]}`. Examples are 3-5 characters per radical, with a one-line decomposition explanation. |
+| `COMPOUND_PICTOGRAPHS` / `COMPOUND_IDEOGRAPHS` / `COMPOUND_PHONETIC` (arrays) | 5 example characters per compound type — Scene 3. |
+| `RADICALS_QUIZ` (array) | 5 multiple-choice questions on radical recognition + decomposition. |
 
 ### Key JS Entry Points
 
 | Function | Purpose |
 |----------|---------|
-| `loadState`, `saveState` | `localStorage['nihao_state_v1']` |
-| `AUDIO` (table) | 11 clip definitions: `{ file, tts, tone? / pattern? }` |
-| `getZhVoice`, `speakTTS` | TTS fallback using `speechSynthesis` with zh-CN preference |
-| `playAudio(key)` | File-first, TTS-fallback playback |
-| `autoCorrelate(buf, rate)` | Pitch detection |
-| `startMicRecording`, `stopMicRecording`, `tickPitch` | Mic capture loop |
-| `clearUserCurve`, `drawUserCurve` | SVG path updates |
-| `setTargetTone(n)` | Switch active tone target + redraw target curve |
-| `scorePitch(pitches, tone)` | Shape-aware scoring per tone (flat / rise / dip / fall) |
-| `MA_DATA`, `TONE_TRACKS`, `PAIRS` | Per-scene content data |
-| `renderHook`, `renderBigIdea`, `renderTrainer`, `renderPairs`, `renderQuiz`, `renderQuizResults` | Scene renderers (lazy, called from `showScene`) |
-| `quizMic`, `quizStartMic`, `quizStopMic`, `quizTickPitch`, `quizScoreAndDisplay` | Production-quiz mic state (separate from trainer's) |
-| `fireConfetti(count)` | Confetti shower (uses NiHao palette: vermilion + gold + tone colors) |
-| `markCompleted` | Writes `completed.tones = true` to localStorage on entering scene 5 |
+| **Routing** | |
+| `MODULES`, `SWITCHER_ENTRIES` | The two registries (modules + switcher pills) |
+| `renderModuleSwitcher`, `renderModuleHead` | Top-bar pill nav + per-module head section |
+| `startModule(id)` | Cleans up outgoing scene, switches active module, calls `showScene(0)` |
+| `showScene(i)`, `nextScene`, `restartModule` | Scene navigation, scoped to active module-section |
+| **Module 1 (Tones)** | |
+| `MA_DATA`, `TONE_TRACKS`, `PAIRS`, `TONES_QUIZ` | Content data |
+| `renderHook`, `renderBigIdea`, `renderTrainer`, `renderPairs` | Scene renderers |
+| `autoCorrelate`, `startMicRecording`, `stopMicRecording`, `tickPitch`, `drawUserCurve`, `scorePitch` | Pitch capture + analysis |
+| `quizMic`, `quizStartMic`, `quizStopMic`, `quizTickPitch`, `quizScoreAndDisplay` | Production-quiz mic (separate state) |
+| **Module 2 (Pinyin)** | |
+| `PINYIN_SYLLABLES`, `PINYIN_INITIALS_GRID`, `PINYIN_FINALS_GRID`, `PINYIN_NOTES`, `PINYIN_GOTCHAS`, `PINYIN_QUIZ` | Content data |
+| `renderPinyinHook`, `renderPinyinChart`, `renderPinyinGotchas` | Scene renderers |
+| `selectPinyin(syllable)` | Updates the readout panel + plays TTS |
+| **Module 3 (Radicals)** | |
+| `RADICALS`, `COMPOUND_PICTOGRAPHS`, `COMPOUND_IDEOGRAPHS`, `COMPOUND_PHONETIC`, `RADICALS_QUIZ` | Content data |
+| `renderRadicalsHook`, `renderRadicalsTable`, `renderCompoundTypes` | Scene renderers |
+| `selectRadical(idx)` | Activates the radical, populates the detail panel |
+| **Quiz engine** | |
+| `startQuiz(moduleId)`, `renderQuizQuestion`, `answerEar`, `answerMC`, `renderQuizResults` | Module-aware multiple-choice + production quiz support (3 question kinds: `ear`, `production`, `mc`) |
 
 ### CSS Variables (palette)
 
 ```css
 --vermilion #c41e3a  --gold #d4a017       --cream #fef8e8
 --vermilion-dark #9b1729  --gold-light #e8c14a  --paper #ffffff
---vermilion-light #e84a64 --gold-pale #fff3c2   --bg #faf3e0
 
---t1 #ee5a5a   --t1-pale #ffd3d3      (tone 1: flat)
---t2 #ff9a3c   --t2-pale #ffe0c2      (tone 2: rising)
---t3 #22c896   --t3-pale #b9f0d9      (tone 3: dipping)
---t4 #4ea8ff   --t4-pale #d6ecff      (tone 4: falling)
---tn #9aa3b8                          (neutral / 5th)
+--t1 #ee5a5a  --t1-pale #ffd3d3      (tone 1: red, flat)
+--t2 #ff9a3c  --t2-pale #ffe0c2      (tone 2: orange, rising)
+--t3 #22c896  --t3-pale #b9f0d9      (tone 3: green, dipping)
+--t4 #4ea8ff  --t4-pale #d6ecff      (tone 4: blue, falling)
+--tn #9aa3b8                         (neutral / 5th)
 
 --ink-900 #1a1410   --radius 16px   --radius-lg 24px
 ```
@@ -1119,25 +1156,31 @@ Tone color convention follows what most Chinese-learning apps use (red/orange/gr
 
 ### Audio Strategy
 
-- **TTS by default.** Page is fully functional from day 1 with no audio files — `speechSynthesis` with a `zh-CN` voice handles all playback.
-- **Recorded audio overrides automatically.** Drop MP3s into `audio/` (filenames listed in the header comment): `ma1.mp3`–`ma5.mp3`, plus 6 common-word files (`mama`, `nihao`, `xiexie`, `zhongguo`, `xuexiao`, `pengyou`). The `fileCache` mechanism tries the file once; on 404, it falls back to TTS for that key permanently in the session.
-- **No code change needed** to swap audio in/out. This is intentional — the same pattern can power module 2+ as the curriculum grows.
+- **TTS by default.** Site is fully functional from day 1 with no audio files — `speechSynthesis` with a `zh-CN` voice handles all playback. Module 2 and 3 rely heavily on TTS playing characters (which encode tone), avoiding the unreliability of TTS on bare pinyin.
+- **Recorded audio overrides automatically.** Drop MP3s into `audio/` (filenames listed in the header comment of `nihao.html`). The `fileCache` mechanism tries the file once; on 404, it falls back to TTS for that key permanently in the session.
+- **No code change needed** to swap audio in/out. The same pattern powers all three modules.
 
 ### Persistence
 
-`localStorage['nihao_state_v1']` — `{ completed: { tones: true } }`. Quiz progress and pitch-trainer attempts reset every visit so users can replay freely.
+`localStorage['nihao_state_v1']` — `{ completed: { tones: true, pinyin: true, radicals: true } }`. Quiz progress, pitch-trainer attempts, and active radical reset every visit so users can replay freely.
 
 ### Interactions / Flow
 
-Page opens directly into M1 scene 0 (no landing page) → tap "Show me how →" → tone-tracks → trainer (mic + live pitch) → tone pairs → quiz (mixed ear + production) → recap + Pinyin tease. Brand bar at top is decorative for now; when M2+ is built, replace with a module switcher (placeholder comment in the HTML).
+Page opens into the active module (default M1 scene 0). User can either:
+- Walk through scenes linearly via "Next" button → finish quiz → recap → "Continue to X →" CTA links to next module
+- Click a module pill in the top-bar switcher to jump directly (only unlocked modules clickable)
+
+Within M1: tone-tracks → trainer (mic + live pitch) → tone pairs → quiz (mixed ear + production).
+Within M2: syllable-builder → 264-cell pinyin chart → 8 gotcha cards → MC quiz.
+Within M3: 3 decompose demos → 24-radical table → 3 compound-type cards → MC quiz.
 
 ### Decisions / Notes (deliberate)
 
-- **Skip the landing page.** The first build prioritizes a polished module over marketing surface. When ≥2 modules exist, add a horizontal pill nav at the top — *not* a curriculum grid.
-- **One concrete metaphor per module:** for M1, "tones as roller-coaster tracks." Used in scene 1 cards, repeated in trainer feedback, surfaces again in scene 5 recap.
-- **Shape over absolute pitch.** Scoring normalizes each user's recording to its own min/max range, so a low-voiced bass and a high-voiced soprano both score identically on a flat tone. This is pedagogically correct and avoids the "you're not loud / not high enough" trap.
-- **Production quiz uses a separate mic-state object** (`quizMic`) so it doesn't collide with the trainer's mic state if the user navigates back and forth.
+- **Module switcher in top bar, not a landing page.** Saves the click that a curriculum grid would require, and keeps the visual focus on whatever the user is learning right now. Locked modules are visible but disabled — they preview what's coming without competing for attention.
+- **Three different "magic moments" across three modules:** M1 = "I sang the right tone!", M2 = "Oh THAT'S how 'qing' is pronounced", M3 = "Wait, 好 is just 女 + 子?" Each module has one centerpiece interaction designed to deliver that moment.
 - **No backend.** Mic capture is browser-only; nothing leaves the device. Important to call out in any future privacy copy.
+- **Production quiz uses a separate mic-state object** (`quizMic`) so it doesn't collide with the trainer's mic state if the user navigates back and forth.
+- **Reuse over rebuilding.** M2 and M3 quizzes use the same `mc` (multiple-choice) question kind extension to the existing quiz engine — no parallel quiz code per module.
 
 ### What's Different from Other Educational Projects in the Repo
 
@@ -1178,7 +1221,7 @@ Page opens directly into M1 scene 0 (no landing page) → tap "Show me how →" 
 | spades.html | 2,189 | Card game |
 | math-ace.html | 2,766 | K–5 math tutor |
 | bio-basics.html | 4,120 | Molecular biology learning site |
-| nihao.html | 2,287 | Mandarin tone trainer (live mic + pitch detection) |
+| nihao.html | 4,158 | Mandarin learning site (tones, pinyin, radicals — 3 of 11 modules) |
 | slot-machine-memes.html | 1,754 | Slot game |
 | glow-studio-easy.html | 1,662 | Photo editor |
 | glow-studio-video.html | 1,713 | Video editor |

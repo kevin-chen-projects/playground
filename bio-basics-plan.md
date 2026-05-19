@@ -18,7 +18,7 @@ Source file: `bio-basics.html` (single-file vanilla HTML/CSS/JS, no build step).
 
 ## 2. Status (as of 2026-05-18)
 
-**5 of 11 modules built and unlocked.** Each follows the same 6-scene format.
+**6 of 11 modules built and unlocked.** Each follows the same 6-scene format.
 
 | # | Module | Status | Centerpiece interaction |
 |---|--------|--------|-------------------------|
@@ -27,14 +27,14 @@ Source file: `bio-basics.html` (single-file vanilla HTML/CSS/JS, no build step).
 | 3 | Transcription (DNA → RNA) | ✅ Built | Animated RNA polymerase + play/step/reset controls |
 | 4 | Translation (RNA → Protein) | ✅ Built | Animated ribosome + 64-codon picker |
 | 5 | Gene Regulation | ✅ Built | Toggle 4 cell types; 20-gene grid lights up different subsets |
-| 6 | Mutations & Evolution | 🔒 Locked | — |
+| 6 | Mutations & Evolution | ✅ Built | 4-codon mRNA strand; click any base to see all 3 single-base swaps pre-classified silent / missense / nonsense |
 | 7 | Cancer & Genetic Disease | 🔒 Locked | — |
 | 8 | Viruses | 🔒 Locked | — |
 | 9 | The Immune System | 🔒 Locked | — |
 | 10 | Vaccines & Pandemics | 🔒 Locked | — |
 | 11 | CRISPR & Modern Tools | 🔒 Locked | — |
 
-File metrics: ~4,120 lines, ~176 KB. The first 5 modules are intentionally polished before scaffolding the rest. The disease/immune/vaccines arc (modules 7–10) is the long-term goal — for helping people understand pandemics, vaccines, etc.
+File metrics: ~4,900 lines, ~210 KB. The 6-module foundation (central dogma + mutations) is now polished. The disease/immune/vaccines arc (modules 7–10) is the long-term goal — for helping people understand pandemics, vaccines, etc. Per the file-size split trigger (§3.5), module 7 should likely come AFTER a single-file → multi-file split, since adding it to `bio-basics.html` would push past the 6,000-line ceiling.
 
 ---
 

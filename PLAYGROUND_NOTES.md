@@ -890,14 +890,14 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 
 ## 13. `bio-basics.html`
 
-**Molecular biology learning site, middle-school-friendly.** A landing page lists 11 modules of a planned curriculum (cell → DNA → transcription → translation → gene regulation → mutations/evolution → cancer/disease → viruses → immune system → vaccines/pandemics → CRISPR). **Modules 1–5 are fully built** (the central-dogma core: cell, DNA, transcription, translation, gene regulation); modules 6–11 are locked placeholders for the disease/immune/vaccine arc. Each built module walks the learner through 6 sequential scenes with at least one interactive centerpiece. Tone target: friendly and curious, deliberately *not* college-level — closer to a kids' science museum than a textbook.
+**Molecular biology learning site, middle-school-friendly.** A landing page lists 11 modules of a planned curriculum (cell → DNA → transcription → translation → gene regulation → mutations/evolution → cancer/disease → viruses → immune system → vaccines/pandemics → CRISPR). **Modules 1–6 are fully built** (the central-dogma core + mutations: cell, DNA, transcription, translation, gene regulation, mutations/evolution); modules 7–11 are locked placeholders for the disease/immune/vaccine/CRISPR arc. Each built module walks the learner through 6 sequential scenes with at least one interactive centerpiece. Tone target: friendly and curious, deliberately *not* college-level — closer to a kids' science museum than a textbook.
 
-- **Lines:** 4,120
+- **Lines:** ~4,900
 - **Layout:** 2-view SPA (landing ↔ module). Inside each module, a 6-scene linear flow with a progress-dot strip at the top. Modules are stored as separate `.module-section[data-module=ID]` blocks; only one is `hidden=false` at a time.
 - **Dependencies:** None (pure vanilla)
 - **No-build:** Open directly in any modern browser
 
-### Curriculum (11 modules, 5 built)
+### Curriculum (11 modules, 6 built)
 
 | # | Module | Status | Centerpiece interaction |
 |---|--------|--------|-------------------------|
@@ -906,7 +906,7 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 | 3 | Transcription | **Built** | Animated RNA polymerase moving along DNA, building mRNA letter-by-letter; play/step/reset controls |
 | 4 | Translation | **Built** | Animated ribosome reading mRNA in codons, tRNA delivery, growing protein chain. Plus an interactive 64-codon picker that highlights all codons sharing an amino acid |
 | 5 | Gene Regulation | **Built** | Toggle between brain / muscle / skin / liver cell — same 20-gene grid lights up different subsets |
-| 6 | Mutations & Evolution | Locked | — |
+| 6 | Mutations & Evolution | **Built** | 4-codon mRNA strand (Met-Ser-Tyr-Glu); click any base to see all three single-base swaps, each pre-classified silent / missense / nonsense; verdict card explains the protein-level consequence. Scene 4 deep-dives the GAG→GUG sickle-cell case + heterozygote advantage |
 | 7 | Cancer & Genetic Disease | Locked | — |
 | 8 | Viruses | Locked | — |
 | 9 | The Immune System | Locked | — |

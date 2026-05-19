@@ -1396,6 +1396,261 @@
       line-height: 1.5;
     }
     .celltype-explain strong { color: var(--leaf-600); }
+
+    /* ============================================================
+       Mutation classifier (Module 6 / Scene 3) + sickle compare (Scene 4)
+       ============================================================ */
+    .mutation-stage {
+      margin-top: 22px;
+      padding: 24px 22px 18px;
+      background: var(--cream);
+      border: 1.5px solid var(--sun-300);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .mutation-strand {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+    }
+    .mutation-codon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .mutation-codon-bases {
+      display: flex;
+      gap: 4px;
+      padding: 6px;
+      background: var(--paper);
+      border-radius: 12px;
+      border: 1.5px solid var(--ink-100);
+    }
+    .mutation-codon.changed .mutation-codon-bases {
+      background: var(--sun-100);
+      border-color: var(--sun-500);
+    }
+    .mutation-codon-label {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--ink-100);
+      color: var(--ink-700);
+    }
+    .mutation-codon-label.aa-changed {
+      background: var(--sun-300);
+      color: var(--ink-900);
+    }
+    .mutation-codon-label.aa-stop {
+      background: var(--coral-300);
+      color: var(--coral-600);
+    }
+    .mutation-base {
+      width: 36px;
+      height: 40px;
+      border: 1.5px solid var(--ink-100);
+      background: var(--paper);
+      border-radius: 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-weight: 800;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      color: var(--ink-900);
+    }
+    .mutation-base:hover {
+      transform: translateY(-2px);
+      border-color: var(--leaf-400);
+      background: var(--leaf-50);
+    }
+    .mutation-base.active {
+      background: var(--leaf-500);
+      color: white;
+      border-color: var(--leaf-600);
+    }
+    .mutation-base.changed {
+      background: var(--sun-300);
+      border-color: var(--sun-500);
+      color: var(--ink-900);
+    }
+    .mutation-options {
+      display: flex;
+      gap: 10px;
+      padding: 14px 18px;
+      background: var(--paper);
+      border-radius: var(--radius);
+      border: 1.5px dashed var(--leaf-400);
+      box-shadow: var(--shadow-sm);
+    }
+    .mutation-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      min-width: 70px;
+    }
+    .mutation-option:hover {
+      transform: translateY(-2px);
+    }
+    .mutation-option .opt-base {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--ink-900);
+    }
+    .mutation-option .opt-tag {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .mutation-option.silent {
+      background: var(--leaf-50);
+      border-color: var(--leaf-400);
+    }
+    .mutation-option.silent .opt-tag { color: var(--leaf-600); }
+    .mutation-option.missense {
+      background: var(--sun-100);
+      border-color: var(--sun-500);
+    }
+    .mutation-option.missense .opt-tag { color: #b88a00; }
+    .mutation-option.nonsense {
+      background: var(--coral-100);
+      border-color: var(--coral-500);
+    }
+    .mutation-option.nonsense .opt-tag { color: var(--coral-600); }
+    .mutation-reset {
+      align-self: flex-end;
+      background: transparent;
+      border: 1.5px solid var(--ink-200);
+      color: var(--ink-700);
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 7px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .mutation-reset:hover { background: var(--ink-100); }
+
+    .mutation-verdict {
+      margin-top: 18px;
+      padding: 18px 22px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      min-height: 72px;
+    }
+    .mutation-verdict .verdict-label {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      color: var(--ink-700);
+    }
+    .mutation-verdict .verdict-detail {
+      font-size: 0.92rem;
+      color: var(--ink-500);
+      line-height: 1.45;
+    }
+    .mutation-verdict.silent {
+      background: var(--leaf-50);
+      border-color: var(--leaf-400);
+    }
+    .mutation-verdict.silent .verdict-label { color: var(--leaf-600); }
+    .mutation-verdict.missense {
+      background: var(--sun-100);
+      border-color: var(--sun-500);
+    }
+    .mutation-verdict.missense .verdict-label { color: #b88a00; }
+    .mutation-verdict.nonsense {
+      background: var(--coral-100);
+      border-color: var(--coral-500);
+    }
+    .mutation-verdict.nonsense .verdict-label { color: var(--coral-600); }
+
+    .codon-inline {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--grape-100);
+      color: var(--grape-600);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      font-size: 0.95em;
+    }
+
+    .sickle-compare {
+      margin-top: 18px;
+      padding: 20px;
+      background: var(--bg-alt);
+      border-radius: var(--radius-lg);
+      display: flex;
+      justify-content: center;
+    }
+    .sickle-compare svg {
+      width: 100%;
+      max-width: 560px;
+      height: auto;
+    }
+    .sickle-story {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .sickle-card {
+      padding: 16px 18px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+    }
+    .sickle-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+    }
+    .sickle-card-head .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sickle-card-head .dot-bad  { background: var(--coral-500); }
+    .sickle-card-head .dot-mid  { background: var(--sun-500); }
+    .sickle-card-head .dot-good { background: var(--leaf-500); }
+    .sickle-card p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--ink-700);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 720px) {
+      .mutation-base { width: 30px; height: 36px; font-size: 0.95rem; }
+      .mutation-codon-label { font-size: 0.72rem; padding: 4px 9px; }
+      .mutation-options { flex-wrap: wrap; justify-content: center; }
+      .sickle-story { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -2258,17 +2513,210 @@
                 <p>
                   Now that you know the system, let's see what happens when it
                   glitches — and how those glitches, over millions of years,
-                  drive the entire history of life on Earth. (Coming soon!)
+                  drive the entire history of life on Earth.
                 </p>
               </div>
             </div>
             <div class="scene-foot">
-              <span class="left">Module 5 complete · You finished the foundations</span>
-              <button class="btn btn-primary" data-action="home">Back to all modules</button>
+              <span class="left">Module 5 complete · One more in the foundations arc</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="evolve">Continue to Mutations & Evolution →</button>
+              </span>
             </div>
           </div>
 
         </div><!-- /module-section data-module="regulation" -->
+
+        <div class="module-section" data-module="evolve" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">~70</span>
+                <div class="big-number-label">brand-new mutations the average newborn carries — that neither parent had.</div>
+                <h2>Tiny typos. Long-term consequences.</h2>
+                <p>
+                  Every time a cell copies its DNA, it makes a few mistakes.
+                  Most of those typos do absolutely nothing — the cell rolls
+                  on like it never happened. Sometimes a typo changes one
+                  ingredient in one recipe. Once in a while, it stops a
+                  recipe in the middle.
+                </p>
+                <p>
+                  Stack those rare changes up across <em>millions</em> of
+                  years and billions of organisms, and you get the entire
+                  diversity of life on Earth — from algae to elephants to
+                  you.
+                </p>
+              </div>
+              <div class="hook-stage" id="mut-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 6 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Show me the typos →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea (the three classes of mutation) -->
+          <div class="scene" data-scene="1">
+            <h2>Three flavors of typo.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              When one DNA letter gets swapped for another, it lands in a
+              codon — a 3-letter "word" the ribosome reads. Depending on
+              which word the typo creates, the consequences range from
+              <em>nothing</em> to <em>everything</em>.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🟢</div>
+                <div class="pair"><span class="biology">Silent</span></div>
+                <p class="desc">The codon changed, but the new codon codes for the <strong>same</strong> amino acid. Protein unchanged. The genetic code's "redundancy" is doing you a favor.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🟡</div>
+                <div class="pair"><span class="biology">Missense</span></div>
+                <p class="desc">The new codon codes for a <strong>different</strong> amino acid. The protein gets one wrong ingredient. Sometimes harmless, sometimes catastrophic.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🔴</div>
+                <div class="pair"><span class="biology">Nonsense</span></div>
+                <p class="desc">The new codon is a <strong>stop</strong> signal. The ribosome quits early. The protein is short and almost always broken.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">⏳</div>
+                <div class="pair"><span class="biology">+ Time + Selection</span></div>
+                <p class="desc">Tiny advantages from rare beneficial mutations spread. Over millions of years, that's evolution. No designer needed.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Try it yourself</span>
+              <button class="btn btn-primary" data-action="next">Try a mutation →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — mutation classifier -->
+          <div class="scene" data-scene="2">
+            <h2>Flip a letter. See what happens.</h2>
+            <p style="margin-top: 8px; color: var(--ink-700); max-width: 760px;">
+              Below is a tiny mRNA strand of 4 codons, coding for 4 amino
+              acids. Click any letter to see the three possible single-base
+              swaps and what each one does to the protein.
+            </p>
+            <div class="mutation-stage" id="mutation-stage"></div>
+            <div class="mutation-verdict" id="mutation-verdict">
+              <div class="verdict-label">Pick a letter to mutate</div>
+              <div class="verdict-detail">Each letter has 3 possible swaps (A, U, G, C minus the current one). The verdict tells you whether the protein changes — and how.</div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · One famous example</span>
+              <button class="btn btn-primary" data-action="next">The sickle cell story →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — sickle cell vs malaria -->
+          <div class="scene" data-scene="3">
+            <h2>One letter, two stories.</h2>
+            <p style="margin-top: 12px; max-width: 760px;">
+              In the gene for hemoglobin (the oxygen-carrying protein in
+              your red blood cells), there's a codon that reads
+              <span class="codon-inline">GAG</span> — Glutamic acid.
+              Sometimes a copy error changes that middle letter to a U:
+              <span class="codon-inline">GUG</span> — Valine. One letter.
+              One amino acid. <strong>Huge</strong> consequences.
+            </p>
+
+            <div class="sickle-compare" id="sickle-compare"></div>
+
+            <div class="sickle-story">
+              <div class="sickle-card">
+                <div class="sickle-card-head">
+                  <span class="dot dot-bad"></span>
+                  <strong>Two copies of the mutation</strong>
+                </div>
+                <p>
+                  Sickle cell disease. Under stress, hemoglobin clumps and
+                  bends red blood cells into rigid crescents that get stuck
+                  in tiny vessels. Painful, sometimes fatal.
+                </p>
+              </div>
+              <div class="sickle-card">
+                <div class="sickle-card-head">
+                  <span class="dot dot-mid"></span>
+                  <strong>One copy of the mutation</strong>
+                </div>
+                <p>
+                  Mostly fine — and <strong>partially resistant to malaria</strong>.
+                  The malaria parasite has a much harder time inside the
+                  sickle-shaped cells.
+                </p>
+              </div>
+              <div class="sickle-card">
+                <div class="sickle-card-head">
+                  <span class="dot dot-good"></span>
+                  <strong>Zero copies</strong>
+                </div>
+                <p>
+                  Normal hemoglobin, normal red cells. Fully susceptible to
+                  malaria — which is why, in places where malaria is common,
+                  carriers actually live longer on average.
+                </p>
+              </div>
+            </div>
+
+            <div class="callout" style="margin-top: 22px; max-width: 760px; background: var(--sun-100); border: 1px solid var(--sun-300);">
+              <strong>🎯 Mutations aren't bad → good. They're traded off.</strong>
+              <p>The sickle-cell mutation looks "bad" in places without malaria, and "good" in places with it. Selection doesn't pick perfect — it picks <em>whatever survives long enough to reproduce</em>. Over millions of generations, that's all evolution is.</p>
+            </div>
+
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="mut-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap + tease -->
+          <div class="scene" data-scene="5">
+            <h2>You finished mutations & evolution. 🦎</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Same system from the first 5 modules — DNA, transcription,
+              translation, regulation — but now you also know what happens
+              when the system makes a tiny mistake. And you've seen how
+              those tiny mistakes, multiplied across deep time, drove the
+              whole history of life.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">✏️</span><span class="lbl">Copying isn't perfect</span></div>
+              <div class="recap-pill"><span class="ic">🟢</span><span class="lbl">Most mutations are silent</span></div>
+              <div class="recap-pill"><span class="ic">🟡</span><span class="lbl">Missense changes one ingredient</span></div>
+              <div class="recap-pill"><span class="ic">🔴</span><span class="lbl">Nonsense stops the recipe early</span></div>
+              <div class="recap-pill"><span class="ic">⏳</span><span class="lbl">Selection + time = evolution</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🩺</div>
+              <div>
+                <h3>Coming up next: Cancer & Genetic Disease</h3>
+                <p>
+                  Most mutations are harmless. Sometimes, though, the wrong
+                  mutations stack up in the wrong cells, in the wrong order
+                  — the cell forgets to follow the rules and just keeps
+                  growing. We call that cancer. (Coming soon!)
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 6 complete · 5 of 11 unlocked, 6 to go</span>
+              <button class="btn btn-primary" data-action="home">Back to all modules</button>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="evolve" -->
       </div>
     </section>
   </main>
@@ -2292,13 +2740,15 @@
 
       const state = {
         view: 'landing',          // 'landing' | 'module'
-        activeModule: null,       // 'cell' | 'dna' | 'transcription' | 'translation' | 'regulation'
+        activeModule: null,       // 'cell' | 'dna' | 'transcription' | 'translation' | 'regulation' | 'evolve'
         sceneIndex: 0,
         partsSeen: new Set(),     // module 1 (cell tour)
         basesSeen: new Set(),     // module 2 (DNA bases)
         transAnim: { pos: 0, playing: false, intervalId: null },   // module 3
         translAnim: { pos: 0, playing: false, intervalId: null },  // module 4
         cellType: 'brain',        // module 5
+        mutPicker: null,          // module 6: { codonIdx, baseIdx } when an option panel is open
+        mutApplied: null,         // module 6: { codonIdx, baseIdx, fromBase, toBase, originalCodon, newCodon, classification }
         quiz: { i: 0, correct: 0, locked: false, questions: [], cardSel: '#quiz-card' },
         completed: loadState().completed || {},  // { moduleId: true }
       };
@@ -2316,7 +2766,7 @@
         { id: 'regulation',    name: 'Gene Regulation',           icon: '🎛️', color: 'var(--sun-100)',
           blurb: 'Every cell has the same DNA. So why is a brain cell different from a skin cell?', status: 'unlocked' },
         { id: 'evolve',        name: 'Mutations & Evolution',     icon: '🦎', color: 'var(--leaf-100)',
-          blurb: 'Tiny copy errors → giant changes over time. The engine of life.', status: 'soon' },
+          blurb: 'Tiny copy errors → giant changes over time. The engine of life.', status: 'unlocked' },
         { id: 'disease',       name: 'Cancer & Genetic Disease',  icon: '🩺', color: 'var(--coral-100)',
           blurb: 'When the recipes get scrambled. What goes wrong, and what we can do about it.', status: 'soon' },
         { id: 'viruses',       name: 'Viruses',                   icon: '🦠', color: 'var(--grape-100)',
@@ -3650,6 +4100,327 @@
       }
 
       // =====================================================================
+      // MODULE 6 — MUTATIONS & EVOLUTION: data + SVG + renderers
+      // =====================================================================
+
+      // Starting mRNA: AUG-UCG-UAU-GAG (Met-Ser-Tyr-Glu).
+      // Picked for variety — UCG has silent options (UCG→UCU/UCC/UCA all = Ser),
+      // UAU sits one swap from a stop codon (UAU→UAA = nonsense), and GAG is the
+      // exact codon involved in the sickle-cell mutation (GAG→GUG = Val) so the
+      // interactive in scene 3 sets up the canonical example in scene 4.
+      const MUT_DATA = {
+        bases: 'AUGUCGUAUGAG',
+      };
+
+      const MUT_QUIZ = [
+        { q: 'Which type of mutation changes a codon but leaves the protein totally unchanged?',
+          options: ['Silent', 'Missense', 'Nonsense', 'Frameshift'],
+          correct: 0,
+          why: 'Right — silent. The genetic code is redundant: many codons code for the same amino acid, so a swap can leave the protein completely intact.',
+          wrongHint: 'Look for the mutation type that uses the genetic code\'s redundancy as a safety net.' },
+        { q: 'A mutation creates a STOP codon in the middle of a gene. The ribosome quits and the protein is cut short. What\'s this called?',
+          options: ['Silent', 'Missense', 'Nonsense', 'Synonymous'],
+          correct: 2,
+          why: 'Right — nonsense. The ribosome hits the early stop and lets go. The protein is short and almost always broken.',
+          wrongHint: '"No-sense" — the protein doesn\'t make sense because it\'s incomplete.' },
+        { q: 'Why has the sickle cell mutation persisted in some human populations?',
+          options: [
+            'Two copies are harmless',
+            'Single copies partially protect against malaria — that\'s an advantage where malaria is common',
+            'It improves muscle strength',
+            'It\'s on a sex chromosome and skips selection',
+          ],
+          correct: 1,
+          why: 'Right — heterozygote advantage. One copy partially protects against malaria, so in malaria-endemic regions carriers actually outsurvive non-carriers.',
+          wrongHint: 'Two copies = sickle-cell disease. So why would the mutation stick around at all? Think about what advantage one copy might give.' },
+        { q: 'Roughly how many brand-new mutations does the average newborn carry that neither parent had?',
+          options: ['~7', '~70', '~700', '~7,000'],
+          correct: 1,
+          why: 'Right — about 70. Each generation adds a small batch of new typos. Most are harmless.',
+          wrongHint: 'Each cell division introduces a tiny number of copy errors. Across all the DNA copying that produces one new human, the total is in the dozens — not single digits, not hundreds.' },
+        { q: 'True or false: most random DNA mutations are harmful.',
+          options: ['True', 'False'],
+          correct: 1,
+          why: 'False — most are silent or have no measurable effect. Harmful ones tend to get weeded out by selection; neutral ones quietly accumulate.',
+          wrongHint: 'Most letter swaps land in a codon that still codes for the same amino acid — or in a stretch of DNA that doesn\'t code for anything at all.' },
+      ];
+
+      function mutHookSVG() {
+        return `
+          <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" aria-label="DNA strand with one typo highlighted">
+            <rect x="40" y="60" width="320" height="280" rx="20" fill="#fff8ec" stroke="#ffc73d" stroke-width="2"/>
+            <text x="200" y="96" font-size="13" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">RECIPE: HEMOGLOBIN · LINE 6</text>
+            <text x="200" y="116" font-size="11" font-family="ui-rounded, sans-serif" font-weight="500" fill="#6d7592" text-anchor="middle">(copied from your genome — with one typo)</text>
+
+            <g font-family="ui-monospace, monospace" font-size="18" font-weight="800" text-anchor="middle">
+              <rect x="76" y="160" width="34" height="40" rx="7" fill="#dcf7e9" stroke="#22c896" stroke-width="2"/>
+              <text x="93" y="187" fill="#1a1f36">G</text>
+              <rect x="114" y="160" width="34" height="40" rx="7" fill="#dcf7e9" stroke="#22c896" stroke-width="2"/>
+              <text x="131" y="187" fill="#1a1f36">A</text>
+              <rect x="152" y="160" width="34" height="40" rx="7" fill="#dcf7e9" stroke="#22c896" stroke-width="2"/>
+              <text x="169" y="187" fill="#1a1f36">G</text>
+              <rect x="216" y="160" width="34" height="40" rx="7" fill="#ffe0e0" stroke="#ee5a5a" stroke-width="2.5">
+                <animate attributeName="stroke-width" values="2.5;4.5;2.5" dur="2.2s" repeatCount="indefinite"/>
+              </rect>
+              <text x="233" y="187" fill="#ee5a5a">U</text>
+              <rect x="254" y="160" width="34" height="40" rx="7" fill="#dcf7e9" stroke="#22c896" stroke-width="2"/>
+              <text x="271" y="187" fill="#1a1f36">A</text>
+              <rect x="292" y="160" width="34" height="40" rx="7" fill="#dcf7e9" stroke="#22c896" stroke-width="2"/>
+              <text x="309" y="187" fill="#1a1f36">G</text>
+            </g>
+
+            <!-- "should be A" tag pointing at the typo -->
+            <line x1="233" y1="220" x2="233" y2="252" stroke="#ee5a5a" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3"/>
+            <rect x="194" y="252" width="78" height="32" rx="16" fill="#ffe0e0" stroke="#ee5a5a" stroke-width="2"/>
+            <text x="233" y="266" font-size="10" font-family="ui-rounded, sans-serif" font-weight="800" fill="#ee5a5a" text-anchor="middle">SHOULD BE</text>
+            <text x="233" y="278" font-size="11" font-family="ui-monospace, monospace" font-weight="800" fill="#ee5a5a" text-anchor="middle">A</text>
+
+            <!-- Floating background typos -->
+            <g opacity="0.45" font-family="ui-monospace, monospace" font-weight="800">
+              <text x="58" y="62" font-size="13" fill="#ee5a5a">A→G</text>
+              <text x="316" y="48" font-size="11" fill="#ffc73d">C→U</text>
+              <text x="44" y="378" font-size="11" fill="#22c896">G→A</text>
+              <text x="328" y="372" font-size="13" fill="#a78bfa">U→C</text>
+            </g>
+          </svg>
+        `;
+      }
+
+      function sickleCompareSVG() {
+        return `
+          <svg viewBox="0 0 560 240" xmlns="http://www.w3.org/2000/svg" aria-label="Normal red blood cell vs sickle red blood cell">
+            <!-- Normal red blood cell (round biconcave disc, simplified) -->
+            <g transform="translate(140 110)">
+              <ellipse cx="0" cy="0" rx="78" ry="72" fill="#ff7878" stroke="#ee5a5a" stroke-width="3"/>
+              <ellipse cx="0" cy="0" rx="32" ry="26" fill="#c94545" opacity="0.35"/>
+              <text x="0" y="108" font-size="13" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">Normal red blood cell</text>
+              <text x="0" y="128" font-size="12" font-family="ui-monospace, monospace" font-weight="700" fill="#6d7592" text-anchor="middle">GAG = Glu</text>
+            </g>
+
+            <!-- Arrow + codon-flip label -->
+            <g transform="translate(280 110)">
+              <line x1="-32" y1="0" x2="32" y2="0" stroke="#ffc73d" stroke-width="3" stroke-linecap="round"/>
+              <polygon points="32,0 22,-7 22,7" fill="#ffc73d"/>
+              <text x="0" y="-26" font-size="12" font-family="ui-monospace, monospace" font-weight="800" fill="#1a1f36" text-anchor="middle">A → U</text>
+              <text x="0" y="26" font-size="10" font-family="ui-rounded, sans-serif" font-weight="600" fill="#6d7592" text-anchor="middle">one base flip</text>
+            </g>
+
+            <!-- Sickle cell (crescent) -->
+            <g transform="translate(420 110)">
+              <path d="M -68,-32 Q -42,-78 4,-70 Q 72,-40 72,12 Q 56,54 8,64 Q -54,56 -76,28 Q -82,4 -68,-32 Z"
+                    fill="#ee5a5a" stroke="#c94545" stroke-width="3"/>
+              <path d="M -42,-22 Q -22,-50 8,-46 Q 46,-22 46,8 Q 32,34 -2,40 Q -50,30 -42,-22 Z"
+                    fill="none" stroke="#c94545" stroke-width="1.2" opacity="0.45"/>
+              <text x="0" y="108" font-size="13" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">Sickle cell</text>
+              <text x="0" y="128" font-size="12" font-family="ui-monospace, monospace" font-weight="700" fill="#6d7592" text-anchor="middle">GUG = Val</text>
+            </g>
+          </svg>
+        `;
+      }
+
+      function renderMutHook() {
+        const stage = $('#mut-hook-stage');
+        if (stage) stage.innerHTML = mutHookSVG();
+      }
+
+      function renderSickleCompare() {
+        const stage = $('#sickle-compare');
+        if (stage) stage.innerHTML = sickleCompareSVG();
+      }
+
+      // ----- Mutation classifier (scene 3 centerpiece) -----
+      // State shape:
+      //   state.mutPicker   = null | { codonIdx, baseIdx }  -- options panel showing for this base
+      //   state.mutApplied  = null | { codonIdx, baseIdx, fromBase, toBase, originalCodon, newCodon, classification }
+      // Only one mutation can be applied at a time; clicking a different base resets
+      // the previous mutation, so each verdict reads cleanly against the original strand.
+
+      function classifyMutation(originalCodon, newCodon) {
+        const o = CODON_TABLE[originalCodon];
+        const n = CODON_TABLE[newCodon];
+        if (!o || !n) return 'missense';
+        if (n.isStop && !o.isStop) return 'nonsense';
+        if (n.aa === o.aa) return 'silent';
+        return 'missense';
+      }
+
+      function getCurrentStrand() {
+        if (!state.mutApplied) return MUT_DATA.bases;
+        const { codonIdx, baseIdx, toBase } = state.mutApplied;
+        const arr = MUT_DATA.bases.split('');
+        arr[codonIdx * 3 + baseIdx] = toBase;
+        return arr.join('');
+      }
+
+      function renderMutationStage() {
+        state.mutPicker = null;
+        state.mutApplied = null;
+        drawMutationStage();
+        drawMutationVerdict();
+      }
+
+      function drawMutationStage() {
+        const stage = $('#mutation-stage');
+        if (!stage) return;
+        const strand = getCurrentStrand();
+        const original = MUT_DATA.bases;
+        const codonCount = strand.length / 3;
+        const codons = [];
+        for (let i = 0; i < codonCount; i++) {
+          codons.push({
+            idx: i,
+            bases: strand.slice(i * 3, i * 3 + 3),
+            origBases: original.slice(i * 3, i * 3 + 3),
+          });
+        }
+        const strandHTML = codons.map(c => {
+          const ct = CODON_TABLE[c.bases];
+          const origCt = CODON_TABLE[c.origBases];
+          const aaChanged = ct && origCt && ct.aa !== origCt.aa;
+          const isStop = ct && ct.isStop;
+          const isCodonChanged = c.bases !== c.origBases;
+          let labelCls = 'mutation-codon-label';
+          if (isStop) labelCls += ' aa-stop';
+          else if (aaChanged) labelCls += ' aa-changed';
+          const label = ct ? (isStop ? 'STOP' : ct.aa) : '?';
+          const baseButtons = c.bases.split('').map((b, bi) => {
+            const isApplied = state.mutApplied
+              && state.mutApplied.codonIdx === c.idx
+              && state.mutApplied.baseIdx === bi;
+            const isPicker = state.mutPicker
+              && state.mutPicker.codonIdx === c.idx
+              && state.mutPicker.baseIdx === bi;
+            let cls = 'mutation-base';
+            if (isApplied) cls += ' changed';
+            if (isPicker) cls += ' active';
+            return `<button class="${cls}" type="button" data-codon="${c.idx}" data-base="${bi}">${b}</button>`;
+          }).join('');
+          return `
+            <div class="mutation-codon ${isCodonChanged ? 'changed' : ''}">
+              <div class="mutation-codon-bases">${baseButtons}</div>
+              <div class="${labelCls}">${label}</div>
+            </div>
+          `;
+        }).join('');
+
+        const optionsHTML = state.mutPicker ? renderMutationOptions() : '';
+
+        stage.innerHTML = `
+          <div class="mutation-strand">${strandHTML}</div>
+          ${optionsHTML}
+          <button class="mutation-reset" type="button">Reset strand</button>
+        `;
+
+        $$('.mutation-base', stage).forEach(btn => {
+          btn.addEventListener('click', () => {
+            const codonIdx = +btn.dataset.codon;
+            const baseIdx = +btn.dataset.base;
+            // Toggle: clicking the active base again closes its options.
+            if (state.mutPicker
+                && state.mutPicker.codonIdx === codonIdx
+                && state.mutPicker.baseIdx === baseIdx) {
+              state.mutPicker = null;
+            } else {
+              state.mutPicker = { codonIdx, baseIdx };
+              state.mutApplied = null;
+            }
+            drawMutationStage();
+            drawMutationVerdict();
+          });
+        });
+        $$('.mutation-option', stage).forEach(btn => {
+          btn.addEventListener('click', () => {
+            const codonIdx = +btn.dataset.codon;
+            const baseIdx = +btn.dataset.base;
+            const toBase = btn.dataset.toBase;
+            const fromBase = btn.dataset.fromBase;
+            const cIdx = codonIdx * 3;
+            const origCodon = MUT_DATA.bases.slice(cIdx, cIdx + 3);
+            const newCodon = origCodon.slice(0, baseIdx) + toBase + origCodon.slice(baseIdx + 1);
+            const classification = classifyMutation(origCodon, newCodon);
+            state.mutApplied = { codonIdx, baseIdx, fromBase, toBase, originalCodon: origCodon, newCodon, classification };
+            state.mutPicker = null;
+            drawMutationStage();
+            drawMutationVerdict();
+          });
+        });
+        const resetBtn = $('.mutation-reset', stage);
+        if (resetBtn) {
+          resetBtn.addEventListener('click', () => {
+            state.mutPicker = null;
+            state.mutApplied = null;
+            drawMutationStage();
+            drawMutationVerdict();
+          });
+        }
+      }
+
+      function renderMutationOptions() {
+        const { codonIdx, baseIdx } = state.mutPicker;
+        const cIdx = codonIdx * 3;
+        const origCodon = MUT_DATA.bases.slice(cIdx, cIdx + 3);
+        const fromBase = origCodon[baseIdx];
+        const alternatives = ['A', 'U', 'G', 'C'].filter(b => b !== fromBase);
+        return `
+          <div class="mutation-options">
+            ${alternatives.map(toBase => {
+              const newCodon = origCodon.slice(0, baseIdx) + toBase + origCodon.slice(baseIdx + 1);
+              const cls = classifyMutation(origCodon, newCodon);
+              return `
+                <button class="mutation-option ${cls}" type="button"
+                        data-codon="${codonIdx}" data-base="${baseIdx}"
+                        data-from-base="${fromBase}" data-to-base="${toBase}">
+                  <span class="opt-base">${fromBase} → ${toBase}</span>
+                  <span class="opt-tag">${cls}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      function drawMutationVerdict() {
+        const card = $('#mutation-verdict');
+        if (!card) return;
+        card.classList.remove('silent', 'missense', 'nonsense');
+        if (!state.mutApplied) {
+          if (state.mutPicker) {
+            const { codonIdx, baseIdx } = state.mutPicker;
+            const cIdx = codonIdx * 3;
+            const origCodon = MUT_DATA.bases.slice(cIdx, cIdx + 3);
+            const fromBase = origCodon[baseIdx];
+            const aaName = (CODON_TABLE[origCodon] || {}).name || '?';
+            card.innerHTML = `
+              <div class="verdict-label">Editing position ${cIdx + baseIdx + 1}: <strong>${fromBase}</strong> in codon <strong>${origCodon}</strong> (${aaName})</div>
+              <div class="verdict-detail">Pick one of the three swaps above. Each one is pre-classified — green = silent, yellow = missense, red = nonsense.</div>
+            `;
+          } else {
+            card.innerHTML = `
+              <div class="verdict-label">Pick a letter to mutate</div>
+              <div class="verdict-detail">Each letter has 3 possible swaps (A, U, G, C minus the current one). The verdict tells you whether the protein changes — and how.</div>
+            `;
+          }
+          return;
+        }
+        const { codonIdx, originalCodon, newCodon, classification } = state.mutApplied;
+        card.classList.add(classification);
+        const origAA = CODON_TABLE[originalCodon];
+        const newAA = CODON_TABLE[newCodon];
+        let label, detail;
+        if (classification === 'silent') {
+          label = `🟢 Silent mutation. Protein unchanged.`;
+          detail = `Codon ${codonIdx + 1}: <strong>${originalCodon}</strong> → <strong>${newCodon}</strong>. Both code for <strong>${origAA.name}</strong> — the genetic code's redundancy means this swap doesn't change the protein at all. Most random mutations land here.`;
+        } else if (classification === 'missense') {
+          label = `🟡 Missense mutation. One amino acid changed.`;
+          detail = `Codon ${codonIdx + 1}: <strong>${originalCodon}</strong> (${origAA.name}) → <strong>${newCodon}</strong> (${newAA.name}). The protein gets one different ingredient. Sometimes harmless, sometimes catastrophic — depends which amino acid swapped, and where it sits in the protein.`;
+        } else {
+          label = `🔴 Nonsense mutation. Protein cut short.`;
+          detail = `Codon ${codonIdx + 1}: <strong>${originalCodon}</strong> (${origAA.name}) → <strong>${newCodon}</strong> (STOP). The ribosome quits here. Everything that should have come after this codon never gets built. The protein is short and almost always non-functional.`;
+        }
+        card.innerHTML = `<div class="verdict-label">${label}</div><div class="verdict-detail">${detail}</div>`;
+      }
+
+      // =====================================================================
       // MODULES — registry of all built modules
       // =====================================================================
 
@@ -3702,6 +4473,16 @@
           quiz: REG_QUIZ,
           quizCardSel: '#reg-quiz-card',
           sceneRenderers: { 0: renderRegHook, 2: renderCelltypeToggle, 4: () => startQuiz('regulation') },
+          next: 'evolve',
+        },
+        evolve: {
+          name: 'Mutations & Evolution',
+          icon: '🦎',
+          iconBg: 'var(--leaf-100)',
+          intro: 'Tiny copy errors. Most do nothing. Rare ones change everything. Stack them across millions of years and you get all of life.',
+          quiz: MUT_QUIZ,
+          quizCardSel: '#mut-quiz-card',
+          sceneRenderers: { 0: renderMutHook, 2: renderMutationStage, 3: renderSickleCompare, 4: () => startQuiz('evolve') },
           next: null,
         },
       };
@@ -3821,6 +4602,8 @@
         state.transAnim = { pos: 0, playing: false, intervalId: null };
         state.translAnim = { pos: 0, playing: false, intervalId: null };
         state.cellType = 'brain';
+        state.mutPicker = null;
+        state.mutApplied = null;
         state.quiz = { i: 0, correct: 0, locked: false, questions: [], cardSel: '#quiz-card' };
 
         // Show only the active module's section

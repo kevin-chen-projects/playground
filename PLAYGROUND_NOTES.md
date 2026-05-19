@@ -22,7 +22,8 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 10. [YouTube Smart Skip](#10-youtube-smart-skip-folder) — `youtube-smart-skip/{manifest.json, content.{js,css}, popup.{html,css,js}}`
 11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html`
 12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html`
-13. [Cross-Project Patterns](#cross-project-patterns)
+13. [Bio Basics (Molecular Biology for Everyone)](#13-bio-basicshtml) — `bio-basics.html`
+14. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -886,19 +887,153 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 
 ---
 
+## 13. `bio-basics.html`
+
+**Molecular biology learning site, middle-school-friendly.** A landing page lists 11 modules of a planned curriculum (cell → DNA → transcription → translation → gene regulation → mutations/evolution → cancer/disease → viruses → immune system → vaccines/pandemics → CRISPR). **Modules 1–5 are fully built** (the central-dogma core: cell, DNA, transcription, translation, gene regulation); modules 6–11 are locked placeholders for the disease/immune/vaccine arc. Each built module walks the learner through 6 sequential scenes with at least one interactive centerpiece. Tone target: friendly and curious, deliberately *not* college-level — closer to a kids' science museum than a textbook.
+
+- **Lines:** 4,120
+- **Layout:** 2-view SPA (landing ↔ module). Inside each module, a 6-scene linear flow with a progress-dot strip at the top. Modules are stored as separate `.module-section[data-module=ID]` blocks; only one is `hidden=false` at a time.
+- **Dependencies:** None (pure vanilla)
+- **No-build:** Open directly in any modern browser
+
+### Curriculum (11 modules, 5 built)
+
+| # | Module | Status | Centerpiece interaction |
+|---|--------|--------|-------------------------|
+| 1 | What is a cell? | **Built** | Click 5 cell parts on a big SVG; sidebar updates with city analogy + fun fact |
+| 2 | What is DNA? | **Built** | Click 4 base pairs (A/T/G/C) to learn pairing rules; bar chart of % DNA shared with twin/sibling/chimp/mouse/banana/oak |
+| 3 | Transcription | **Built** | Animated RNA polymerase moving along DNA, building mRNA letter-by-letter; play/step/reset controls |
+| 4 | Translation | **Built** | Animated ribosome reading mRNA in codons, tRNA delivery, growing protein chain. Plus an interactive 64-codon picker that highlights all codons sharing an amino acid |
+| 5 | Gene Regulation | **Built** | Toggle between brain / muscle / skin / liver cell — same 20-gene grid lights up different subsets |
+| 6 | Mutations & Evolution | Locked | — |
+| 7 | Cancer & Genetic Disease | Locked | — |
+| 8 | Viruses | Locked | — |
+| 9 | The Immune System | Locked | — |
+| 10 | Vaccines & Pandemics | Locked | — |
+| 11 | CRISPR & Modern Tools | Locked | — |
+
+### Module Scene Maps (all 5 built modules follow the same 6-scene shape)
+
+| # | Scene type | Default content |
+|---|------------|-----------------|
+| 0 | Hook | Big-number callout + animated SVG illustration relevant to the topic |
+| 1 | Big idea | 4-card layout introducing the central metaphor / vocabulary |
+| 2 | **Interactive** | Module-specific (see "centerpiece" column above) — the most engaging scene |
+| 3 | Deep dive | Secondary content: bar chart, vs-table, codon picker, regulation mechanisms |
+| 4 | Quiz | 5 multiple-choice questions; instant feedback; confetti on ≥80% |
+| 5 | Recap | 5 takeaway pills + a teaser card linking to the next module (with a "Continue to X →" CTA) |
+
+### Section Map (top-level only; each `.module-section` follows the same shape)
+
+| Range | Section |
+|-------|---------|
+| 1–48 | Header comment block (TOC) |
+| 50–55 | `<head>` — meta, title |
+| 57–~1300 | `<style>` — palette, base, components |
+| ~1320 | Body / top bar |
+| ~1330–~1430 | View 1 — Landing (hero + curriculum + why-bio) |
+| ~1450–~1640 | `.module-section[data-module="cell"]` — 6 scenes (cell module, original) |
+| ~1645–~1790 | `.module-section[data-module="dna"]` — 6 scenes |
+| ~1795–~1955 | `.module-section[data-module="transcription"]` — 6 scenes |
+| ~1960–~2105 | `.module-section[data-module="translation"]` — 6 scenes |
+| ~2110–~2265 | `.module-section[data-module="regulation"]` — 6 scenes |
+| ~2270–end | `<script>` IIFE — state, all SVG factories, all renderers, MODULES dict, routing |
+
+### Key JS Architecture
+
+| Concept | Description |
+|---------|-------------|
+| `state.activeModule` | Which module the user is in (`'cell'`, `'dna'`, `'transcription'`, `'translation'`, `'regulation'`) |
+| `MODULES[id]` | Per-module metadata: `{ name, icon, iconBg, intro, quiz, quizCardSel, sceneRenderers, next }` |
+| `MODULES[id].sceneRenderers` | Map of scene index → renderer fn. Called lazily by `showScene(i)` when the scene activates |
+| `MODULES[id].next` | The next module to advance to, used by the recap-scene "Continue to X →" CTA |
+| `startModule(id)` | Resets all per-module state, hides other module-sections, renders the dynamic module head, calls `showScene(0)` |
+| `goHome()` | Stops any running animations, refreshes curriculum (to update "Done ✓" badges), shows landing |
+| `startQuiz(moduleId)` | Module-aware quiz launcher — picks `MODULES[id].quiz` and `quizCardSel` |
+
+### Key JS Entry Points
+
+| Function | Purpose |
+|----------|---------|
+| `loadState`, `saveState` | `localStorage['biobasics_state_v1']` |
+| `CURRICULUM` | 11 module entries `{id, name, icon, color, blurb, status}` (5 unlocked, 6 soon) |
+| `heroCellSVG()`, `tourCellSVG()`, `compareCellSVG()` | Module 1 SVGs |
+| `dnaHelixSVG()`, `dnaInteractiveSVG()` | Module 2 SVGs (animated double helix; clickable 4-base-pair strand) |
+| `transHookSVG()`, `transStageSVG()` | Module 3 SVGs (nucleus with mRNA exits; DNA + RNA polymerase) |
+| `translHookSVG()`, `translStageSVG()` | Module 4 SVGs (cute ribosome; ribosome + mRNA + tRNA + chain) |
+| `regHookSVG()` | Module 5 SVG (brain cell vs skin cell with "SAME DNA" tag) |
+| `BASES`, `DNA_SHARE` | Module 2 data |
+| `TRANS_DATA` | Module 3 sequences (template DNA + mRNA, 13 letters) |
+| `CODON_BY_AA`, `CODON_TABLE`, `AA_NAMES`, `AA_COLORS`, `CODON_DESCRIPTIONS`, `TRANSL_DATA` | Module 4 data — full 64-codon genetic-code mapping, built programmatically |
+| `GENES`, `CELL_TYPE_INFO` | Module 5 data — 20 genes, 4 cell types |
+| `QUIZ`, `DNA_QUIZ`, `TRANS_QUIZ`, `TRANSL_QUIZ`, `REG_QUIZ` | 5 questions per module |
+| `renderTour`, `selectPart` | Module 1 interactive |
+| `renderDnaInteractive`, `selectBase`, `renderDnaShare` | Module 2 interactives |
+| `renderTrans`, `stepTrans`, `togglePlayTrans`, `resetTrans`, `positionPolymerase`, `updateTransReadout` | Module 3 animation |
+| `renderTransl`, `stepTransl`, `togglePlayTransl`, `resetTransl`, `positionRibosome`, `updateTranslReadout`, `renderCodonPicker`, `selectCodon` | Module 4 animation + codon picker |
+| `renderCelltypeToggle`, `applyCellType` | Module 5 cell-type switcher |
+| `MODULES` | Module registry (the "dispatch table" for routing) |
+| `showView`, `goHome`, `renderBreadcrumb`, `renderModuleHead`, `renderProgressDots`, `startModule`, `showScene`, `nextScene`, `goToScene` | Routing |
+| `startQuiz`, `renderQuizQuestion`, `answerQuiz`, `renderQuizResults`, `fireConfetti` | Module-aware quiz engine |
+| `markCompleted` | Writes `completed[state.activeModule] = true` to localStorage on entering scene 5 |
+
+### CSS Variables (palette)
+
+```css
+--leaf-500 #22c896   --coral-500 #ff7878   --sun-500 #ffc73d
+--leaf-400 #4cd9a8   --coral-300 #ffb6b6   --sun-300 #ffe082
+--leaf-300 #8fe9c4   --grape-500 #a78bfa   --sky-500 #5fb8ff
+--leaf-100 #dcf7e9   --grape-100 #efe6ff   --sky-100 #d6ecff
+--ink-900 #1a1f36   --paper #ffffff   --bg #f5fbf7   --cream #fff8ec
+--radius 16px   --radius-lg 24px   --radius-xl 32px
+```
+
+Palette intent: **leaf-green = the "life" primary** (cell, all-life shared traits); **grape = nucleus/DNA** (used consistently for the helix in every module's SVGs); **coral = mitochondria + warning/wrong** (and the "stop" codon); **sun = ribosomes, achievement, codon results** (badges, confetti); **sky = mRNA + membrane water** (mRNA strands are always sky-blue).
+
+### Module-Specific Components (CSS)
+
+- `.dna-share-chart` / `.share-row` — animated bar chart for module 2's "% DNA shared" scene
+- `.anim-stage` / `.anim-controls` / `.anim-readout` — shared layout for the animated transcription / translation stages (svg + play/step/reset bar + monospaced letter readout)
+- `.anim-readout .base.A/T/G/C/U` — colored base-letter pills (each base has its own background+text color)
+- `.vs-table` / `.vs-col.vs-dna` / `.vs-col.vs-rna` — purple/blue side-by-side comparison for module 3 scene 4
+- `.codon-picker` / `.codon-cell` / `.codon-result` — 64-cell grid + result card for module 4 scene 4
+- `.celltype-toggle` / `.gene-grid` / `.gene-cell.on` / `.celltype-explain` — cell-type switcher for module 5 scene 3
+
+### Persistence
+
+`localStorage['biobasics_state_v1']` — `{ completed: { cell: true, dna: true, ... } }`. Only modules that the user finishes (reaches scene 5 of) are saved. Per-module ephemeral state (parts seen, bases seen, animation position, quiz answers, current cell type) resets every visit so users can replay.
+
+### Interactions / Flow
+
+Landing hero → click any unlocked module card → `startModule(id)` resets state, hides other module-sections, renders dynamic module head → **Scene 0 hook** → **Scene 1 big idea** → **Scene 2 interactive** (the centerpiece) → **Scene 3 deep dive** → **Scene 4 quiz** → **Scene 5 recap + "Continue to X →" CTA** which calls `startModule(MODULES[current].next)`. The breadcrumb shows the current module name; the brand and "Home" crumb both call `goHome()` (which also stops any running animation intervals before navigating).
+
+### Tone Decisions (deliberate)
+
+- **City metaphor in module 1**, **recipe-book metaphor in module 2**, **photocopy machine in module 3**, **assembly line / 3-letter words in module 4**, **light switches in module 5** — every module builds a single concrete metaphor and reuses it across the hook, big-idea cards, info popups, and quiz hints.
+- **No textbook voice** — copy uses contractions, addresses the reader as "you", and names absurd-sounding facts on purpose ("you contain a small galaxy", "60% of your DNA is the same as a banana", "ribosomes never stop while a cell is alive").
+- **5 polished modules > 11 stubs** — the disease/immune/vaccine modules are intentionally locked. Better to nail the central-dogma foundation completely than ship a hollow full scaffold.
+- **End-of-module CTAs explicitly link to the next module** — `data-action="goto" data-mod="dna"` etc. — to keep learners flowing through the full arc instead of ending each module on a dead-end.
+
+### What's Different from Other Educational Projects in the Repo
+
+- vs **math-ace** — math-ace is drill-based (15-problem sets, stars, best times); bio-basics is *narrative-based* (a 6-scene story you walk through once, then revisit). No timer, no streak, no skill ladder — the goal is comprehension + delight, not fluency through repetition.
+- vs **habla-clara** — habla-clara is a daily-practice loop with TTS/recognition; bio-basics is a one-time guided tour per module with no audio. Both share a "scenes/scenarios" SPA pattern, but bio-basics adds a linear progress-dot bar (vs habla-clara's free-roam scenario picker) AND a multi-module flow with explicit "next module" CTAs.
+
+---
+
 ## Cross-Project Patterns
 
 | Pattern | Where |
 |---------|-------|
-| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara |
+| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
 | **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), slot machines (none — DOM), spades (none — DOM) |
-| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars) |
+| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare) |
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
-| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking) |
-| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym) |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map) |
+| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow) |
 | **No build step / no framework** | Every project |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
 | **Chrome extension (MV3) / content script** | youtube-smart-skip only |
@@ -915,6 +1050,7 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 | glow-studio.html | 2,227 | Photo editor |
 | spades.html | 2,189 | Card game |
 | math-ace.html | 2,766 | K–5 math tutor |
+| bio-basics.html | 4,120 | Molecular biology learning site |
 | slot-machine-memes.html | 1,754 | Slot game |
 | glow-studio-easy.html | 1,662 | Photo editor |
 | glow-studio-video.html | 1,713 | Video editor |

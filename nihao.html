@@ -1,0 +1,2287 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  NiHao 你好 — Mandarin made easy, starting with tones
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+  (Note: Microphone access requires HTTPS or localhost — `file://` works locally
+  for development; on the deployed site, both Cloudflare Pages and GitHub Pages
+  serve over HTTPS by default so getUserMedia works.)
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+    1–22    Header comment (this block)
+    24–32   <head>: meta, title
+
+  STYLE  (~lines 33–680)
+    :root            palette (vermilion + gold + cream + tone colors), typography
+    Reset + base     body, headings
+    .top-bar         brand mark + module subtitle
+    Buttons          .btn, .btn-primary, .btn-ghost, .btn-pill
+    Module head      progress dots
+    Scene container  scene-foot (next button + caption)
+    Scene 0 hook     character cards (tone 1-4 mapped to 妈麻马骂)
+    Scene 1 big idea Roller-coaster track SVG cards (one per tone)
+    Scene 2 trainer  Mic UI, pitch canvas, target curves overlay, score meter
+    Scene 3 pairs    Tone pair grid (4×4) + sandhi callout + common-word chips
+    Scene 4 quiz     Question card, options, mic-based production check
+    Scene 5 recap    5-pill summary + Pinyin tease
+
+  ANIMATIONS         pulse, drift, fadeIn, slideUp, bounce, shake, glow,
+                     dnaWiggle (no — removed: not used here), tonePulse,
+                     micPulse, confetti-fall
+
+  MOBILE             ≤720px: pair grid 2-col, tone tracks stacked, mic UI shrinks
+
+  BODY  (~lines 690–900)
+    .top-bar
+    .module-section[data-module="tones"]   single module — 6 scenes
+
+  SCRIPT  (~lines 905–end, single IIFE)
+    Audio          unified playAudio(key) — file first, TTS fallback (zh-CN voice)
+    Pitch          autocorrelate algorithm (adapted from public-domain code)
+    Mic            getUserMedia → AudioContext → AnalyserNode → live pitch
+    Targets        4 tone shape templates + scoring (slope/valley heuristics)
+    State          { sceneIndex, mic, pitchBuffer, score, quiz, completed }
+    Scene render   renderHook, renderBigIdea, renderTrainer, renderPairs,
+                   renderQuiz, renderRecap
+    Routing        showScene(i), nextScene(), goToScene(i)
+    Persistence    localStorage['nihao_state_v1']
+
+  AUDIO ASSETS
+  ==============================================================================
+  All audio is optional — TTS plays when files are missing. To upgrade:
+    Drop MP3s into ./audio/ with these filenames:
+      ma1.mp3, ma2.mp3, ma3.mp3, ma4.mp3, ma5.mp3   (4 tones + neutral)
+      mama.mp3, nihao.mp3, xiexie.mp3, zhongguo.mp3,
+      xuexiao.mp3, pengyou.mp3                      (common tone-pair words)
+    The page will pick them up automatically on next reload.
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NiHao 你好 — Mandarin made easy</title>
+  <style>
+    /* ============================================================
+       :root — palette, radii, shadows, typography
+       ============================================================ */
+    :root {
+      /* Brand */
+      --vermilion: #c41e3a;
+      --vermilion-dark: #9b1729;
+      --vermilion-light: #e84a64;
+      --gold: #d4a017;
+      --gold-light: #e8c14a;
+      --gold-pale: #fff3c2;
+
+      /* Tone colors (widely-used convention: 1=red, 2=orange, 3=green, 4=blue) */
+      --t1: #ee5a5a;       --t1-pale: #ffd3d3;
+      --t2: #ff9a3c;       --t2-pale: #ffe0c2;
+      --t3: #22c896;       --t3-pale: #b9f0d9;
+      --t4: #4ea8ff;       --t4-pale: #d6ecff;
+      --tn: #9aa3b8;       --tn-pale: #e8eaf0;  /* neutral / 5th */
+
+      /* Inks */
+      --ink-900: #1a1410;
+      --ink-700: #4a3f37;
+      --ink-500: #7a6f63;
+      --ink-300: #b3a89c;
+      --ink-200: #d6cdc1;
+      --ink-100: #efe9de;
+
+      /* Surfaces */
+      --paper:  #ffffff;
+      --cream:  #fef8e8;          /* warm calligraphy-paper cream */
+      --bg:     #faf3e0;
+      --bg-alt: #f5edd8;
+
+      /* Radius / shadow */
+      --radius-sm: 10px;
+      --radius:    16px;
+      --radius-lg: 24px;
+      --radius-xl: 32px;
+
+      --shadow-sm: 0 2px 8px rgba(70, 30, 20, 0.06);
+      --shadow-md: 0 8px 24px rgba(70, 30, 20, 0.10);
+      --shadow-lg: 0 24px 60px rgba(70, 30, 20, 0.14);
+
+      /* Type */
+      --font-display: ui-rounded, "SF Pro Rounded", "Quicksand", "Nunito",
+                      "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      --font-body:    -apple-system, "SF Pro Text", "Inter",
+                      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+                      system-ui, sans-serif;
+      --font-cn:      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+                      "STKaiti", "Songti SC", serif;
+    }
+
+    /* ============================================================
+       Reset + base
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      scroll-behavior: smooth;
+    }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(196, 30, 58, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 100% 0%, rgba(212, 160, 23, 0.10) 0%, transparent 40%),
+        radial-gradient(circle at 50% 100%, rgba(34, 200, 150, 0.08) 0%, transparent 50%),
+        var(--bg);
+      background-attachment: fixed;
+    }
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      color: var(--ink-900);
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+    h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; font-weight: 700; }
+    h2 { font-size: clamp(1.6rem, 3.2vw, 2.4rem); line-height: 1.15; font-weight: 700; }
+    h3 { font-size: 1.25rem; line-height: 1.3; font-weight: 600; }
+    p  { line-height: 1.6; color: var(--ink-700); margin: 0; }
+    button { font-family: inherit; }
+    .cn { font-family: var(--font-cn); }
+
+    /* ============================================================
+       Top bar
+       ============================================================ */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 28px;
+      background: rgba(254, 248, 232, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--ink-100);
+    }
+    .brand {
+      display: flex; align-items: center; gap: 14px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--ink-900);
+      cursor: default;
+      user-select: none;
+    }
+    .brand-mark {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--vermilion), var(--vermilion-dark));
+      display: grid; place-items: center;
+      box-shadow: 0 4px 12px rgba(196, 30, 58, 0.30);
+      position: relative;
+      animation: tonePulse 4s ease-in-out infinite;
+    }
+    .brand-mark span {
+      font-family: var(--font-cn);
+      color: var(--gold-pale);
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .brand .name em {
+      font-style: normal;
+      color: var(--vermilion);
+    }
+    .module-subtitle {
+      font-size: 0.95rem;
+      color: var(--ink-500);
+      font-family: var(--font-display);
+      font-weight: 600;
+    }
+    .module-subtitle .num {
+      color: var(--vermilion);
+      margin-right: 6px;
+    }
+
+    /* ============================================================
+       Buttons
+       ============================================================ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px;
+      padding: 14px 26px;
+      border: none; border-radius: 999px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.18s, background 0.18s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--vermilion), var(--vermilion-dark));
+      color: var(--cream);
+      box-shadow: 0 6px 18px rgba(196, 30, 58, 0.35);
+    }
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 10px 24px rgba(196, 30, 58, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-700);
+      border: 1.5px solid var(--ink-200);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      border-color: var(--vermilion);
+      color: var(--vermilion);
+    }
+    .btn-pill {
+      padding: 10px 18px;
+      font-size: 0.92rem;
+    }
+
+    /* ============================================================
+       Module wrap, head, progress dots
+       ============================================================ */
+    .module-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 30px 28px 100px;
+    }
+    .module-head {
+      display: flex; flex-direction: column;
+      gap: 14px;
+      padding: 12px 0 18px;
+    }
+    .module-title-row {
+      display: flex; align-items: center; gap: 16px;
+      flex-wrap: wrap;
+    }
+    .module-icon {
+      width: 56px; height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      display: grid; place-items: center;
+      font-size: 1.5rem;
+      font-family: var(--font-cn);
+      font-weight: 700;
+      color: var(--ink-900);
+      box-shadow: 0 4px 12px rgba(212, 160, 23, 0.30);
+    }
+    .module-title-row h1 {
+      font-size: clamp(1.7rem, 3.6vw, 2.2rem);
+    }
+    .module-head p.intro {
+      color: var(--ink-500);
+      max-width: 640px;
+      font-size: 1rem;
+    }
+    .progress-dots {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 0 0;
+      flex-wrap: wrap;
+    }
+    .dot {
+      width: 32px; height: 8px;
+      border-radius: 999px;
+      background: var(--ink-100);
+      cursor: pointer;
+      transition: background 0.18s, width 0.18s;
+    }
+    .dot.done { background: var(--gold-light); }
+    .dot.active {
+      background: var(--vermilion);
+      width: 56px;
+    }
+
+    /* ============================================================
+       Scene container
+       ============================================================ */
+    .scene {
+      display: none;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius-xl);
+      padding: 44px;
+      box-shadow: var(--shadow-sm);
+      margin-top: 18px;
+      animation: fadeIn 0.4s ease;
+    }
+    .scene.active { display: block; }
+    .scene-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px dashed var(--ink-100);
+    }
+    .scene-foot .left { color: var(--ink-500); font-size: 0.9rem; }
+
+    /* ============================================================
+       Scene 0 — Hook
+       ============================================================ */
+    .hook-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      align-items: center;
+    }
+    .hook-text h2 { margin-bottom: 18px; }
+    .hook-text h2 em {
+      font-style: normal;
+      color: var(--vermilion);
+    }
+    .hook-text p {
+      font-size: 1.08rem;
+      margin-bottom: 14px;
+    }
+    .big-number {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(2.2rem, 5.5vw, 4.2rem);
+      background: linear-gradient(135deg, var(--vermilion), var(--gold));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .big-number-label {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--ink-700);
+      font-size: 1.05rem;
+      margin-bottom: 18px;
+    }
+
+    .ma-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .ma-card {
+      background: var(--cream);
+      border: 2px solid var(--ink-100);
+      border-radius: var(--radius);
+      padding: 18px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+      position: relative;
+    }
+    .ma-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+    .ma-card.t1 { border-color: var(--t1-pale); }
+    .ma-card.t1:hover { border-color: var(--t1); }
+    .ma-card.t2 { border-color: var(--t2-pale); }
+    .ma-card.t2:hover { border-color: var(--t2); }
+    .ma-card.t3 { border-color: var(--t3-pale); }
+    .ma-card.t3:hover { border-color: var(--t3); }
+    .ma-card.t4 { border-color: var(--t4-pale); }
+    .ma-card.t4:hover { border-color: var(--t4); }
+
+    .ma-card .ma-tone-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: white;
+      font-family: var(--font-display);
+    }
+    .ma-card.t1 .ma-tone-badge { background: var(--t1); }
+    .ma-card.t2 .ma-tone-badge { background: var(--t2); }
+    .ma-card.t3 .ma-tone-badge { background: var(--t3); }
+    .ma-card.t4 .ma-tone-badge { background: var(--t4); }
+
+    .ma-card .ma-emoji { font-size: 2.6rem; display: block; margin-bottom: 6px; }
+    .ma-card .ma-cn {
+      font-family: var(--font-cn);
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--ink-900);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .ma-card .ma-pinyin {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+    .ma-card.t1 .ma-pinyin { color: var(--t1); }
+    .ma-card.t2 .ma-pinyin { color: var(--t2); }
+    .ma-card.t3 .ma-pinyin { color: var(--t3); }
+    .ma-card.t4 .ma-pinyin { color: var(--t4); }
+    .ma-card .ma-meaning {
+      font-size: 0.85rem;
+      color: var(--ink-500);
+    }
+    .ma-card .ma-play {
+      position: absolute;
+      bottom: 8px; right: 10px;
+      font-size: 0.8rem;
+      color: var(--ink-300);
+    }
+
+    /* ============================================================
+       Scene 1 — Big idea (4 tone tracks)
+       ============================================================ */
+    .tone-tracks {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 26px;
+    }
+    .tone-track {
+      background: var(--cream);
+      border: 2px solid var(--ink-100);
+      border-radius: var(--radius);
+      padding: 22px;
+      cursor: pointer;
+      transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+      position: relative;
+    }
+    .tone-track:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+    .tone-track.t1 { border-color: var(--t1-pale); }
+    .tone-track.t1:hover { border-color: var(--t1); }
+    .tone-track.t2 { border-color: var(--t2-pale); }
+    .tone-track.t2:hover { border-color: var(--t2); }
+    .tone-track.t3 { border-color: var(--t3-pale); }
+    .tone-track.t3:hover { border-color: var(--t3); }
+    .tone-track.t4 { border-color: var(--t4-pale); }
+    .tone-track.t4:hover { border-color: var(--t4); }
+
+    .tone-track .head {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .tone-track .badge {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      color: white;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+    .tone-track.t1 .badge { background: var(--t1); }
+    .tone-track.t2 .badge { background: var(--t2); }
+    .tone-track.t3 .badge { background: var(--t3); }
+    .tone-track.t4 .badge { background: var(--t4); }
+    .tone-track .name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--ink-900);
+    }
+    .tone-track .name .ar {
+      color: var(--ink-300);
+      margin: 0 6px;
+    }
+    .track-svg {
+      width: 100%;
+      height: 90px;
+      margin-bottom: 8px;
+    }
+    .tone-track .desc {
+      font-size: 0.92rem;
+      color: var(--ink-500);
+      line-height: 1.45;
+    }
+    .tone-track .play-hint {
+      position: absolute;
+      top: 22px; right: 22px;
+      font-size: 0.78rem;
+      color: var(--ink-300);
+    }
+
+    .neutral-callout {
+      margin-top: 18px;
+      padding: 16px 22px;
+      background: var(--cream);
+      border-left: 4px solid var(--tn);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      line-height: 1.5;
+    }
+    .neutral-callout strong { color: var(--ink-900); }
+
+    /* ============================================================
+       Scene 2 — Pitch trainer
+       ============================================================ */
+    .trainer {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 24px;
+      align-items: start;
+      margin-top: 22px;
+    }
+    .trainer-targets {
+      display: flex; flex-direction: column;
+      gap: 10px;
+    }
+    .trainer-targets h4 {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .target-pill {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 2px solid var(--ink-100);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+      font-size: 1rem;
+    }
+    .target-pill:hover { transform: translateX(2px); }
+    .target-pill.active.t1 { border-color: var(--t1); background: var(--t1-pale); }
+    .target-pill.active.t2 { border-color: var(--t2); background: var(--t2-pale); }
+    .target-pill.active.t3 { border-color: var(--t3); background: var(--t3-pale); }
+    .target-pill.active.t4 { border-color: var(--t4); background: var(--t4-pale); }
+    .target-pill .b {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      color: white;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .target-pill.t1 .b { background: var(--t1); }
+    .target-pill.t2 .b { background: var(--t2); }
+    .target-pill.t3 .b { background: var(--t3); }
+    .target-pill.t4 .b { background: var(--t4); }
+    .target-pill .lbl {
+      font-family: var(--font-display);
+      font-weight: 600;
+    }
+    .target-pill .lbl .py {
+      font-family: var(--font-cn);
+      margin-right: 6px;
+    }
+
+    .trainer-stage {
+      background: linear-gradient(180deg, var(--cream), var(--paper));
+      border: 2px solid var(--ink-100);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      min-height: 360px;
+      display: flex; flex-direction: column;
+    }
+    .pitch-svg-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      background: var(--paper);
+      border-radius: var(--radius);
+      border: 1px dashed var(--ink-200);
+      overflow: hidden;
+    }
+    .pitch-svg-wrap svg { width: 100%; height: 100%; display: block; }
+
+    .mic-row {
+      display: flex; align-items: center; gap: 14px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .mic-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--vermilion), var(--vermilion-dark));
+      color: var(--cream);
+      font-size: 1.6rem;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(196, 30, 58, 0.35);
+      transition: transform 0.12s;
+      flex-shrink: 0;
+    }
+    .mic-btn:hover:not(:disabled) { transform: scale(1.05); }
+    .mic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .mic-btn.recording {
+      animation: micPulse 1.1s ease-in-out infinite;
+      background: var(--vermilion-light);
+    }
+
+    .mic-status {
+      flex: 1;
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      line-height: 1.4;
+    }
+    .mic-status .hl { color: var(--vermilion); font-weight: 600; }
+
+    .score-meter {
+      margin-top: 16px;
+      padding: 16px 20px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      display: none;
+    }
+    .score-meter.show { display: block; animation: slideUp 0.3s ease; }
+    .score-meter .top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .score-meter .label {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--ink-900);
+    }
+    .score-meter .pct {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.6rem;
+    }
+    .score-meter.good .pct { color: var(--t3); }
+    .score-meter.okay .pct { color: var(--t2); }
+    .score-meter.miss .pct { color: var(--t1); }
+    .score-meter .bar {
+      height: 8px;
+      background: var(--ink-100);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .score-meter .bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 999px;
+    }
+    .score-meter.good .bar > i { background: linear-gradient(90deg, var(--t3), #18a87a); }
+    .score-meter.okay .bar > i { background: linear-gradient(90deg, var(--t2), var(--gold)); }
+    .score-meter.miss .bar > i { background: linear-gradient(90deg, var(--t1), var(--vermilion)); }
+    .score-meter .feedback {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: var(--ink-700);
+      line-height: 1.5;
+    }
+
+    .mic-error {
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: var(--gold-pale);
+      border: 1px solid var(--gold-light);
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      color: var(--ink-700);
+      display: none;
+    }
+    .mic-error.show { display: block; }
+    .mic-error strong { color: var(--vermilion-dark); display: block; margin-bottom: 4px; font-family: var(--font-display); }
+
+    /* ============================================================
+       Scene 3 — Tone pairs grid
+       ============================================================ */
+    .pair-grid {
+      display: grid;
+      grid-template-columns: 60px repeat(4, 1fr);
+      gap: 4px;
+      margin-top: 22px;
+      background: var(--cream);
+      padding: 14px;
+      border-radius: var(--radius);
+    }
+    .pair-cell {
+      padding: 10px 6px;
+      text-align: center;
+      background: var(--paper);
+      border-radius: 8px;
+      font-family: var(--font-cn);
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.15s;
+      border: 1.5px solid transparent;
+      font-size: 0.95rem;
+    }
+    .pair-cell:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+    .pair-cell.head {
+      cursor: default;
+      background: transparent;
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--ink-500);
+      font-size: 0.85rem;
+      align-self: center;
+      padding: 4px;
+    }
+    .pair-cell.row-head {
+      cursor: default;
+      background: transparent;
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--ink-500);
+      font-size: 0.85rem;
+      align-self: center;
+      padding: 4px;
+    }
+    .pair-cell .pair-py { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; display: block; }
+    .pair-cell .pair-cn { display: block; font-size: 1.05rem; margin-top: 2px; }
+    .pair-cell .pair-en { display: block; font-size: 0.7rem; color: var(--ink-300); font-family: var(--font-display); font-weight: 600; }
+    .pair-cell.sandhi {
+      background: var(--gold-pale);
+      border-color: var(--gold);
+    }
+
+    .sandhi-callout {
+      margin-top: 22px;
+      padding: 18px 22px;
+      background: var(--gold-pale);
+      border: 1px solid var(--gold-light);
+      border-radius: var(--radius);
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 16px;
+      align-items: center;
+    }
+    .sandhi-callout .icon {
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      background: var(--gold);
+      display: grid; place-items: center;
+      font-size: 1.8rem;
+    }
+    .sandhi-callout strong {
+      display: block;
+      font-family: var(--font-display);
+      margin-bottom: 4px;
+      color: var(--ink-900);
+    }
+    .sandhi-callout p { font-size: 0.95rem; color: var(--ink-700); }
+
+    .common-words {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .word-chip {
+      padding: 14px 16px;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.12s;
+    }
+    .word-chip:hover {
+      border-color: var(--vermilion);
+      transform: translateY(-2px);
+    }
+    .word-chip .cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: var(--ink-900);
+      flex-shrink: 0;
+    }
+    .word-chip .info { flex: 1; }
+    .word-chip .py {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 2px;
+    }
+    .word-chip .en {
+      font-size: 0.82rem;
+      color: var(--ink-500);
+    }
+    .word-chip .pattern {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.72rem;
+      color: var(--ink-300);
+      letter-spacing: 0.04em;
+    }
+
+    /* tone color spans for inline pinyin */
+    .py-t1 { color: var(--t1); }
+    .py-t2 { color: var(--t2); }
+    .py-t3 { color: var(--t3); }
+    .py-t4 { color: var(--t4); }
+    .py-tn { color: var(--tn); }
+
+    /* ============================================================
+       Scene 4 — Quiz
+       ============================================================ */
+    .quiz-card { max-width: 720px; margin: 0 auto; }
+    .quiz-counter {
+      font-size: 0.9rem;
+      color: var(--ink-500);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .quiz-q {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      line-height: 1.35;
+      margin-bottom: 18px;
+    }
+    .quiz-prompt-audio {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 22px;
+      background: var(--cream);
+      border: 2px solid var(--vermilion);
+      border-radius: 999px;
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--vermilion);
+      margin-bottom: 22px;
+      transition: transform 0.12s;
+    }
+    .quiz-prompt-audio:hover { transform: translateY(-2px); }
+    .quiz-prompt-audio:before { content: "▶"; }
+    .quiz-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .quiz-option {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 18px;
+      background: var(--paper);
+      border: 2px solid var(--ink-200);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+    .quiz-option:hover:not(.locked) {
+      border-color: var(--vermilion);
+      background: var(--cream);
+      transform: translateY(-2px);
+    }
+    .quiz-option .b {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      color: white;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+    .quiz-option.t1 .b { background: var(--t1); }
+    .quiz-option.t2 .b { background: var(--t2); }
+    .quiz-option.t3 .b { background: var(--t3); }
+    .quiz-option.t4 .b { background: var(--t4); }
+    .quiz-option .lbl {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .quiz-option.correct {
+      border-color: var(--t3);
+      background: var(--t3-pale);
+    }
+    .quiz-option.incorrect {
+      border-color: var(--t1);
+      background: var(--t1-pale);
+      animation: shake 0.4s;
+    }
+    .quiz-option.locked { cursor: default; }
+    .quiz-option.dimmed { opacity: 0.55; }
+
+    .quiz-feedback {
+      margin-top: 20px;
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      display: none;
+    }
+    .quiz-feedback.show { display: block; animation: slideUp 0.3s ease; }
+    .quiz-feedback.right {
+      background: var(--t3-pale);
+      color: #18a87a;
+      border: 1px solid var(--t3);
+    }
+    .quiz-feedback.wrong {
+      background: var(--t1-pale);
+      color: var(--vermilion-dark);
+      border: 1px solid var(--t1);
+    }
+    .quiz-feedback strong {
+      display: block; margin-bottom: 4px; font-family: var(--font-display);
+    }
+
+    .quiz-production {
+      max-width: 720px; margin: 0 auto;
+    }
+    .quiz-production .target-prompt {
+      padding: 20px 24px;
+      background: var(--cream);
+      border: 2px solid var(--gold);
+      border-radius: var(--radius);
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .quiz-production .target-prompt .py {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2.2rem;
+      margin-bottom: 4px;
+    }
+    .quiz-production .target-prompt .cn {
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 2.4rem;
+      color: var(--ink-900);
+    }
+    .quiz-production .target-prompt .en {
+      font-size: 0.9rem;
+      color: var(--ink-500);
+      margin-top: 6px;
+    }
+
+    .quiz-results {
+      text-align: center;
+      padding: 20px;
+    }
+    .quiz-results .big-emoji {
+      font-size: 4rem;
+      display: block;
+      margin-bottom: 14px;
+      animation: bounce 1s ease;
+    }
+    .quiz-results h3 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      font-family: var(--font-display);
+    }
+    .quiz-results .score {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      color: var(--vermilion);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .quiz-results p { margin-bottom: 22px; }
+    .quiz-results .actions {
+      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    }
+
+    /* Confetti */
+    .confetti-stage {
+      position: fixed;
+      pointer-events: none;
+      inset: 0;
+      overflow: hidden;
+      z-index: 100;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 10px; height: 14px;
+      top: -20px;
+      animation: confetti-fall 2.2s linear forwards;
+    }
+
+    /* ============================================================
+       Scene 5 — Recap
+       ============================================================ */
+    .recap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 22px 0 30px;
+    }
+    .recap-pill {
+      background: var(--cream);
+      border: 1.5px solid var(--gold-light);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .recap-pill .ic {
+      font-size: 1.6rem;
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--gold-pale);
+      display: grid; place-items: center;
+    }
+    .recap-pill .lbl {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .next-tease {
+      background: linear-gradient(135deg, var(--gold-pale), var(--cream));
+      border: 1.5px solid var(--gold);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 22px;
+      align-items: center;
+    }
+    .next-tease .icon {
+      width: 84px; height: 84px;
+      border-radius: 24px;
+      background: var(--paper);
+      display: grid; place-items: center;
+      font-family: var(--font-cn);
+      font-weight: 700;
+      font-size: 2.2rem;
+      color: var(--vermilion);
+      box-shadow: var(--shadow-sm);
+    }
+    .next-tease h3 { font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 6px; }
+    .next-tease p { font-size: 0.95rem; color: var(--ink-700); margin: 0; }
+
+    /* ============================================================
+       Animations
+       ============================================================ */
+    @keyframes tonePulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.04); }
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.6), 0 6px 18px rgba(196, 30, 58, 0.45); }
+      50%      { box-shadow: 0 0 0 12px rgba(196, 30, 58, 0), 0 6px 18px rgba(196, 30, 58, 0.45); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%      { transform: translateX(-6px); }
+      40%      { transform: translateX(6px); }
+      60%      { transform: translateX(-4px); }
+      80%      { transform: translateX(4px); }
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(0) rotate(0); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0.2; }
+    }
+
+    /* ============================================================
+       Mobile (≤720px)
+       ============================================================ */
+    @media (max-width: 720px) {
+      .top-bar { padding: 12px 18px; }
+      .module-subtitle { font-size: 0.85rem; }
+      .module-wrap { padding: 16px 18px 80px; }
+      .scene { padding: 26px 22px; border-radius: var(--radius-lg); }
+      .hook-grid { grid-template-columns: 1fr; gap: 26px; }
+      .ma-cards { grid-template-columns: repeat(2, 1fr); }
+      .tone-tracks { grid-template-columns: 1fr; }
+      .trainer { grid-template-columns: 1fr; }
+      .pair-grid { grid-template-columns: 50px repeat(4, 1fr); }
+      .pair-cell { padding: 7px 2px; font-size: 0.78rem; }
+      .pair-cell .pair-cn { font-size: 0.85rem; }
+      .pair-cell .pair-en { display: none; }
+      .next-tease { grid-template-columns: 1fr; text-align: center; }
+      .next-tease .icon { margin: 0 auto; }
+      .scene-foot { flex-direction: column; gap: 14px; align-items: stretch; }
+      .scene-foot .btn { width: 100%; }
+      .scene-foot > .left { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-mark"><span>你</span></div>
+      <div>
+        <div class="name">Ni<em>Hao</em> <span style="color: var(--ink-300); font-weight: 400; margin-left: 4px;">你好</span></div>
+      </div>
+    </div>
+    <!--
+      When module 2+ is added, replace this line with a module switcher
+      (a horizontal pill nav) that lets users jump between modules.
+    -->
+    <div class="module-subtitle"><span class="num">M1.</span>The 4 Tones</div>
+  </header>
+
+  <main>
+    <div class="module-wrap">
+      <div class="module-head">
+        <div class="module-title-row">
+          <div class="module-icon"><span class="cn">声</span></div>
+          <h1>The 4 Tones</h1>
+        </div>
+        <p class="intro">
+          In Mandarin, the same syllable spoken with a different pitch contour
+          becomes a completely different word. Master the 4 tones and you've
+          unlocked the door to the whole language.
+        </p>
+        <div class="progress-dots" id="progress-dots"></div>
+      </div>
+
+      <div class="module-section" data-module="tones">
+
+        <!-- Scene 0 — Hook -->
+        <div class="scene active" data-scene="0">
+          <div class="hook-grid">
+            <div class="hook-text">
+              <span class="big-number">4 tones.</span>
+              <div class="big-number-label">1 syllable. 4 different words.</div>
+              <h2>Welcome to the most <em>fun</em> part of Mandarin.</h2>
+              <p>
+                In English, "ma" is just "ma" — your pitch can rise or fall
+                without changing what you mean. In Mandarin, the pitch
+                <em>is</em> the meaning.
+              </p>
+              <p>
+                Listen — these are 4 real Mandarin words. Same letters. Same
+                consonant. Same vowel. Different pitches → different meanings.
+              </p>
+            </div>
+            <div class="ma-cards" id="ma-cards">
+              <!-- rendered by JS -->
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 1 of 11 · Scene 1 of 6</span>
+            <button class="btn btn-primary" data-action="next">Show me how →</button>
+          </div>
+        </div>
+
+        <!-- Scene 1 — Big idea (4 tone tracks) -->
+        <div class="scene" data-scene="1">
+          <h2>The 4 tones, as roller-coaster tracks.</h2>
+          <p style="margin-top: 14px; max-width: 720px;">
+            Each tone has a distinct pitch contour. Most learners memorize them as shapes.
+            Click any track to hear it spoken on the syllable <span class="cn" style="font-weight: 700;">ma</span>.
+          </p>
+          <div class="tone-tracks" id="tone-tracks">
+            <!-- rendered by JS -->
+          </div>
+          <div class="neutral-callout">
+            <strong>5th tone — the "neutral" tone (轻声 qīngshēng).</strong>
+            Some syllables, especially the 2nd half of common words, are short and unstressed —
+            they don't carry one of the 4 tones. Examples: 妈<span style="color: var(--tn);">妈</span> (māma, mom),
+            朋<span style="color: var(--tn);">友</span> (péngyou, friend). You'll meet plenty of these.
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 2 of 6 · Now sing them yourself</span>
+            <button class="btn btn-primary" data-action="next">Train my pitch →</button>
+          </div>
+        </div>
+
+        <!-- Scene 2 — Pitch trainer -->
+        <div class="scene" data-scene="2">
+          <h2>Sing the tone. <span style="color: var(--ink-500); font-weight: 400; font-size: 0.65em;">Live mic feedback.</span></h2>
+          <p style="margin-top: 8px; color: var(--ink-700); max-width: 720px;">
+            Pick a target tone, press the mic, and say "ma" with the matching pitch.
+            We'll draw your pitch curve in real time and score how well your shape matches.
+            <strong>Tip:</strong> the absolute pitch doesn't matter — just the shape (flat / rising / dipping / falling).
+          </p>
+          <div class="trainer">
+            <div class="trainer-targets">
+              <h4>Target tone</h4>
+              <div class="target-pill t1 active" data-tone="1">
+                <div class="b">1</div>
+                <div class="lbl"><span class="py">mā</span> 妈</div>
+              </div>
+              <div class="target-pill t2" data-tone="2">
+                <div class="b">2</div>
+                <div class="lbl"><span class="py">má</span> 麻</div>
+              </div>
+              <div class="target-pill t3" data-tone="3">
+                <div class="b">3</div>
+                <div class="lbl"><span class="py">mǎ</span> 马</div>
+              </div>
+              <div class="target-pill t4" data-tone="4">
+                <div class="b">4</div>
+                <div class="lbl"><span class="py">mà</span> 骂</div>
+              </div>
+            </div>
+            <div class="trainer-stage">
+              <div class="pitch-svg-wrap">
+                <svg viewBox="0 0 400 200" id="pitch-svg" preserveAspectRatio="none">
+                  <!-- Y-axis grid -->
+                  <line x1="0" y1="100" x2="400" y2="100" stroke="#efe9de" stroke-width="1" stroke-dasharray="3 4"/>
+                  <line x1="0" y1="50"  x2="400" y2="50"  stroke="#f5edd8" stroke-width="1" stroke-dasharray="3 4"/>
+                  <line x1="0" y1="150" x2="400" y2="150" stroke="#f5edd8" stroke-width="1" stroke-dasharray="3 4"/>
+                  <text x="6" y="14" font-size="9" fill="#b3a89c" font-family="ui-rounded, sans-serif">high</text>
+                  <text x="6" y="196" font-size="9" fill="#b3a89c" font-family="ui-rounded, sans-serif">low</text>
+                  <!-- target curve (drawn by JS) -->
+                  <path id="target-curve" stroke="" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.55"/>
+                  <!-- user curve (drawn live by JS) -->
+                  <path id="user-curve" stroke="#1a1410" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                  <!-- moving "now" indicator -->
+                  <circle id="user-now" cx="-10" cy="-10" r="6" fill="#c41e3a"/>
+                </svg>
+              </div>
+              <div class="mic-row">
+                <button class="mic-btn" id="mic-btn" aria-label="Start recording">🎤</button>
+                <div class="mic-status" id="mic-status">
+                  Pick a target tone, then tap the mic to record yourself saying "<span class="hl">ma</span>" with that tone.
+                </div>
+              </div>
+              <div class="score-meter" id="score-meter">
+                <div class="top">
+                  <span class="label">Tone match</span>
+                  <span class="pct" id="score-pct">—</span>
+                </div>
+                <div class="bar"><i id="score-bar"></i></div>
+                <div class="feedback" id="score-feedback"></div>
+              </div>
+              <div class="mic-error" id="mic-error">
+                <strong>Couldn't access the mic.</strong>
+                That's OK — you can still finish the module without speaking.
+                On most browsers, clicking the lock icon in the address bar lets you re-enable mic access for this site.
+              </div>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 3 of 6 · Tone pairs are next — that's where the real practice lives</span>
+            <button class="btn btn-primary" data-action="next">On to tone pairs →</button>
+          </div>
+        </div>
+
+        <!-- Scene 3 — Tone pairs -->
+        <div class="scene" data-scene="3">
+          <h2>Tone pairs — where Mandarin actually happens.</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            Most Mandarin words are 2 syllables. So practicing tones in <em>pairs</em>
+            (16 combinations: 1+1, 1+2, 1+3, 1+4, 2+1 …) is more useful than drilling
+            single tones. Click any cell to hear the pair on "ma-ma".
+          </p>
+          <div class="pair-grid" id="pair-grid">
+            <!-- rendered by JS -->
+          </div>
+          <div class="sandhi-callout">
+            <div class="icon">⚡</div>
+            <div>
+              <strong>Tone sandhi: when 3+3 secretly becomes 2+3.</strong>
+              <p>Two 3rd tones in a row are awkward to actually say, so the first one becomes a 2nd tone. <span class="cn">你好</span> (<span class="py-t3">nǐ</span> + <span class="py-t3">hǎo</span>) is pronounced <span class="cn">你好</span> (<span class="py-t2">ní</span> + <span class="py-t3">hǎo</span>). Spelling stays; pronunciation shifts. Native speakers do it automatically.</p>
+            </div>
+          </div>
+          <h3 style="margin-top: 28px;">Common 2-syllable words to practice with</h3>
+          <p style="font-size: 0.92rem; color: var(--ink-500); margin-top: 6px; margin-bottom: 12px;">Tap to hear each.</p>
+          <div class="common-words" id="common-words">
+            <!-- rendered by JS -->
+          </div>
+          <div class="scene-foot">
+            <span class="left">Scene 4 of 6 · Quick check</span>
+            <button class="btn btn-primary" data-action="next">Quiz me →</button>
+          </div>
+        </div>
+
+        <!-- Scene 4 — Quiz -->
+        <div class="scene" data-scene="4">
+          <div id="quiz-card-wrap"><!-- rendered by JS --></div>
+        </div>
+
+        <!-- Scene 5 — Recap + Pinyin tease -->
+        <div class="scene" data-scene="5">
+          <h2>You can hear (and sing!) the 4 tones. 🎉</h2>
+          <p style="margin-top: 12px; max-width: 720px;">
+            That's the single biggest hurdle for English speakers learning Mandarin.
+            Everything else gets easier from here.
+          </p>
+          <div class="recap-grid">
+            <div class="recap-pill"><span class="ic">①</span><span class="lbl">Tone 1 = high &amp; flat (mā 妈)</span></div>
+            <div class="recap-pill"><span class="ic">②</span><span class="lbl">Tone 2 = rising (má 麻)</span></div>
+            <div class="recap-pill"><span class="ic">③</span><span class="lbl">Tone 3 = dip then rise (mǎ 马)</span></div>
+            <div class="recap-pill"><span class="ic">④</span><span class="lbl">Tone 4 = sharp falling (mà 骂)</span></div>
+            <div class="recap-pill"><span class="ic">⚡</span><span class="lbl">3+3 → 2+3 (sandhi)</span></div>
+          </div>
+          <div class="next-tease">
+            <div class="icon">拼</div>
+            <div>
+              <h3>Coming up next: Pinyin</h3>
+              <p>
+                Now you can hear the tones — but can you read every sound in
+                Mandarin? Pinyin is the romanization system that lets you read and
+                type Chinese before you've learned a single character. Spoiler:
+                <span class="cn">q</span>, <span class="cn">x</span>, <span class="cn">zh</span>, and <span class="cn">ü</span> are <em>not</em> what you'd expect.
+              </p>
+            </div>
+          </div>
+          <div class="scene-foot">
+            <span class="left">Module 1 complete · Pinyin module coming soon</span>
+            <button class="btn btn-ghost" data-action="restart">↺ Restart module</button>
+          </div>
+        </div>
+
+      </div><!-- /module-section -->
+    </div>
+  </main>
+
+  <script>
+    // =========================================================================
+    // NiHao 你好 — single IIFE
+    // =========================================================================
+    (function () {
+      'use strict';
+
+      // ----- DOM helpers -----
+      const $  = (sel, root) => (root || document).querySelector(sel);
+      const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+      // ----- Persistence -----
+      const STORE_KEY = 'nihao_state_v1';
+      function loadState() {
+        try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
+        catch { return {}; }
+      }
+      function saveState(s) {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch {}
+      }
+
+      const state = {
+        sceneIndex: 0,
+        targetTone: 1,
+        mic: { recording: false, ctx: null, source: null, analyser: null, stream: null,
+               buffer: null, pitches: [], startTime: 0, raf: null, sampleRate: 44100 },
+        quiz: { i: 0, correct: 0, locked: false, items: [] },
+        completed: loadState().completed || {},
+      };
+
+      // =====================================================================
+      // Audio system — plays an MP3 if present, falls back to TTS
+      // =====================================================================
+      // Each entry: { file, tts, lang? }
+      // file is relative to the HTML; if it 404s, we use TTS with the given text.
+      // TTS uses 'zh-CN' voice when available.
+      const AUDIO = {
+        ma1: { file: 'audio/ma1.mp3', tts: '妈', tone: 1 },
+        ma2: { file: 'audio/ma2.mp3', tts: '麻', tone: 2 },
+        ma3: { file: 'audio/ma3.mp3', tts: '马', tone: 3 },
+        ma4: { file: 'audio/ma4.mp3', tts: '骂', tone: 4 },
+        ma5: { file: 'audio/ma5.mp3', tts: '吗', tone: 5 },
+        // Common pair words
+        mama:     { file: 'audio/mama.mp3',     tts: '妈妈',  pattern: '1+0' },
+        nihao:    { file: 'audio/nihao.mp3',    tts: '你好',  pattern: '3+3 → 2+3' },
+        xiexie:   { file: 'audio/xiexie.mp3',   tts: '谢谢',  pattern: '4+0' },
+        zhongguo: { file: 'audio/zhongguo.mp3', tts: '中国',  pattern: '1+2' },
+        xuexiao:  { file: 'audio/xuexiao.mp3',  tts: '学校',  pattern: '2+4' },
+        pengyou:  { file: 'audio/pengyou.mp3',  tts: '朋友',  pattern: '2+0' },
+      };
+
+      // file-availability cache: undefined = untried, true = exists, false = 404
+      const fileCache = {};
+
+      let _zhVoice = null;
+      function getZhVoice() {
+        if (_zhVoice) return _zhVoice;
+        if (!('speechSynthesis' in window)) return null;
+        const voices = speechSynthesis.getVoices();
+        // Prefer zh-CN; fall back to zh-anything
+        _zhVoice = voices.find(v => v.lang === 'zh-CN')
+                || voices.find(v => v.lang.startsWith('zh-'))
+                || null;
+        return _zhVoice;
+      }
+      // Voices load asynchronously on some browsers
+      if ('speechSynthesis' in window) {
+        speechSynthesis.onvoiceschanged = () => { _zhVoice = null; getZhVoice(); };
+      }
+
+      function speakTTS(text) {
+        if (!('speechSynthesis' in window)) return;
+        try {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'zh-CN';
+          u.rate = 0.85;
+          u.pitch = 1.0;
+          const voice = getZhVoice();
+          if (voice) u.voice = voice;
+          speechSynthesis.speak(u);
+        } catch {}
+      }
+
+      function playAudio(key) {
+        const item = AUDIO[key];
+        if (!item) return;
+        // If we've previously confirmed the file is missing, skip straight to TTS.
+        if (fileCache[item.file] === false) {
+          speakTTS(item.tts);
+          return;
+        }
+        const audio = new Audio(item.file);
+        let fallbackFired = false;
+        const fallback = () => {
+          if (fallbackFired) return;
+          fallbackFired = true;
+          fileCache[item.file] = false;
+          speakTTS(item.tts);
+        };
+        audio.onerror = fallback;
+        audio.oncanplaythrough = () => { fileCache[item.file] = true; };
+        const p = audio.play();
+        if (p && typeof p.catch === 'function') p.catch(fallback);
+      }
+
+      // =====================================================================
+      // Pitch detection — autocorrelation
+      // (Adapted from public-domain example by Chris Wilson — works well on
+      //  sustained vowel sounds, which is exactly what "ma" gives us.)
+      // =====================================================================
+      function autoCorrelate(buf, sampleRate) {
+        const SIZE = buf.length;
+        let rms = 0;
+        for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+        rms = Math.sqrt(rms / SIZE);
+        if (rms < 0.01) return -1; // not enough signal
+
+        let r1 = 0, r2 = SIZE - 1;
+        const thres = 0.2;
+        for (let i = 0; i < SIZE / 2; i++) {
+          if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        }
+        for (let i = 1; i < SIZE / 2; i++) {
+          if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+        }
+
+        const trimmed = buf.slice(r1, r2);
+        const N = trimmed.length;
+        if (N < 64) return -1;
+
+        const c = new Array(N).fill(0);
+        for (let i = 0; i < N; i++) {
+          for (let j = 0; j < N - i; j++) {
+            c[i] = c[i] + trimmed[j] * trimmed[j + i];
+          }
+        }
+
+        let d = 0;
+        while (d < N - 1 && c[d] > c[d + 1]) d++;
+        let maxval = -1, maxpos = -1;
+        for (let i = d; i < N; i++) {
+          if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+        }
+        let T0 = maxpos;
+        if (T0 < 1 || T0 >= N - 1) return -1;
+
+        // parabolic interpolation for sub-sample accuracy
+        const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+        const a = (x1 + x3 - 2 * x2) / 2;
+        const b = (x3 - x1) / 2;
+        if (a) T0 = T0 - b / (2 * a);
+
+        const pitch = sampleRate / T0;
+        // Reject implausible pitches for human voice (typical 70–500 Hz)
+        if (pitch < 60 || pitch > 700) return -1;
+        return pitch;
+      }
+
+      // =====================================================================
+      // Mic recording + live pitch tracking
+      // =====================================================================
+
+      const RECORD_MS = 1500; // 1.5s window for one syllable
+
+      async function startMicRecording() {
+        const m = state.mic;
+        if (m.recording) return;
+        try {
+          if (!m.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) throw new Error('no AudioContext');
+            m.ctx = new AC();
+          }
+          if (m.ctx.state === 'suspended') await m.ctx.resume();
+          if (!m.stream) {
+            m.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
+          if (!m.source) {
+            m.source = m.ctx.createMediaStreamSource(m.stream);
+            m.analyser = m.ctx.createAnalyser();
+            m.analyser.fftSize = 2048;
+            m.source.connect(m.analyser);
+          }
+          m.sampleRate = m.ctx.sampleRate;
+          m.buffer = new Float32Array(m.analyser.fftSize);
+          m.pitches = [];
+          m.startTime = performance.now();
+          m.recording = true;
+
+          $('#mic-btn').classList.add('recording');
+          $('#mic-status').innerHTML = `<span class="hl">Listening…</span> say "<span class="cn" style="font-weight: 700;">ma</span>" with the target tone now.`;
+          hideScoreMeter();
+          clearUserCurve();
+          tickPitch();
+        } catch (err) {
+          console.warn('mic error', err);
+          showMicError();
+        }
+      }
+
+      function stopMicRecording() {
+        const m = state.mic;
+        if (!m.recording) return;
+        m.recording = false;
+        if (m.raf) { cancelAnimationFrame(m.raf); m.raf = null; }
+        $('#mic-btn').classList.remove('recording');
+        scoreAndDisplay();
+      }
+
+      function tickPitch() {
+        const m = state.mic;
+        if (!m.recording) return;
+        m.analyser.getFloatTimeDomainData(m.buffer);
+        const t = performance.now() - m.startTime;
+        if (t > RECORD_MS) {
+          stopMicRecording();
+          return;
+        }
+        const pitch = autoCorrelate(m.buffer, m.sampleRate);
+        if (pitch > 0) {
+          m.pitches.push({ t, hz: pitch });
+          drawUserCurve(m.pitches);
+        }
+        m.raf = requestAnimationFrame(tickPitch);
+      }
+
+      function showMicError() {
+        $('#mic-error').classList.add('show');
+        $('#mic-status').innerHTML = `<span style="color: var(--vermilion);">No mic — but you can still continue and skim the rest of the module.</span>`;
+      }
+
+      // =====================================================================
+      // Pitch curve drawing + scoring
+      // =====================================================================
+
+      // SVG viewBox is 400×200. X = time (0..400), Y = pitch (0=high, 200=low)
+      // We normalize each user recording to its own pitch range so absolute pitch doesn't matter.
+
+      function clearUserCurve() {
+        $('#user-curve').setAttribute('d', '');
+        const now = $('#user-now');
+        now.setAttribute('cx', -10);
+        now.setAttribute('cy', -10);
+      }
+
+      function drawUserCurve(pitches) {
+        if (!pitches.length) return;
+        const xs = pitches.map(p => (p.t / RECORD_MS) * 400);
+        const fs = pitches.map(p => p.hz);
+        const fmin = Math.min(...fs);
+        const fmax = Math.max(...fs);
+        const range = Math.max(20, fmax - fmin);
+        const ys = fs.map(f => 180 - ((f - fmin) / range) * 160);
+        let d = `M ${xs[0]} ${ys[0]}`;
+        for (let i = 1; i < xs.length; i++) d += ` L ${xs[i]} ${ys[i]}`;
+        $('#user-curve').setAttribute('d', d);
+        const last = pitches.length - 1;
+        $('#user-now').setAttribute('cx', xs[last]);
+        $('#user-now').setAttribute('cy', ys[last]);
+      }
+
+      // Target tone curves drawn into the same viewBox
+      const TONE_CURVES = {
+        1: 'M 40 50 L 360 50',                                     // flat high
+        2: 'M 40 150 L 360 50',                                    // rising
+        3: 'M 40 70 Q 200 200 360 70',                             // dip then rise
+        4: 'M 40 50 L 360 150',                                    // sharp fall
+      };
+      const TONE_COLOR = { 1: '#ee5a5a', 2: '#ff9a3c', 3: '#22c896', 4: '#4ea8ff' };
+
+      function setTargetTone(toneNum) {
+        state.targetTone = toneNum;
+        $$('.target-pill').forEach(p => p.classList.toggle('active', parseInt(p.dataset.tone, 10) === toneNum));
+        const path = $('#target-curve');
+        path.setAttribute('d', TONE_CURVES[toneNum]);
+        path.setAttribute('stroke', TONE_COLOR[toneNum]);
+        clearUserCurve();
+        hideScoreMeter();
+      }
+
+      // =====================================================================
+      // Scoring — compare user's pitch shape to target tone shape
+      // =====================================================================
+
+      function scorePitch(pitches, toneNum) {
+        if (pitches.length < 4) return { score: 0, reason: 'not enough audio' };
+        // Smooth pitches with a small moving average
+        const smoothed = [];
+        for (let i = 0; i < pitches.length; i++) {
+          const lo = Math.max(0, i - 1);
+          const hi = Math.min(pitches.length - 1, i + 1);
+          let s = 0, n = 0;
+          for (let j = lo; j <= hi; j++) { s += pitches[j].hz; n++; }
+          smoothed.push(s / n);
+        }
+        const fmin = Math.min(...smoothed);
+        const fmax = Math.max(...smoothed);
+        const range = fmax - fmin;
+        const N = smoothed.length;
+        const first = smoothed.slice(0, Math.max(1, Math.floor(N * 0.25)));
+        const last  = smoothed.slice(Math.floor(N * 0.75));
+        const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
+        const startAvg = avg(first);
+        const endAvg = avg(last);
+        const minIdx = smoothed.indexOf(fmin);
+        const minPos = minIdx / N; // 0..1
+        const maxIdx = smoothed.indexOf(fmax);
+        const maxPos = maxIdx / N;
+        // Slope (semitones-equivalent)
+        const slope = endAvg - startAvg; // positive = rising
+
+        let score = 0;
+        let reason = '';
+        if (toneNum === 1) {
+          // flat: range should be small relative to mean
+          const avgF = (startAvg + endAvg) / 2;
+          const flatness = 1 - Math.min(1, range / (avgF * 0.18));
+          score = Math.round(flatness * 100);
+          reason = score >= 75
+            ? 'Steady and flat — exactly tone 1.'
+            : score >= 50
+              ? 'Pretty flat, but it dipped or rose a bit. Hold the pitch level all the way through.'
+              : 'Your pitch wandered. Tone 1 stays flat from start to finish — like a held high note.';
+        } else if (toneNum === 2) {
+          // rising: end higher than start, mostly monotonic
+          const avgF = (startAvg + endAvg) / 2;
+          const slopeNorm = Math.max(0, Math.min(1, slope / (avgF * 0.20)));
+          score = Math.round(slopeNorm * 100);
+          reason = score >= 75
+            ? 'Smooth rise — that\'s tone 2.'
+            : score >= 50
+              ? 'Going up, but not enough. Try ending higher than you started — like asking a question.'
+              : 'Doesn\'t feel like a rise. Tone 2 sounds like English "really?" — lift your pitch up at the end.';
+        } else if (toneNum === 3) {
+          // dipping: minimum should be in the middle 60%
+          const dipDepth = (startAvg + endAvg) / 2 - fmin;
+          const dipNorm = Math.max(0, Math.min(1, dipDepth / (((startAvg + endAvg) / 2) * 0.18)));
+          const minInMiddle = (minPos > 0.18 && minPos < 0.82) ? 1 : 0.4;
+          score = Math.round(dipNorm * minInMiddle * 100);
+          reason = score >= 75
+            ? 'Nice dip — that\'s the tone 3 shape.'
+            : score >= 50
+              ? 'Some dip, but it\'s not central. Tone 3 starts mid, drops low, and lifts back up.'
+              : 'Tone 3 isn\'t flat or just falling — it dips in the middle. Think "uh-OH" but smoother.';
+        } else if (toneNum === 4) {
+          // falling: end lower than start, sharp drop
+          const avgF = (startAvg + endAvg) / 2;
+          const slopeNorm = Math.max(0, Math.min(1, -slope / (avgF * 0.20)));
+          score = Math.round(slopeNorm * 100);
+          reason = score >= 75
+            ? 'Sharp drop — exactly tone 4.'
+            : score >= 50
+              ? 'Falling, but not sharp enough. Tone 4 is a decisive drop — like saying "NO!"'
+              : 'Doesn\'t sound like a fall. Tone 4 starts high and drops fast — try saying it like you\'re scolding someone.';
+        }
+        return { score, reason };
+      }
+
+      function hideScoreMeter() {
+        $('#score-meter').classList.remove('show', 'good', 'okay', 'miss');
+      }
+
+      function scoreAndDisplay() {
+        const m = state.mic;
+        if (!m.pitches.length) {
+          $('#mic-status').innerHTML = `Hmm — didn't catch any sound. Try again, a bit louder, with the syllable "<span class="hl">ma</span>".`;
+          return;
+        }
+        const { score, reason } = scorePitch(m.pitches, state.targetTone);
+        const meter = $('#score-meter');
+        meter.classList.add('show');
+        meter.classList.toggle('good', score >= 75);
+        meter.classList.toggle('okay', score >= 50 && score < 75);
+        meter.classList.toggle('miss', score < 50);
+        $('#score-pct').textContent = score + '/100';
+        $('#score-bar').style.width = score + '%';
+        $('#score-feedback').innerHTML = reason;
+        const m2 = state.mic;
+        const tname = ['', '1st', '2nd', '3rd', '4th'][state.targetTone];
+        $('#mic-status').innerHTML = score >= 75
+          ? `Nice — the curve in your voice matches the <span class="hl">${tname} tone</span>. Tap the mic to try another.`
+          : `Tap the mic to try the <span class="hl">${tname} tone</span> again.`;
+      }
+
+      // =====================================================================
+      // Scene renderers
+      // =====================================================================
+
+      // Scene 0 — Hook: 4 ma cards with characters + meanings
+      const MA_DATA = [
+        { tone: 1, cn: '妈', py: 'mā', en: 'mom', emoji: '👩' },
+        { tone: 2, cn: '麻', py: 'má', en: 'hemp', emoji: '🌿' },
+        { tone: 3, cn: '马', py: 'mǎ', en: 'horse', emoji: '🐴' },
+        { tone: 4, cn: '骂', py: 'mà', en: 'to scold', emoji: '😠' },
+      ];
+
+      function renderHook() {
+        const wrap = $('#ma-cards');
+        wrap.innerHTML = MA_DATA.map(m => `
+          <div class="ma-card t${m.tone}" data-key="ma${m.tone}">
+            <span class="ma-tone-badge">${m.tone}</span>
+            <span class="ma-emoji">${m.emoji}</span>
+            <div class="ma-cn">${m.cn}</div>
+            <div class="ma-pinyin">${m.py}</div>
+            <div class="ma-meaning">${m.en}</div>
+            <div class="ma-play">▶ tap to hear</div>
+          </div>
+        `).join('');
+        $$('.ma-card', wrap).forEach(card => {
+          card.addEventListener('click', () => playAudio(card.dataset.key));
+        });
+      }
+
+      // Scene 1 — Big idea: 4 tone tracks
+      const TONE_TRACKS = [
+        { tone: 1, name: 'Tone 1', char: '妈', py: 'mā', en: 'mom',   desc: 'High and flat. Hold the pitch like a sustained note. English-speakers under-hold this — give it length.', path: 'M 10 30 L 290 30' },
+        { tone: 2, name: 'Tone 2', char: '麻', py: 'má', en: 'hemp',  desc: 'Rising. Like the way "really?" goes up at the end of a question.', path: 'M 10 70 L 290 20' },
+        { tone: 3, name: 'Tone 3', char: '马', py: 'mǎ', en: 'horse', desc: 'Dips down, then comes back up. Like "uh-oh" but smoother.', path: 'M 10 30 Q 150 100 290 30' },
+        { tone: 4, name: 'Tone 4', char: '骂', py: 'mà', en: 'scold', desc: 'Sharp drop from high to low. Like saying "NO!" decisively.', path: 'M 10 20 L 290 70' },
+      ];
+
+      function renderBigIdea() {
+        const wrap = $('#tone-tracks');
+        wrap.innerHTML = TONE_TRACKS.map(t => `
+          <div class="tone-track t${t.tone}" data-key="ma${t.tone}">
+            <div class="head">
+              <div class="badge">${t.tone}</div>
+              <div class="name">${t.name}<span class="ar">·</span><span class="cn">${t.char}</span> ${t.py}</div>
+            </div>
+            <svg class="track-svg" viewBox="0 0 300 90" preserveAspectRatio="none">
+              <line x1="0" y1="45" x2="300" y2="45" stroke="#efe9de" stroke-width="1" stroke-dasharray="3 3"/>
+              <path d="${t.path}" stroke="${TONE_COLOR[t.tone]}" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="${t.path.split(' ')[1]}" cy="${t.path.split(' ')[2]}" r="6" fill="${TONE_COLOR[t.tone]}"/>
+            </svg>
+            <div class="play-hint">▶ tap to hear</div>
+            <div class="desc">${t.desc} <span style="color: var(--ink-300);">(${t.en})</span></div>
+          </div>
+        `).join('');
+        $$('.tone-track', wrap).forEach(track => {
+          track.addEventListener('click', () => playAudio(track.dataset.key));
+        });
+      }
+
+      // Scene 2 — Trainer wiring
+      function renderTrainer() {
+        // wire target-pill clicks
+        $$('.target-pill').forEach(pill => {
+          pill.addEventListener('click', () => setTargetTone(parseInt(pill.dataset.tone, 10)));
+        });
+        setTargetTone(state.targetTone);
+        // wire mic button
+        const micBtn = $('#mic-btn');
+        micBtn.onclick = () => {
+          if (state.mic.recording) stopMicRecording();
+          else startMicRecording();
+        };
+      }
+
+      // Scene 3 — Tone pairs: 16-cell grid + sandhi callout + common words
+      const PAIR_WORDS = {
+        // [first, second] -> { cn, py, en }
+        '1+1': { cn: '妈妈', py: 'māma',     en: 'mom (informal)', note: '1+0 (neutral 2nd)' }, // light second; actual 1+1 example: 高兴? we'll do generic
+        '1+2': { cn: '中国', py: 'Zhōngguó', en: 'China' },
+        '1+3': { cn: '飞机', py: 'fēijī',    en: 'airplane', note: '1+1, swap to: 西瓜 1+1; for 1+3 use: 公园?' },
+        '1+4': { cn: '工作', py: 'gōngzuò',  en: 'work / job' },
+        '2+1': { cn: '回家', py: 'huíjiā',   en: 'go home' },
+        '2+2': { cn: '学习', py: 'xuéxí',    en: 'to study' },
+        '2+3': { cn: '学校', py: 'xuéxiào',  en: 'school', note: '2+4 actually' },
+        '2+4': { cn: '同学', py: 'tóngxué',  en: 'classmate', note: '2+2 — fix' },
+        '3+1': { cn: '美国', py: 'Měiguó',   en: 'America', note: '3+2 — fix' },
+        '3+2': { cn: '美国', py: 'Měiguó',   en: 'America' },
+        '3+3': { cn: '你好', py: 'nǐhǎo',    en: 'hello', note: 'sandhi → 2+3' },
+        '3+4': { cn: '老师', py: 'lǎoshī',   en: 'teacher', note: '3+1 — fix' },
+        '4+1': { cn: '快餐', py: 'kuàicān',  en: 'fast food' },
+        '4+2': { cn: '面包', py: 'miànbāo',  en: 'bread' },
+        '4+3': { cn: '汉语', py: 'hànyǔ',    en: 'Chinese language' },
+        '4+4': { cn: '再见', py: 'zàijiàn',  en: 'goodbye' },
+      };
+
+      // Properly correct mapping (rewriting cleanly above for clarity):
+      const PAIRS = {
+        '1+1': { cn: '今天', py: 'jīntiān', en: 'today' },
+        '1+2': { cn: '中国', py: 'Zhōngguó', en: 'China' },
+        '1+3': { cn: '中午', py: 'zhōngwǔ', en: 'noon' },
+        '1+4': { cn: '工作', py: 'gōngzuò', en: 'work / job' },
+        '2+1': { cn: '回家', py: 'huíjiā', en: 'go home' },
+        '2+2': { cn: '学习', py: 'xuéxí', en: 'to study' },
+        '2+3': { cn: '足球', py: 'zúqiú', en: 'soccer' },
+        '2+4': { cn: '学校', py: 'xuéxiào', en: 'school' },
+        '3+1': { cn: '北京', py: 'Běijīng', en: 'Beijing' },
+        '3+2': { cn: '美国', py: 'Měiguó', en: 'America' },
+        '3+3': { cn: '你好', py: 'nǐhǎo', en: 'hello', sandhi: true },
+        '3+4': { cn: '可是', py: 'kěshì', en: 'but' },
+        '4+1': { cn: '看书', py: 'kànshū', en: 'read a book' },
+        '4+2': { cn: '面包', py: 'miànbāo', en: 'bread' },
+        '4+3': { cn: '汉语', py: 'hànyǔ', en: 'Chinese (language)' },
+        '4+4': { cn: '再见', py: 'zàijiàn', en: 'goodbye' },
+      };
+
+      function pyToToneSpan(py) {
+        // Approximate: highlight by tone marks. Simpler: split into syllables and color-code the pinyin chunks based on diacritics.
+        // For the table cells, we just return the plain pinyin — colors are conveyed by the pair pattern.
+        return py;
+      }
+
+      function renderPairs() {
+        const grid = $('#pair-grid');
+        // Header row
+        let html = `<div class="pair-cell head">×</div>`;
+        for (let c = 1; c <= 4; c++) html += `<div class="pair-cell head">${c}</div>`;
+        // Each row
+        for (let r = 1; r <= 4; r++) {
+          html += `<div class="pair-cell row-head">${r}+</div>`;
+          for (let c = 1; c <= 4; c++) {
+            const key = `${r}+${c}`;
+            const w = PAIRS[key];
+            const isSandhi = !!w.sandhi;
+            html += `
+              <div class="pair-cell ${isSandhi ? 'sandhi' : ''}" data-key="${key}">
+                <span class="pair-py">${w.py}</span>
+                <span class="pair-cn">${w.cn}</span>
+                <span class="pair-en">${w.en}</span>
+              </div>
+            `;
+          }
+        }
+        grid.innerHTML = html;
+        $$('.pair-cell:not(.head):not(.row-head)', grid).forEach(cell => {
+          cell.addEventListener('click', () => {
+            const w = PAIRS[cell.dataset.key];
+            if (w) speakTTS(w.cn);
+          });
+        });
+
+        // Common words
+        const wordsList = ['mama', 'nihao', 'xiexie', 'zhongguo', 'xuexiao', 'pengyou'];
+        const cwwrap = $('#common-words');
+        cwwrap.innerHTML = wordsList.map(key => {
+          const item = AUDIO[key];
+          return `
+            <div class="word-chip" data-key="${key}">
+              <div class="cn">${item.tts}</div>
+              <div class="info">
+                <div class="py">${pinyinFor(key)}</div>
+                <div class="en">${meaningFor(key)}</div>
+              </div>
+              <div class="pattern">${item.pattern || ''}</div>
+            </div>
+          `;
+        }).join('');
+        $$('.word-chip', cwwrap).forEach(chip => {
+          chip.addEventListener('click', () => playAudio(chip.dataset.key));
+        });
+      }
+
+      function pinyinFor(key) {
+        return ({
+          mama: 'māma', nihao: 'nǐhǎo', xiexie: 'xièxie',
+          zhongguo: 'Zhōngguó', xuexiao: 'xuéxiào', pengyou: 'péngyou',
+        })[key] || '';
+      }
+      function meaningFor(key) {
+        return ({
+          mama: 'mom', nihao: 'hello', xiexie: 'thank you',
+          zhongguo: 'China', xuexiao: 'school', pengyou: 'friend',
+        })[key] || '';
+      }
+
+      // =====================================================================
+      // Scene 4 — Quiz
+      // =====================================================================
+
+      // 5 questions: 3 ear-training + 2 production (mic-based)
+      const QUIZ_QUESTIONS = [
+        { kind: 'ear', audioKey: 'ma2', correct: 2,
+          why: 'Yes — that was the rising tone (tone 2). Sounds like "really?"',
+          wrongHint: 'Listen for the direction. That one was rising, not flat or falling.' },
+        { kind: 'ear', audioKey: 'ma4', correct: 4,
+          why: 'Right — that was the sharp drop, tone 4.',
+          wrongHint: 'It started high and ended low — that\'s a fall.' },
+        { kind: 'ear', audioKey: 'ma3', correct: 3,
+          why: 'Yes — tone 3 dips and comes back up.',
+          wrongHint: 'There was a dip in the middle — that\'s tone 3.' },
+        { kind: 'production', tone: 1, prompt: { py: 'mā', cn: '妈', en: 'mom — tone 1 (flat)' } },
+        { kind: 'production', tone: 4, prompt: { py: 'mà', cn: '骂', en: 'to scold — tone 4 (sharp fall)' } },
+      ];
+
+      function renderQuiz() {
+        state.quiz = { i: 0, correct: 0, locked: false, items: QUIZ_QUESTIONS };
+        renderQuizQuestion();
+      }
+
+      function renderQuizQuestion() {
+        const wrap = $('#quiz-card-wrap');
+        if (state.quiz.i >= state.quiz.items.length) {
+          renderQuizResults();
+          return;
+        }
+        const q = state.quiz.items[state.quiz.i];
+        const counter = `Question ${state.quiz.i + 1} of ${state.quiz.items.length} · score ${state.quiz.correct}/${state.quiz.i}`;
+
+        if (q.kind === 'ear') {
+          wrap.innerHTML = `
+            <div class="quiz-card">
+              <div class="quiz-counter">${counter}</div>
+              <div class="quiz-q">Listen — which tone did you just hear?</div>
+              <button class="quiz-prompt-audio" id="quiz-replay">Play the audio</button>
+              <div class="quiz-options">
+                ${[1,2,3,4].map(t => `
+                  <button class="quiz-option t${t}" data-tone="${t}">
+                    <span class="b">${t}</span>
+                    <span class="lbl">Tone ${t}</span>
+                  </button>
+                `).join('')}
+              </div>
+              <div class="quiz-feedback" id="quiz-feedback"></div>
+              <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" id="quiz-next" style="display: none;">
+                  ${state.quiz.i === state.quiz.items.length - 1 ? 'See results →' : 'Next question →'}
+                </button>
+              </div>
+            </div>
+          `;
+          // Auto-play once when this question loads
+          setTimeout(() => playAudio(q.audioKey), 300);
+          $('#quiz-replay').onclick = () => playAudio(q.audioKey);
+          $$('.quiz-option', wrap).forEach(btn => {
+            btn.addEventListener('click', () => answerEar(parseInt(btn.dataset.tone, 10), q));
+          });
+        } else if (q.kind === 'production') {
+          wrap.innerHTML = `
+            <div class="quiz-production">
+              <div class="quiz-counter">${counter}</div>
+              <div class="quiz-q">Speak this word with the right tone:</div>
+              <div class="target-prompt">
+                <div class="py">${q.prompt.py}</div>
+                <div class="cn">${q.prompt.cn}</div>
+                <div class="en">${q.prompt.en}</div>
+              </div>
+              <div class="trainer-stage" style="border-radius: var(--radius); margin-bottom: 12px;">
+                <div class="pitch-svg-wrap">
+                  <svg viewBox="0 0 400 200" id="quiz-pitch-svg" preserveAspectRatio="none">
+                    <line x1="0" y1="100" x2="400" y2="100" stroke="#efe9de" stroke-width="1" stroke-dasharray="3 4"/>
+                    <path id="quiz-target-curve" stroke="${TONE_COLOR[q.tone]}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.55" d="${TONE_CURVES[q.tone]}"/>
+                    <path id="quiz-user-curve" stroke="#1a1410" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                  </svg>
+                </div>
+                <div class="mic-row">
+                  <button class="mic-btn" id="quiz-mic-btn">🎤</button>
+                  <div class="mic-status" id="quiz-mic-status">
+                    Tap the mic and speak the word above with <span class="hl">tone ${q.tone}</span>.
+                  </div>
+                </div>
+                <div class="score-meter" id="quiz-score-meter">
+                  <div class="top">
+                    <span class="label">Tone match</span>
+                    <span class="pct" id="quiz-score-pct">—</span>
+                  </div>
+                  <div class="bar"><i id="quiz-score-bar"></i></div>
+                  <div class="feedback" id="quiz-score-feedback"></div>
+                </div>
+              </div>
+              <div class="quiz-feedback" id="quiz-feedback"></div>
+              <div style="margin-top: 16px; display: flex; justify-content: space-between; gap: 10px;">
+                <button class="btn btn-ghost" id="quiz-skip">Skip this one</button>
+                <button class="btn btn-primary" id="quiz-next" style="display: none;">
+                  ${state.quiz.i === state.quiz.items.length - 1 ? 'See results →' : 'Next question →'}
+                </button>
+              </div>
+            </div>
+          `;
+          // Wire up production mic
+          const qMic = $('#quiz-mic-btn');
+          qMic.onclick = () => quizStartMic(q);
+          $('#quiz-skip').onclick = () => {
+            advanceQuizQuestion(false);
+          };
+        }
+      }
+
+      function answerEar(picked, q) {
+        if (state.quiz.locked) return;
+        state.quiz.locked = true;
+        const opts = $$('.quiz-option');
+        const fb = $('#quiz-feedback');
+        const isRight = picked === q.correct;
+        opts.forEach(b => {
+          b.classList.add('locked');
+          const t = parseInt(b.dataset.tone, 10);
+          if (t === q.correct) b.classList.add('correct');
+          else if (t === picked && !isRight) b.classList.add('incorrect');
+          else b.classList.add('dimmed');
+        });
+        if (isRight) {
+          state.quiz.correct++;
+          fb.className = 'quiz-feedback show right';
+          fb.innerHTML = `<strong>✓ Yes!</strong>${q.why}`;
+        } else {
+          fb.className = 'quiz-feedback show wrong';
+          fb.innerHTML = `<strong>Not quite</strong>${q.wrongHint} The correct answer is highlighted in green.`;
+        }
+        const nextBtn = $('#quiz-next');
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.onclick = () => advanceQuizQuestion(isRight);
+      }
+
+      function advanceQuizQuestion(/* wasCorrect */) {
+        // Note: we count correct ones inside the answer handlers; here we just move on.
+        state.quiz.i++;
+        state.quiz.locked = false;
+        renderQuizQuestion();
+      }
+
+      // Production-style mic state (separate from main trainer state)
+      const quizMic = { recording: false, ctx: null, source: null, analyser: null,
+                       stream: null, buffer: null, pitches: [], startTime: 0, raf: null,
+                       sampleRate: 44100 };
+
+      async function quizStartMic(q) {
+        if (quizMic.recording) { quizStopMic(q); return; }
+        const btn = $('#quiz-mic-btn');
+        const status = $('#quiz-mic-status');
+        try {
+          if (!quizMic.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            quizMic.ctx = new AC();
+          }
+          if (quizMic.ctx.state === 'suspended') await quizMic.ctx.resume();
+          if (!quizMic.stream) {
+            quizMic.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
+          if (!quizMic.source) {
+            quizMic.source = quizMic.ctx.createMediaStreamSource(quizMic.stream);
+            quizMic.analyser = quizMic.ctx.createAnalyser();
+            quizMic.analyser.fftSize = 2048;
+            quizMic.source.connect(quizMic.analyser);
+          }
+          quizMic.sampleRate = quizMic.ctx.sampleRate;
+          quizMic.buffer = new Float32Array(quizMic.analyser.fftSize);
+          quizMic.pitches = [];
+          quizMic.startTime = performance.now();
+          quizMic.recording = true;
+          btn.classList.add('recording');
+          status.innerHTML = `<span class="hl">Listening…</span> say "<span class="cn" style="font-weight: 700;">${q.prompt.cn}</span>" with tone ${q.tone}.`;
+          quizMic.q = q;
+          quizTickPitch();
+        } catch (err) {
+          console.warn(err);
+          status.innerHTML = `<span style="color: var(--vermilion);">Couldn't access the mic.</span> Tap "Skip this one" to continue.`;
+        }
+      }
+
+      function quizStopMic(/* q */) {
+        if (!quizMic.recording) return;
+        quizMic.recording = false;
+        if (quizMic.raf) { cancelAnimationFrame(quizMic.raf); quizMic.raf = null; }
+        $('#quiz-mic-btn').classList.remove('recording');
+        quizScoreAndDisplay();
+      }
+
+      function quizTickPitch() {
+        if (!quizMic.recording) return;
+        quizMic.analyser.getFloatTimeDomainData(quizMic.buffer);
+        const t = performance.now() - quizMic.startTime;
+        if (t > RECORD_MS) { quizStopMic(); return; }
+        const pitch = autoCorrelate(quizMic.buffer, quizMic.sampleRate);
+        if (pitch > 0) {
+          quizMic.pitches.push({ t, hz: pitch });
+          quizDrawUserCurve(quizMic.pitches);
+        }
+        quizMic.raf = requestAnimationFrame(quizTickPitch);
+      }
+
+      function quizDrawUserCurve(pitches) {
+        if (!pitches.length) return;
+        const xs = pitches.map(p => (p.t / RECORD_MS) * 400);
+        const fs = pitches.map(p => p.hz);
+        const fmin = Math.min(...fs);
+        const fmax = Math.max(...fs);
+        const range = Math.max(20, fmax - fmin);
+        const ys = fs.map(f => 180 - ((f - fmin) / range) * 160);
+        let d = `M ${xs[0]} ${ys[0]}`;
+        for (let i = 1; i < xs.length; i++) d += ` L ${xs[i]} ${ys[i]}`;
+        $('#quiz-user-curve').setAttribute('d', d);
+      }
+
+      function quizScoreAndDisplay() {
+        const q = quizMic.q;
+        if (!quizMic.pitches.length) {
+          $('#quiz-mic-status').innerHTML = `Hmm — didn't catch any sound. Tap the mic and try again.`;
+          return;
+        }
+        const { score, reason } = scorePitch(quizMic.pitches, q.tone);
+        const meter = $('#quiz-score-meter');
+        meter.classList.add('show');
+        meter.classList.toggle('good', score >= 75);
+        meter.classList.toggle('okay', score >= 50 && score < 75);
+        meter.classList.toggle('miss', score < 50);
+        $('#quiz-score-pct').textContent = score + '/100';
+        $('#quiz-score-bar').style.width = score + '%';
+        $('#quiz-score-feedback').innerHTML = reason;
+
+        const fb = $('#quiz-feedback');
+        const passed = score >= 60; // 60+ counts as correct on production
+        if (passed) state.quiz.correct++;
+        fb.className = 'quiz-feedback show ' + (passed ? 'right' : 'wrong');
+        fb.innerHTML = passed
+          ? `<strong>✓ Nice!</strong>You hit tone ${q.tone}. ${reason}`
+          : `<strong>Close, try once more</strong>${reason}`;
+        const nextBtn = $('#quiz-next');
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.onclick = () => advanceQuizQuestion(passed);
+      }
+
+      function renderQuizResults() {
+        const wrap = $('#quiz-card-wrap');
+        const score = state.quiz.correct;
+        const total = state.quiz.items.length;
+        const pct = score / total;
+        let emoji, title, msg;
+        if (pct === 1)        { emoji = '🌟'; title = 'Perfect!';     msg = 'Tones are clearly clicking. You\'re ready for Pinyin.'; }
+        else if (pct >= 0.8)  { emoji = '🎉'; title = 'Great job!';   msg = 'You got the big stuff — solid foundation in tones.'; }
+        else if (pct >= 0.6)  { emoji = '😊'; title = 'Good effort.'; msg = 'You\'re close. Skim back through scene 2 (the trainer) and re-take.'; }
+        else                  { emoji = '🌱'; title = 'Keep going.';  msg = 'Tones take time. Spend a few minutes on the trainer and try again — you\'ll level up fast.'; }
+
+        wrap.innerHTML = `
+          <div class="quiz-results">
+            <span class="big-emoji">${emoji}</span>
+            <h3>${title}</h3>
+            <div class="score">${score} / ${total} correct</div>
+            <p>${msg}</p>
+            <div class="actions">
+              <button class="btn btn-ghost" id="quiz-retry">Try again</button>
+              <button class="btn btn-primary" id="quiz-finish">Finish module →</button>
+            </div>
+          </div>
+        `;
+        $('#quiz-retry').onclick = () => renderQuiz();
+        $('#quiz-finish').onclick = () => nextScene();
+
+        if (pct === 1) fireConfetti(60);
+        else if (pct >= 0.8) fireConfetti(30);
+      }
+
+      function fireConfetti(count) {
+        const stage = document.createElement('div');
+        stage.className = 'confetti-stage';
+        document.body.appendChild(stage);
+        const colors = ['#c41e3a', '#d4a017', '#22c896', '#4ea8ff', '#ff9a3c'];
+        for (let i = 0; i < count; i++) {
+          const piece = document.createElement('div');
+          piece.className = 'confetti-piece';
+          piece.style.left = Math.random() * 100 + '%';
+          piece.style.background = colors[i % colors.length];
+          piece.style.animationDelay = (Math.random() * 0.6) + 's';
+          piece.style.animationDuration = (1.6 + Math.random() * 1.2) + 's';
+          piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+          stage.appendChild(piece);
+        }
+        setTimeout(() => stage.remove(), 4000);
+      }
+
+      // =====================================================================
+      // Routing
+      // =====================================================================
+
+      function renderProgressDots() {
+        const dots = $('#progress-dots');
+        dots.innerHTML = '';
+        for (let i = 0; i < 6; i++) {
+          const d = document.createElement('span');
+          d.className = 'dot' + (i === state.sceneIndex ? ' active' :
+                                 i < state.sceneIndex ? ' done' : '');
+          d.title = `Scene ${i + 1}`;
+          d.addEventListener('click', () => {
+            if (i <= state.sceneIndex) showScene(i);
+          });
+          dots.appendChild(d);
+        }
+      }
+
+      function showScene(i) {
+        state.sceneIndex = i;
+        $$('.scene').forEach(s => s.classList.remove('active'));
+        const scene = $(`.scene[data-scene="${i}"]`);
+        if (scene) scene.classList.add('active');
+        renderProgressDots();
+        // Lazy render
+        if (i === 1) renderBigIdea();
+        if (i === 2) renderTrainer();
+        if (i === 3) renderPairs();
+        if (i === 4) renderQuiz();
+        if (i === 5) markCompleted();
+        // Stop any active mic when leaving the trainer
+        if (i !== 2 && state.mic.recording) stopMicRecording();
+        if (i !== 4 && quizMic.recording) quizStopMic();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      function nextScene() {
+        if (state.sceneIndex < 5) showScene(state.sceneIndex + 1);
+      }
+
+      function restartModule() {
+        state.sceneIndex = 0;
+        state.quiz = { i: 0, correct: 0, locked: false, items: [] };
+        showScene(0);
+      }
+
+      function markCompleted() {
+        const all = loadState();
+        all.completed = all.completed || {};
+        all.completed.tones = true;
+        saveState(all);
+        state.completed = all.completed;
+      }
+
+      // =====================================================================
+      // Wiring
+      // =====================================================================
+      function wire() {
+        document.addEventListener('click', (e) => {
+          const t = e.target.closest('[data-action]');
+          if (!t) return;
+          const a = t.dataset.action;
+          if (a === 'next') nextScene();
+          else if (a === 'restart') restartModule();
+        });
+      }
+
+      // =====================================================================
+      // Boot
+      // =====================================================================
+      function boot() {
+        renderHook();
+        renderProgressDots();
+        wire();
+        // Pre-warm zh voice list (some browsers need this)
+        if ('speechSynthesis' in window) speechSynthesis.getVoices();
+      }
+
+      boot();
+    })();
+  </script>
+</body>
+</html>

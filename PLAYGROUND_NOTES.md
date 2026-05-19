@@ -23,7 +23,8 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html`
 12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html`
 13. [Bio Basics (Molecular Biology for Everyone)](#13-bio-basicshtml) — `bio-basics.html`
-14. [Cross-Project Patterns](#cross-project-patterns)
+14. [NiHao (Mandarin Tone Trainer)](#14-nihaohtml) — `nihao.html`
+15. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -1021,24 +1022,150 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 
 ---
 
+## 14. `nihao.html`
+
+**Mandarin tone trainer with live pitch feedback — module 1 of a planned 11-module Chinese-learning curriculum.** Same overall pattern as bio-basics (6-scene narrative module, vanilla single-file), but the centerpiece is a real-time pitch-detection trainer: user picks a target tone, presses a mic button, says "ma", and sees their pitch contour drawn live on top of the target curve with a 0–100 score and shape-aware feedback. Tone target: friendly + interactive, lean into the magic of "you sang the right shape!"
+
+- **Lines:** 2,287
+- **Layout:** No landing page — the page opens directly into module 1. Top bar shows brand mark + "M1. The 4 Tones" subtitle. Single `.module-section` with 6 scenes; progress-dot strip above scenes.
+- **Dependencies:** None (pure vanilla). Uses **Web Audio API** (AudioContext, AnalyserNode, getUserMedia) for live pitch detection, and `speechSynthesis` (zh-CN voice) as a TTS fallback when MP3 audio files are missing.
+- **No-build:** Open directly in any modern browser. *Microphone requires HTTPS or localhost; `file://` works locally.*
+
+### Curriculum (11 modules, 1 built)
+
+| # | Module | Status | Centerpiece |
+|---|--------|--------|-------------|
+| 1 | The 4 Tones | **Built** | Live pitch detector with shape-aware scoring |
+| 2 | Pinyin | Soon | Click syllables to hear; spotlight tricky pairs (q/x/zh, ü) |
+| 3 | Radicals | Soon | Click 50 high-coverage radicals → carousel of common chars |
+| 4 | First 100 characters | Soon | Story-mnemonic flashcards |
+| 5 | Compound words | Soon | Tap-to-decompose chars |
+| 6 | Stroke order & handwriting | Soon | Animated SVG + trace-along |
+| 7 | Survival phrases | Soon | 8 scenarios with mic-based grading (reuses M1 pitch detector) |
+| 8 | Sentence patterns | Soon | Drag-to-build sentences |
+| 9 | Listening practice | Soon | Native audio, toggle pinyin/character/English |
+| 10 | Numbers, dates, money + sandhi | Soon | Tap-to-pronounce scrubber |
+| 11 | Modern Chinese & internet culture | Soon | Slang dictionary with audio |
+
+### Module 1 Scene Map
+
+| # | Scene | What it does |
+|---|-------|--------------|
+| 0 | Hook | "4 tones. 1 syllable. 4 different words." 4 character cards (妈麻马骂 / mom-hemp-horse-scold) — tap any to play it. |
+| 1 | Big idea | 4 tone-track SVGs (flat / rising / dipping / falling) — one card per tone, click to hear. Plus a callout for the 5th (neutral) tone. |
+| 2 | **Pitch trainer** | Pick a target tone (4 pills), tap the mic, say "ma". Real-time pitch curve drawn over a faded target curve. 0–100 score with shape-aware feedback ("Smooth rise — that's tone 2.") |
+| 3 | Tone pairs | 16-cell tone-pair grid (1+1, 1+2 ... 4+4) with a real Chinese word in each cell — tap to hear. Sandhi callout (3+3 → 2+3) highlighted in gold. 6 common 2-syllable words below. |
+| 4 | Quiz | 5 questions: 3 ear-training (hear → identify tone) + 2 production (speak → mic-graded with shared pitch detector). Confetti for ≥80%. |
+| 5 | Recap | 5-pill summary + Pinyin module tease. |
+
+### Key JS Architecture
+
+| Concept | Description |
+|---------|-------------|
+| **Audio fallback chain** | Each clip has `{ file, tts }`. `playAudio(key)` tries the MP3 first; on 404 (cached in `fileCache`) falls back to `speakTTS(text)` with zh-CN voice. Drop MP3s into `audio/` to auto-upgrade — no code change. |
+| **Pitch detection** | `autoCorrelate(buf, sampleRate)` — autocorrelation with parabolic interpolation for sub-sample accuracy. Adapted from public-domain Chris-Wilson example. ~50 lines. Returns Hz or -1. Plausibility filter: 60–700 Hz. |
+| **Live mic loop** | `getUserMedia` → `AudioContext` → `AnalyserNode` (fftSize 2048). `requestAnimationFrame` reads time-domain buffer, runs autocorrelation, pushes `{t, hz}` into `state.mic.pitches`. Records 1.5s, then scores. |
+| **Pitch curve normalization** | Each user recording is normalized to its own min/max range and drawn into a 400×200 viewBox. Absolute pitch is irrelevant — only shape matters (works for low and high voices alike). |
+| **Tone scoring** | `scorePitch(pitches, toneNum)` — shape-aware heuristics per tone: tone 1 measures flatness, tone 2 measures rise (slope), tone 3 measures middle dip + position, tone 4 measures fall. Returns `{ score 0-100, reason: "human-readable feedback" }`. |
+| **Production-quiz reuses detector** | Scene 4 has 2 mic-graded questions; uses a separate `quizMic` state object (not the trainer's) so they don't collide. ≥60 score = correct. |
+
+### Section Map
+
+| Range | Section |
+|-------|---------|
+| 1–46 | Header comment block (TOC + audio-asset notes) |
+| 48–55 | `<head>` — meta, title |
+| 57–680 | `<style>` — palette, components, mobile breakpoint |
+| 60–105 | `:root` — vermilion + gold + cream surfaces; per-tone color vars (--t1..t4) |
+| 690–870 | `<body>` HTML — top bar, module head, 6 scenes |
+| 905–end | `<script>` IIFE |
+
+### Key JS Entry Points
+
+| Function | Purpose |
+|----------|---------|
+| `loadState`, `saveState` | `localStorage['nihao_state_v1']` |
+| `AUDIO` (table) | 11 clip definitions: `{ file, tts, tone? / pattern? }` |
+| `getZhVoice`, `speakTTS` | TTS fallback using `speechSynthesis` with zh-CN preference |
+| `playAudio(key)` | File-first, TTS-fallback playback |
+| `autoCorrelate(buf, rate)` | Pitch detection |
+| `startMicRecording`, `stopMicRecording`, `tickPitch` | Mic capture loop |
+| `clearUserCurve`, `drawUserCurve` | SVG path updates |
+| `setTargetTone(n)` | Switch active tone target + redraw target curve |
+| `scorePitch(pitches, tone)` | Shape-aware scoring per tone (flat / rise / dip / fall) |
+| `MA_DATA`, `TONE_TRACKS`, `PAIRS` | Per-scene content data |
+| `renderHook`, `renderBigIdea`, `renderTrainer`, `renderPairs`, `renderQuiz`, `renderQuizResults` | Scene renderers (lazy, called from `showScene`) |
+| `quizMic`, `quizStartMic`, `quizStopMic`, `quizTickPitch`, `quizScoreAndDisplay` | Production-quiz mic state (separate from trainer's) |
+| `fireConfetti(count)` | Confetti shower (uses NiHao palette: vermilion + gold + tone colors) |
+| `markCompleted` | Writes `completed.tones = true` to localStorage on entering scene 5 |
+
+### CSS Variables (palette)
+
+```css
+--vermilion #c41e3a  --gold #d4a017       --cream #fef8e8
+--vermilion-dark #9b1729  --gold-light #e8c14a  --paper #ffffff
+--vermilion-light #e84a64 --gold-pale #fff3c2   --bg #faf3e0
+
+--t1 #ee5a5a   --t1-pale #ffd3d3      (tone 1: flat)
+--t2 #ff9a3c   --t2-pale #ffe0c2      (tone 2: rising)
+--t3 #22c896   --t3-pale #b9f0d9      (tone 3: dipping)
+--t4 #4ea8ff   --t4-pale #d6ecff      (tone 4: falling)
+--tn #9aa3b8                          (neutral / 5th)
+
+--ink-900 #1a1410   --radius 16px   --radius-lg 24px
+```
+
+Tone color convention follows what most Chinese-learning apps use (red/orange/green/blue for tones 1–4). Brand uses Chinese vermilion + gold for an aesthetic anchored in the language's visual culture.
+
+### Audio Strategy
+
+- **TTS by default.** Page is fully functional from day 1 with no audio files — `speechSynthesis` with a `zh-CN` voice handles all playback.
+- **Recorded audio overrides automatically.** Drop MP3s into `audio/` (filenames listed in the header comment): `ma1.mp3`–`ma5.mp3`, plus 6 common-word files (`mama`, `nihao`, `xiexie`, `zhongguo`, `xuexiao`, `pengyou`). The `fileCache` mechanism tries the file once; on 404, it falls back to TTS for that key permanently in the session.
+- **No code change needed** to swap audio in/out. This is intentional — the same pattern can power module 2+ as the curriculum grows.
+
+### Persistence
+
+`localStorage['nihao_state_v1']` — `{ completed: { tones: true } }`. Quiz progress and pitch-trainer attempts reset every visit so users can replay freely.
+
+### Interactions / Flow
+
+Page opens directly into M1 scene 0 (no landing page) → tap "Show me how →" → tone-tracks → trainer (mic + live pitch) → tone pairs → quiz (mixed ear + production) → recap + Pinyin tease. Brand bar at top is decorative for now; when M2+ is built, replace with a module switcher (placeholder comment in the HTML).
+
+### Decisions / Notes (deliberate)
+
+- **Skip the landing page.** The first build prioritizes a polished module over marketing surface. When ≥2 modules exist, add a horizontal pill nav at the top — *not* a curriculum grid.
+- **One concrete metaphor per module:** for M1, "tones as roller-coaster tracks." Used in scene 1 cards, repeated in trainer feedback, surfaces again in scene 5 recap.
+- **Shape over absolute pitch.** Scoring normalizes each user's recording to its own min/max range, so a low-voiced bass and a high-voiced soprano both score identically on a flat tone. This is pedagogically correct and avoids the "you're not loud / not high enough" trap.
+- **Production quiz uses a separate mic-state object** (`quizMic`) so it doesn't collide with the trainer's mic state if the user navigates back and forth.
+- **No backend.** Mic capture is browser-only; nothing leaves the device. Important to call out in any future privacy copy.
+
+### What's Different from Other Educational Projects in the Repo
+
+- vs **bio-basics** — bio-basics is fully visual (SVG illustrations, no audio). NiHao is fundamentally audio-centric and is the first playground project that captures user microphone input for grading.
+- vs **habla-clara** — habla-clara uses `SpeechRecognition` (asks the cloud to transcribe spoken English to text). NiHao does its own pitch analysis locally with `AnalyserNode` + autocorrelation — no cloud dependency, no quota, works offline once the page loads.
+- vs **math-ace** — same lazy-render-by-scene pattern, but NiHao is module-first (no curriculum grid) where math-ace is curriculum-first (grade → topic). Different optimal UX for a "learn it once" topic vs. "drill it daily" topic.
+
+---
+
 ## Cross-Project Patterns
 
 | Pattern | Where |
 |---------|-------|
-| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics |
+| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics, nihao |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
 | **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), slot machines (none — DOM), spades (none — DOM) |
-| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare) |
+| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare), nihao (tone tracks, live pitch curves) |
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
-| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map) |
-| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow) |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map) |
+| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow), nihao (single-module 6-scene flow, no landing) |
+| **Microphone input + pitch analysis** | nihao (autocorrelation; first project to capture mic input for shape-based grading) |
+| **Web Speech API (TTS + recognition)** | habla-clara (TTS + recognition), nihao (TTS-only fallback when MP3 audio missing) |
 | **No build step / no framework** | Every project |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
 | **Chrome extension (MV3) / content script** | youtube-smart-skip only |
 | **`chrome.storage.sync` for settings** | youtube-smart-skip only |
-| **Web Speech API (TTS + recognition)** | habla-clara only |
 
 ### File Size Summary
 
@@ -1051,6 +1178,7 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 | spades.html | 2,189 | Card game |
 | math-ace.html | 2,766 | K–5 math tutor |
 | bio-basics.html | 4,120 | Molecular biology learning site |
+| nihao.html | 2,287 | Mandarin tone trainer (live mic + pitch detection) |
 | slot-machine-memes.html | 1,754 | Slot game |
 | glow-studio-easy.html | 1,662 | Photo editor |
 | glow-studio-video.html | 1,713 | Video editor |

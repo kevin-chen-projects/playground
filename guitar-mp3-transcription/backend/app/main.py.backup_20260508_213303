@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+import shutil
+import uuid
+from pathlib import Path
+
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+from .schemas import HealthResponse
+from .transcription import transcribe_audio_to_outputs
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+PROJECT_DIR = BASE_DIR.parent
+UPLOAD_DIR = BASE_DIR / 'uploads'
+OUTPUT_DIR = BASE_DIR / 'outputs'
+FRONTEND_DIR = PROJECT_DIR / 'frontend'
+
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+app = FastAPI(title='Guitar MP3 Transcription API')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+app.mount('/outputs', StaticFiles(directory=str(OUTPUT_DIR)), name='outputs')
+app.mount('/static', StaticFiles(directory=str(FRONTEND_DIR)), name='static')
+
+
+@app.get('/', response_class=HTMLResponse)
+def home():
+    index_path = FRONTEND_DIR / 'index.html'
+    return index_path.read_text(encoding='utf-8')
+
+
+@app.get('/api/health', response_model=HealthResponse)
+def health():
+    return HealthResponse(status='ok')
+
+
+@app.post('/api/transcribe')
+async def transcribe(
+    file: UploadFile = File(...),
+    tuning: str = Form('standard'),
+    detail: str = Form('balanced'),
+    filename: str = Form('guitar-transcription.pdf'),
+):
+    if not file.filename.lower().endswith('.mp3'):
+        raise HTTPException(status_code=400, detail='Only MP3 files are currently supported.')
+
+    job_id = uuid.uuid4().hex
+    safe_stem = Path(file.filename).stem.replace(' ', '_')
+    upload_path = UPLOAD_DIR / f'{job_id}_{safe_stem}.mp3'
+    job_output_dir = OUTPUT_DIR / job_id
+    job_output_dir.mkdir(parents=True, exist_ok=True)
+
+    with upload_path.open('wb') as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    try:
+        result = transcribe_audio_to_outputs(
+            audio_path=upload_path,
+            output_dir=job_output_dir,
+            tuning=tuning,
+            detail=detail,
+            title=Path(filename).stem or 'guitar-transcription',
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f'Transcription failed: {exc}')
+
+    pdf_name = result['pdf_path'].name
+    json_name = result['json_path'].name
+    xml_name = result['xml_path'].name
+
+    return {
+        'title': Path(filename).stem or 'guitar-transcription',
+        'pdf_url': f'/outputs/{job_id}/{pdf_name}',
+        'json_url': f'/outputs/{job_id}/{json_name}',
+        'xml_url': f'/outputs/{job_id}/{xml_name}',
+        'notes_detected': result['notes_detected'],
+        'chord_events': result['chord_events'],
+        'tuning': tuning,
+        'detail': detail,
+        'warnings': result['warnings'],
+    }

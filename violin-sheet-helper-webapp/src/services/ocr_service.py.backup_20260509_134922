@@ -1,0 +1,6 @@
+def run_ocr(file_bytes: bytes, content_type: str):
+    """Placeholder for OCR.
+
+    In v0 we can stub this with a deterministic mock while we implement the pipeline.
+    """
+    return {"text": "", "tokens": []}

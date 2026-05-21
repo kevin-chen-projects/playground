@@ -1,0 +1,38 @@
+# Tester Quickstart
+
+## Start the app
+
+In the project folder, run:
+
+```bash
+python3 start.py
+```
+
+Then open:
+
+- `http://127.0.0.1:8000`
+
+## Test flow
+
+1. Upload an MP3 of guitar audio
+2. Choose tuning and accuracy mode if desired
+3. Click **Generate PDF**
+4. Download:
+   - PDF
+   - MusicXML
+
+## What to report back
+
+Please report:
+- whether startup worked on your machine
+- whether dependency installation failed
+- whether the website opened correctly
+- whether PDF download worked
+- whether MusicXML download worked
+- whether the transcription seemed musically reasonable
+
+## Known limitations
+
+- Works best on isolated guitar recordings
+- Full-band mixes may reduce transcription accuracy
+- The generated tab is inferred, not guaranteed to match original fingering exactly

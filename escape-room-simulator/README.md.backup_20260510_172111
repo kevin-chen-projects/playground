@@ -1,0 +1,12 @@
+# Escape Room Simulator (Web App)
+
+A web-based escape room experience simulator.
+
+## Goals (framework first)
+- Provide a page/app shell that can host rooms, puzzles, inventory, and interactions.
+- Use a clean folder structure so we can add gameplay logic later.
+
+## Next steps
+- Decide tech stack (default: Vite + React or vanilla + modules).
+- Create core data model for rooms/puzzles.
+- Add UI components (scene, dialogue, inventory, puzzle panel).

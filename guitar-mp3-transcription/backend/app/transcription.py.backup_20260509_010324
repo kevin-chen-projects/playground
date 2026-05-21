@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Dict, List
+
+from basic_pitch.inference import predict
+
+from .guitar import build_chord_name, map_notes_to_fretboard, midi_to_name
+from .musicxml_export import build_music21_score, export_musicxml
+from .pdf_render import render_transcription_pdf
+
+
+def quantize_time(value: float, step: float = 0.25) -> float:
+    return round(round(value / step) * step, 2)
+
+
+def placements_to_tab_text(placements: List[Dict]) -> str:
+    if not placements:
+        return ''
+    return ' | '.join(f"S{p['string_index']}:{p['fret']}" for p in placements)
+
+
+def merge_close_events(events: List[Dict], threshold: float = 0.12) -> List[Dict]:
+    if not events:
+        return []
+    merged = [events[0]]
+    for event in events[1:]:
+        prev = merged[-1]
+        if abs(event['start'] - prev['start']) <= threshold:
+            prev_midis = sorted(set(prev['midis'] + event['midis']))
+            prev['midis'] = prev_midis
+            prev['note_names'] = [midi_to_name(m) for m in prev_midis]
+            prev['end'] = max(prev['end'], event['end'])
+        else:
+            merged.append(event)
+    return merged
+
+
+def notes_to_events(note_events, tuning: str) -> List[Dict]:
+    grouped: Dict[float, List] = {}
+    for note in note_events:
+        start = quantize_time(float(note.start_time), 0.1)
+        grouped.setdefault(start, []).append(note)
+
+    events: List[Dict] = []
+    for start in sorted(grouped.keys()):
+        notes = grouped[start]
+        midis = sorted(set(int(n.pitch) for n in notes))
+        placements = map_notes_to_fretboard(midis, tuning)
+        placements_dict = [
+            {
+                'midi': p.midi,
+                'string_index': p.string_index,
+                'fret': p.fret,
+            }
+            for p in placements
+        ]
+        event = {
+            'start': start,
+            'end': quantize_time(max(float(n.end_time) for n in notes), 0.1),
+            'midis': midis,
+            'note_names': [midi_to_name(m) for m in midis],
+            'chord_name': build_chord_name(midis),
+            'placements': placements_dict,
+            'tab_text': placements_to_tab_text(placements_dict),
+        }
+        events.append(event)
+
+    events = merge_close_events(events)
+    for event in events:
+        placements = map_notes_to_fretboard(event['midis'], tuning)
+        placements_dict = [
+            {
+                'midi': p.midi,
+                'string_index': p.string_index,
+                'fret': p.fret,
+            }
+            for p in placements
+        ]
+        event['placements'] = placements_dict
+        event['chord_name'] = build_chord_name(event['midis'])
+        event['note_names'] = [midi_to_name(m) for m in event['midis']]
+        event['tab_text'] = placements_to_tab_text(placements_dict)
+    return events
+
+
+def transcribe_audio_to_outputs(audio_path: Path, output_dir: Path, tuning: str, detail: str, title: str) -> Dict:
+    model_output, midi_data, note_events = predict(str(audio_path))
+    events = notes_to_events(note_events, tuning)
+
+    if detail == 'fast':
+        events = events[:16]
+    elif detail == 'balanced':
+        events = events[:32]
+
+    pdf_path = output_dir / f'{audio_path.stem}.pdf'
+    json_path = output_dir / f'{audio_path.stem}.json'
+    xml_path = output_dir / f'{audio_path.stem}.musicxml'
+
+    score = build_music21_score(title=title, tuning=tuning, events=events)
+    export_musicxml(score, xml_path)
+    render_transcription_pdf(pdf_path, title=title, tuning_label=tuning, events=events)
+
+    json_path.write_text(json.dumps({
+        'title': title,
+        'tuning': tuning,
+        'detail': detail,
+        'events': events,
+        'musicxml': xml_path.name,
+    }, indent=2))
+
+    return {
+        'pdf_path': pdf_path,
+        'json_path': json_path,
+        'xml_path': xml_path,
+        'notes_detected': sum(len(e['midis']) for e in events),
+        'chord_events': len(events),
+        'warnings': [
+            'Polyphonic transcription is approximate and works best on isolated guitar recordings.',
+            'Tab and chord labels are inferred heuristically from detected pitches.',
+            'MusicXML export is included for future higher-quality engraving workflows.',
+        ],
+    }

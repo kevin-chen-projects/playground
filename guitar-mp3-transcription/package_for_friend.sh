@@ -1,0 +1,1 @@
+#!/usr/bin/env bash\nset -e\n\nROOT=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nOUT=\"$ROOT/guitar-mp3-transcription-test-package.zip\"\n\nrm -f \"$OUT\"\nzip -r \"$OUT\" \"$ROOT\" \\\n  -x \"*/.venv/*\" \\\n  -x \"*/__pycache__/*\" \\\n  -x \"*/outputs/*\" \\\n  -x \"*/uploads/*\" \\\n  -x \"*/.git/*\"\n\necho \"Created: $OUT\"\n

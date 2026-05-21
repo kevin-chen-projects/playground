@@ -1,0 +1,18 @@
+import type { Item, Puzzle, Room } from "../lib/types";
+
+export const items: Record<string, Item> = {
+  keycard: { id: "keycard", name: "Keycard", description: "Opens a locked door." },
+};
+
+export const puzzles: Record<string, Puzzle> = {
+  puzzle1: { id: "puzzle1", prompt: "Find the right code to unlock the panel." },
+};
+
+export const rooms: Record<string, Room> = {
+  room1: {
+    id: "room1",
+    title: "Test Chamber",
+    description: "A placeholder room. We'll replace this with your real scenes.",
+    puzzleIds: ["puzzle1"],
+  },
+};

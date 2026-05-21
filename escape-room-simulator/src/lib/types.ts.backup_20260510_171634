@@ -1,0 +1,31 @@
+// Core data model placeholders.
+// We'll flesh these out once we pick the stack and state approach.
+
+export type Item = {
+  id: string;
+  name: string;
+  description?: string;
+};
+
+export type Puzzle = {
+  id: string;
+  prompt: string;
+  // Resolution fields (placeholder):
+  // - addItemIds?: string[]
+  // - unlockPuzzleIds?: string[]
+  // - message?: string
+};
+
+export type Room = {
+  id: string;
+  title: string;
+  description: string;
+  puzzleIds: string[];
+  // interactableItemIds?: string[]
+};
+
+export type GameState = {
+  currentRoomId: string;
+  inventoryItemIds: string[];
+  solvedPuzzleIds: string[];
+};

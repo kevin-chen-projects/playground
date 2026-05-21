@@ -1,0 +1,15 @@
+# Violin Sheet Helper (Option 1: FastAPI + simple frontend)
+
+Upload a violin sheet image/PDF, run OCR + note parsing, then return beginner-friendly guidance (string + finger).
+
+## Project layout
+- `src/api/` — HTTP endpoints
+- `src/services/` — OCR / parsing / fingering logic
+- `tests/` — unit + integration tests
+- `docs/` — notes on the data contract and assumptions
+- `artifacts/` — intermediate and final outputs
+
+## Next steps
+1. Implement `POST /upload` to accept files.
+2. Implement `POST /analyze` (or integrate into upload) to produce guidance.
+3. Build a minimal frontend to upload a file and display results.

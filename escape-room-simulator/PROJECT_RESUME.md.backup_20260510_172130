@@ -1,0 +1,15 @@
+# Project Resume
+
+## Status
+- Framework created (folders + guiding docs).
+- No UI/gameplay logic implemented yet.
+
+## Notes
+- We’ll scaffold a web app with:
+  - a minimal app entry
+  - placeholder room rendering
+  - data model/types for rooms and puzzles
+
+## Open questions
+- Preferred stack: React/Vite vs vanilla.
+- How puzzles are evaluated (simple flags vs more complex logic).

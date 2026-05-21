@@ -1,0 +1,6 @@
+def parse_notes(ocr_result: dict):
+    """Placeholder for note parsing.
+
+    A full implementation would translate OCR/notation into structured pitches + timing.
+    """
+    return []

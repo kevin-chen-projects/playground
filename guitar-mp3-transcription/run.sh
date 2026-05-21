@@ -1,0 +1,1 @@
+#!/usr/bin/env bash\nset -e\n\nROOT=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nBACKEND=\"$ROOT/backend\"\n\ncd \"$BACKEND\"\nif [ ! -d \".venv\" ]; then\n  python3 -m venv .venv\nfi\n\nsource .venv/bin/activate\npip install -r requirements.txt\n\necho \"Starting app at http://127.0.0.1:8000\"\nexec python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000\n

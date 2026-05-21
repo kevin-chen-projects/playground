@@ -1,0 +1,7 @@
+@echo off
+REM Minimal local dev runner placeholder.
+REM We’ll replace/extend once we choose the frontend stack.
+
+echo Escape Room Simulator
+echo (Placeholder) Choose frontend stack to enable dev server.
+pause

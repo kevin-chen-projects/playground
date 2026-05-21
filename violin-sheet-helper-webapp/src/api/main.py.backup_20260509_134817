@@ -1,0 +1,32 @@
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Violin Sheet Helper")
+
+# Minimal CORS for local development; tighten for deployment.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/upload")
+def upload(file: UploadFile = File(...)):
+    # Placeholder: in the next step, save file to temp and run OCR/parsing.
+    return {"filename": file.filename, "content_type": file.content_type}
+
+@app.post("/analyze")
+def analyze(file: UploadFile = File(...)):
+    # Placeholder: future pipeline will return beginner fingering guidance.
+    return {
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "notes": [],
+        "guidance": []
+    }

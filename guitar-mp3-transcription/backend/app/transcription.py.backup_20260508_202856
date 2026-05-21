@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Dict, List
+
+from basic_pitch.inference import predict
+
+from .guitar import build_chord_name, map_notes_to_fretboard, midi_to_name
+from .pdf_render import render_transcription_pdf
+
+
+def notes_to_events(note_events, tuning: str) -> List[Dict]:
+    grouped: Dict[float, List] = {}
+    for note in note_events:
+        start = round(float(note.start_time), 1)
+        grouped.setdefault(start, []).append(note)
+
+    events: List[Dict] = []
+    for start in sorted(grouped.keys()):
+        notes = grouped[start]
+        midis = sorted(int(n.pitch) for n in notes)
+        placements = map_notes_to_fretboard(midis, tuning)
+        event = {
+            'start': start,
+            'end': round(max(float(n.end_time) for n in notes), 2),
+            'midis': midis,
+            'note_names': [midi_to_name(m) for m in midis],
+            'chord_name': build_chord_name(midis),
+            'placements': [
+                {
+                    'midi': p.midi,
+                    'string_index': p.string_index,
+                    'fret': p.fret,
+                }
+                for p in placements
+            ],
+        }
+        events.append(event)
+    return events
+
+
+def transcribe_audio_to_outputs(audio_path: Path, output_dir: Path, tuning: str, detail: str, title: str) -> Dict:
+    model_output, midi_data, note_events = predict(str(audio_path))
+    events = notes_to_events(note_events, tuning)
+
+    if detail == 'fast':
+        events = events[:16]
+    elif detail == 'balanced':
+        events = events[:32]
+
+    pdf_path = output_dir / f'{audio_path.stem}.pdf'
+    json_path = output_dir / f'{audio_path.stem}.json'
+
+    render_transcription_pdf(pdf_path, title=title, tuning_label=tuning, events=events)
+    json_path.write_text(json.dumps({
+        'title': title,
+        'tuning': tuning,
+        'detail': detail,
+        'events': events,
+    }, indent=2))
+
+    return {
+        'pdf_path': pdf_path,
+        'json_path': json_path,
+        'notes_detected': sum(len(e['midis']) for e in events),
+        'chord_events': len(events),
+        'warnings': [
+            'Polyphonic transcription is approximate and works best on isolated guitar recordings.',
+            'Generated tab is inferred from detected pitches and may not match the original fingering exactly.',
+        ],
+    }

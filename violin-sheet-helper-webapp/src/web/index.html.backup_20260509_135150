@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Violin Sheet Helper</title>
+    <style>
+      body { font-family: sans-serif; margin: 24px; }
+      input[type=file] { margin: 12px 0; }
+      pre { background: #f6f6f6; padding: 12px; }
+      button { padding: 8px 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>Violin Sheet Helper</h1>
+
+    <input id="file" type="file" accept="image/*,application/pdf" />
+    <button id="btn">Analyze</button>
+
+    <h3>Result</h3>
+    <pre id="out">Upload a file.</pre>
+
+    <script>
+      const fileEl = document.getElementById('file');
+      const outEl = document.getElementById('out');
+      document.getElementById('btn').onclick = async () => {
+        if (!fileEl.files.length) {
+          outEl.textContent = 'Choose a file first.';
+          return;
+        }
+        const form = new FormData();
+        form.append('file', fileEl.files[0]);
+
+        outEl.textContent = 'Analyzing...';
+        const res = await fetch('/analyze', { method: 'POST', body: form });
+        const data = await res.json();
+        outEl.textContent = JSON.stringify(data, null, 2);
+      };
+    </script>
+  </body>
+</html>

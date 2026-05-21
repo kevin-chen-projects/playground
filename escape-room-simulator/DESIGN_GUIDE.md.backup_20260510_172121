@@ -1,0 +1,17 @@
+# Design Guide
+
+## Philosophy
+- **Separation of concerns**: keep gameplay state/data separate from UI rendering.
+- **Declarative content**: rooms and puzzles should be data-driven (JSON/TS objects) so we can iterate quickly.
+- **Single source of truth**: one state store drives the UI.
+
+## Core concepts (proposed)
+- **Room**: has a title, description, and a set of interactable items/puzzles.
+- **Puzzle**: has an id, prompt, rules/conditions, and resolution output (e.g., unlock door, add inventory item).
+- **Inventory**: list of items acquired.
+- **Actions**: player can attempt/trigger things; results update state.
+
+## Implementation approach (suggested)
+- Create a minimal state engine now (even if UI is placeholder).
+- Define TypeScript types/interfaces for Room/Puzzle/State.
+- Add a small router-less structure: `RoomView` renders the current room.

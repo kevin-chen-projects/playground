@@ -1,0 +1,95 @@
+# Guitar MP3 Transcription
+
+A local tester-friendly web app where the user can:
+
+1. open the website,
+2. upload an MP3,
+3. wait for processing,
+4. download a PDF and MusicXML file.
+
+## Best tester experience
+
+The easiest way to start the app is:
+
+```bash
+python3 start.py
+```
+
+Then open:
+
+- `http://127.0.0.1:8000`
+
+This is simpler than manually creating a virtual environment or running backend commands.
+
+## End-user website flow
+
+The tester only needs to use the website:
+
+- open the local site
+- upload an MP3
+- click **Generate PDF**
+- download the generated files
+
+## Output files
+
+For each transcription, the app produces:
+
+- `PDF`
+- `MusicXML`
+- `JSON` technical artifact
+
+## Internal pipeline
+
+- MP3 upload through browser
+- Polyphonic note estimation with Spotify `Basic Pitch`
+- Quantized onset grouping for chord-like events
+- Guitar fretboard mapping from chosen tuning
+- MusicXML generation for notation portability
+- PDF rendering for immediate download
+
+## Project structure
+
+- `start.py` — easiest startup path for testers
+- `START_HERE.txt` — plain-text quickstart for non-technical testers
+- `tester_quickstart.md` — markdown quickstart
+- `frontend/index.html` — website UI served by backend
+- `backend/app/main.py` — FastAPI app and website host
+- `backend/app/transcription.py` — transcription logic
+- `backend/app/guitar.py` — tuning and fretboard mapping
+- `backend/app/musicxml_export.py` — MusicXML export
+- `backend/app/pdf_render.py` — PDF output generation
+- `package_for_friend.sh` — zip packaging helper
+
+## Minimum tester requirements
+
+- Python 3.10+
+- internet access on first run for dependency installation
+
+## Recommended packaging flow
+
+### Create the zip
+
+If your system has `zip` installed, from the project folder run:
+
+```bash
+zip -r guitar-mp3-transcription-test-package.zip . -x "*/.venv/*" "*/__pycache__/*" "*/outputs/*" "*/uploads/*" "*/.git/*"
+```
+
+### Send it to testers
+
+Tell them:
+
+1. unzip the project
+2. run:
+
+```bash
+python3 start.py
+```
+
+3. open:
+
+- `http://127.0.0.1:8000`
+
+## Likely tester issue
+
+The most likely problem is Python dependency installation, especially around audio/ML dependencies. If that happens, the tester should send you the exact terminal output.

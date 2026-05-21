@@ -1,0 +1,8 @@
+STANDARD_TUNING = ["G", "D", "A", "E"]  # lowest to highest (conventional)
+
+def note_to_beginner_fingering(pitch: str):
+    """Placeholder rule engine.
+
+    Next step: implement string+finger mapping for standard beginner positions.
+    """
+    return {"string": None, "finger": None, "confidence": 0.0, "reason": "Not implemented"}

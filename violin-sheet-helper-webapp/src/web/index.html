@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Violin Sheet Helper</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; max-width: 900px; }
+      h1 { margin-bottom: 8px; }
+      .muted { color: #666; margin-bottom: 20px; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+      input[type=file] { margin: 12px 0; display: block; }
+      button { padding: 10px 16px; cursor: pointer; }
+      pre { background: #f6f6f6; padding: 12px; overflow: auto; border-radius: 8px; }
+      table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      th { background: #f2f2f2; }
+      .hidden { display: none; }
+      .status { margin-top: 10px; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <h1>Violin Sheet Helper</h1>
+    <p class="muted">Upload an image or PDF of sheet music. This starter version runs a mock analysis pipeline so the webapp works end-to-end now.</p>
+
+    <div class="card">
+      <label for="file"><strong>Choose sheet music file</strong></label>
+      <input id="file" type="file" accept="image/*,application/pdf" />
+      <button id="btn">Analyze</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card hidden" id="summaryCard">
+      <h3>Summary</h3>
+      <pre id="summary"></pre>
+    </div>
+
+    <div class="card hidden" id="guidanceCard">
+      <h3>Beginner fingering guidance</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Note</th>
+            <th>Measure</th>
+            <th>Position</th>
+            <th>String</th>
+            <th>Finger</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody id="guidanceBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card hidden" id="rawCard">
+      <h3>Raw response</h3>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      const fileEl = document.getElementById('file');
+      const outEl = document.getElementById('out');
+      const statusEl = document.getElementById('status');
+      const summaryEl = document.getElementById('summary');
+      const guidanceBody = document.getElementById('guidanceBody');
+      const summaryCard = document.getElementById('summaryCard');
+      const guidanceCard = document.getElementById('guidanceCard');
+      const rawCard = document.getElementById('rawCard');
+
+      function show(idEl) { idEl.classList.remove('hidden'); }
+      function hide(idEl) { idEl.classList.add('hidden'); }
+
+      document.getElementById('btn').onclick = async () => {
+        hide(summaryCard);
+        hide(guidanceCard);
+        hide(rawCard);
+        guidanceBody.innerHTML = '';
+
+        if (!fileEl.files.length) {
+          statusEl.textContent = 'Choose a file first.';
+          return;
+        }
+
+        const file = fileEl.files[0];
+        const form = new FormData();
+        form.append('file', file);
+
+        statusEl.textContent = 'Analyzing...';
+
+        try {
+          const res = await fetch('/analyze', { method: 'POST', body: form });
+          if (!res.ok) {
+            throw new Error(`Request failed with status ${res.status}`);
+          }
+
+          const data = await res.json();
+          statusEl.textContent = 'Analysis complete.';
+
+          summaryEl.textContent = JSON.stringify({
+            filename: data.filename,
+            content_type: data.content_type,
+            saved_to: data.saved_to,
+            note_count: (data.notes || []).length,
+            mock_engine: data.ocr_result?.engine || null
+          }, null, 2);
+          show(summaryCard);
+
+          for (const item of (data.guidance || [])) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${item.note ?? ''}</td>
+              <td>${item.measure ?? ''}</td>
+              <td>${item.position_in_measure ?? ''}</td>
+              <td>${item.string ?? ''}</td>
+              <td>${item.finger ?? ''}</td>
+              <td>${item.reason ?? ''}</td>
+            `;
+            guidanceBody.appendChild(tr);
+          }
+          show(guidanceCard);
+
+          outEl.textContent = JSON.stringify(data, null, 2);
+          show(rawCard);
+        } catch (err) {
+          statusEl.textContent = `Error: ${err.message}`;
+        }
+      };
+    </script>
+  </body>
+</html>

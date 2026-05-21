@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guitar MP3 Transcription</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a31;
+      --panel-2: #17213d;
+      --text: #e8ecff;
+      --muted: #aab3d6;
+      --accent: #7c9cff;
+      --accent-2: #6ee7b7;
+      --danger: #fb7185;
+      --border: rgba(255,255,255,0.1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, #142042 0%, var(--bg) 55%);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    .hero {
+      display: grid;
+      gap: 16px;
+      padding: 28px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.05; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      margin-top: 22px;
+    }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: rgba(11,16,32,0.55);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .dropzone {
+      border: 1.5px dashed rgba(124,156,255,0.6);
+      background: rgba(23,33,61,0.55);
+      border-radius: 18px;
+      padding: 26px;
+      text-align: center;
+    }
+    .dropzone.dragover { border-color: var(--accent-2); background: rgba(110,231,183,0.1); }
+    .dropzone input { display: block; margin: 16px auto 0; color: var(--muted); }
+    .row { display: grid; gap: 12px; margin-top: 16px; }
+    label { font-size: 0.95rem; color: var(--muted); display: grid; gap: 8px; }
+    select, button, input[type="text"] {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border: none;
+      font-weight: 700;
+    }
+    button.secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .small { font-size: 0.9rem; color: var(--muted); }
+    .status {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      min-height: 48px;
+      white-space: pre-wrap;
+    }
+    .pillrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(124,156,255,0.12);
+      border: 1px solid rgba(124,156,255,0.28);
+      color: #cfd8ff;
+      font-size: 0.88rem;
+    }
+    .score {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      margin-top: 14px;
+    }
+    .warn { color: #ffd38a; }
+    .ok { color: #9ff0c9; }
+    .error { color: #ff9fb0; }
+    ul { margin: 10px 0 0 18px; color: var(--muted); }
+    code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Guitar MP3 Transcription</h1>
+      <p>
+        Upload a guitar-oriented MP3 and generate a PDF-ready score in standard notation + tab.
+        This app is designed for guitar music, including chordal passages, by using multi-pitch estimation,
+        onset grouping, and guitar-specific voicing rules.
+      </p>
+      <div class="pillrow">
+        <span class="pill">MP3 upload</span>
+        <span class="pill">Polyphonic chord detection</span>
+        <span class="pill">Guitar tab + standard notation</span>
+        <span class="pill">PDF export</span>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <div id="dropzone" class="dropzone">
+          <strong>Drop your MP3 here</strong>
+          <div class="small">or choose a file below</div>
+          <input id="audioFile" type="file" accept="audio/mpeg,audio/mp3" />
+        </div>
+
+        <div class="row">
+          <label>
+            Instrument tuning
+            <select id="tuning">
+              <option value="standard">Standard EADGBE</option>
+              <option value="drop-d">Drop D</option>
+              <option value="dadgad">DADGAD</option>
+              <option value="open-g">Open G</option>
+            </select>
+          </label>
+
+          <label>
+            Transcription depth
+            <select id="detail">
+              <option value="fast">Fast sketch</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="deep">Deep chord-aware transcription</option>
+            </select>
+          </label>
+
+          <label>
+            Output filename
+            <input id="filename" type="text" value="guitar-transcription.pdf" />
+          </label>
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+          <button id="transcribeBtn">Generate Sheet Music PDF</button>
+          <button id="demoBtn" class="secondary">Load demo settings</button>
+        </div>
+
+        <div id="status" class="status">Ready. Upload an MP3 to begin.</div>
+      </section>
+
+      <aside class="card">
+        <h2 style="margin-top:0;">How it should work</h2>
+        <div class="score">
+          <div><strong>1. Audio analysis</strong></div>
+          <div class="small">Convert MP3 to a high-resolution waveform and perform beat tracking, onset detection, and harmonic segmentation.</div>
+        </div>
+        <div class="score">
+          <div><strong>2. Chord-aware pitch estimation</strong></div>
+          <div class="small">Use multi-pitch detection so overlapping notes are not collapsed into a single melody line. Group simultaneous pitches into chord events.</div>
+        </div>
+        <div class="score">
+          <div><strong>3. Guitar voicing</strong></div>
+          <div class="small">Map pitches to playable fretboard positions, prefer idiomatic fingerings, preserve open strings when possible, and split dense harmonies into practical guitar voicings.</div>
+        </div>
+        <div class="score">
+          <div><strong>4. PDF export</strong></div>
+          <div class="small">Render both standard staff notation and tablature, then export as a PDF for printing or sharing.</div>
+        </div>
+        <div class="score">
+          <div><strong>Recommended backend stack</strong></div>
+          <ul>
+            <li><code>Python</code> API for transcription</li>
+            <li><code>ffmpeg</code> for MP3 decoding</li>
+            <li><code>librosa</code> / <code>madmom</code> for onset & beat analysis</li>
+            <li><code>Essentia</code>, <code>BasicPitch</code>, or a custom polyphonic model for note extraction</li>
+            <li><code>music21</code> or <code>musicxml</code> generation, then PDF rendering via <code>LilyPond</code> or <code>MuseScore</code></li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('audioFile');
+    const transcribeBtn = document.getElementById('transcribeBtn');
+    const demoBtn = document.getElementById('demoBtn');
+    const tuning = document.getElementById('tuning');
+    const detail = document.getElementById('detail');
+    const filename = document.getElementById('filename');
+
+    let selectedFile = null;
+
+    function setStatus(msg, cls = '') {
+      statusEl.className = 'status ' + cls;
+      statusEl.textContent = msg;
+    }
+
+    function handleFile(file) {
+      if (!file) return;
+      if (!file.type.includes('audio') && !file.name.toLowerCase().endsWith('.mp3')) {
+        setStatus('Please choose an MP3 audio file.', 'error');
+        return;
+      }
+      selectedFile = file;
+      setStatus(`Selected: ${file.name}\nReady to transcribe guitar chords and generate a PDF.`, 'ok');
+    }
+
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+      dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      });
+    });
+    dropzone.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+
+    demoBtn.addEventListener('click', () => {
+      tuning.value = 'standard';
+      detail.value = 'balanced';
+      filename.value = 'guitar-transcription.pdf';
+      setStatus('Demo settings loaded. For best results, use clean guitar audio with minimal percussion.', 'ok');
+    });
+
+    transcribeBtn.addEventListener('click', async () => {
+      if (!selectedFile) {
+        setStatus('Upload an MP3 first.', 'error');
+        return;
+      }
+
+      setStatus(
+        'This UI is a frontend for a transcription pipeline.\n\n' +
+        'Recommended implementation:\n' +
+        `- Decode ${selectedFile.name}\n` +
+        `- Analyze tuning: ${tuning.value}\n` +
+        `- Transcription mode: ${detail.value}\n` +
+        '- Detect onsets, beats, and simultaneous pitches\n' +
+        '- Build guitar-friendly voicings and tab\n' +
+        `- Export as ${filename.value || 'guitar-transcription.pdf'}`,
+        'warn'
+      );
+    });
+  </script>
+</body>
+</html>

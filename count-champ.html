@@ -600,6 +600,71 @@
   .small { font-size: 12px; color: var(--muted); }
   .bigtext { font-size: 22px; font-weight: 700; }
   hr { border: none; border-top: 1px solid var(--border-soft); margin: 16px 0; }
+
+  /* Bet spread presets (v2) */
+  .spread-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .preset-chip {
+    background: var(--panel-2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .preset-chip:hover {
+    background: var(--accent-dim);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .preset-chip.active {
+    background: var(--accent-dim);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  /* Export bar (v2) */
+  .export-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 16px 0 8px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    align-items: center;
+  }
+  .export-bar .export-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: auto;
+  }
+  .export-bar button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .export-bar button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -683,6 +748,13 @@
 
         <div class="param-group">
           <div class="param-group-title">Bet Spread (units of min bet)</div>
+          <div class="spread-presets" id="spread-presets">
+            <button type="button" class="preset-chip" data-preset="conservative">Conservative 1-2-3-5-8-12</button>
+            <button type="button" class="preset-chip" data-preset="moderate">Moderate 1-2-4-8-12-16</button>
+            <button type="button" class="preset-chip" data-preset="aggressive">Aggressive 1-2-4-8-16-25</button>
+            <button type="button" class="preset-chip" data-preset="big-bet">Big-Bet 1-4-8-16-32-50</button>
+            <button type="button" class="preset-chip" data-preset="flat">Flat 1-1-1-1-1-1</button>
+          </div>
           <table class="spread-table" id="spread-table">
             <thead><tr><th>True Count</th><th>Bet (units)</th><th>$</th></tr></thead>
             <tbody></tbody>
@@ -1584,6 +1656,139 @@ document.getElementById('p-minbet').addEventListener('input', updateSpreadDollar
 renderSpreadTable();
 
 // ============================================================================
+// v2: Bet spread presets
+// ============================================================================
+const SPREAD_PRESETS = {
+  'conservative': [1, 2, 3, 5, 8, 12],
+  'moderate':     [1, 2, 4, 8, 12, 16],
+  'aggressive':   [1, 2, 4, 8, 16, 25],
+  'big-bet':      [1, 4, 8, 16, 32, 50],
+  'flat':         [1, 1, 1, 1, 1, 1],
+};
+function applySpreadPreset(key) {
+  const units = SPREAD_PRESETS[key];
+  if (!units) return;
+  units.forEach((u, i) => { DEFAULT_SPREAD[i].units = u; });
+  renderSpreadTable();
+  // Mark active
+  document.querySelectorAll('.preset-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.preset === key);
+  });
+  saveParams();
+}
+document.querySelectorAll('.preset-chip').forEach(c => {
+  c.addEventListener('click', () => applySpreadPreset(c.dataset.preset));
+});
+
+// ============================================================================
+// v2: Parameter persistence — auto-save inputs to localStorage
+// ============================================================================
+const PARAM_STORAGE_KEY = 'countchamp_params_v1';
+const PARAM_IDS = [
+  'p-bankroll', 'p-minbet', 'p-sims', 'p-shoes', 'p-decks', 'p-pen',
+  'p-players', 'p-hph', 'p-s17', 'p-bj', 'p-dbl', 'p-surr', 'p-das',
+  'p-rsa', 'p-hsa', 'p-maxsplit', 'p-system', 'p-deviations', 'p-fab4',
+  'p-insurance', 'p-wong', 'p-wongout', 'p-wongin', 'p-backcount',
+  'p-cover', 'p-kelly', 'p-hours',
+];
+function saveParams() {
+  try {
+    const data = {};
+    PARAM_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      data[id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    data.spread = DEFAULT_SPREAD.map(r => r.units);
+    localStorage.setItem(PARAM_STORAGE_KEY, JSON.stringify(data));
+  } catch (e) { /* ignore */ }
+}
+function loadParams() {
+  try {
+    const raw = localStorage.getItem(PARAM_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    PARAM_IDS.forEach(id => {
+      if (!(id in data)) return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!data[id];
+      else el.value = data[id];
+    });
+    if (Array.isArray(data.spread)) {
+      data.spread.forEach((u, i) => { if (DEFAULT_SPREAD[i]) DEFAULT_SPREAD[i].units = u; });
+      renderSpreadTable();
+    }
+  } catch (e) { /* ignore */ }
+}
+function wireParamPersistence() {
+  PARAM_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ev = (el.type === 'checkbox' || el.tagName === 'SELECT') ? 'change' : 'input';
+    el.addEventListener(ev, saveParams);
+  });
+  // Also save when bet-spread inputs change
+  document.querySelector('#spread-table').addEventListener('input', (e) => {
+    if (e.target.classList.contains('spread-units')) {
+      // Read current values back into DEFAULT_SPREAD
+      document.querySelectorAll('.spread-units').forEach((inp, i) => {
+        DEFAULT_SPREAD[i].units = Number(inp.value) || 0;
+      });
+      saveParams();
+    }
+  });
+}
+loadParams();
+wireParamPersistence();
+
+// ============================================================================
+// v2: CSV export — exposed on the window for the results-render to wire up
+// ============================================================================
+let lastSimResult = null;
+let lastSimParams = null;
+function downloadCSV(filename, csvText) {
+  const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportFinalBankrolls() {
+  if (!lastSimResult || !lastSimParams) return;
+  const rows = ['sim,final_bankroll,net_result,ruined'];
+  const start = lastSimParams.startingBankroll;
+  lastSimResult.finalBankrolls.forEach((bk, i) => {
+    const net = bk - start;
+    const ruined = bk <= 0 ? 1 : 0;
+    rows.push(`${i + 1},${bk.toFixed(2)},${net.toFixed(2)},${ruined}`);
+  });
+  downloadCSV(`countchamp_finals_${Date.now()}.csv`, rows.join('\n'));
+}
+function exportTraces() {
+  if (!lastSimResult || !lastSimResult.bankrollTraces) return;
+  const traces = lastSimResult.bankrollTraces;
+  const maxLen = Math.max(...traces.map(t => t.length));
+  const rows = ['hand_index,' + traces.map((_, i) => `sim_${i + 1}`).join(',')];
+  for (let h = 0; h < maxLen; h++) {
+    const cells = [h];
+    traces.forEach(t => { cells.push(h < t.length ? t[h].toFixed(2) : ''); });
+    rows.push(cells.join(','));
+  }
+  downloadCSV(`countchamp_traces_${Date.now()}.csv`, rows.join('\n'));
+}
+function exportParamsJSON() {
+  if (!lastSimParams) return;
+  const blob = new Blob([JSON.stringify(lastSimParams, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `countchamp_params_${Date.now()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============================================================================
 // UI: Reset params
 // ============================================================================
 document.getElementById('reset-params').addEventListener('click', () => {
@@ -1614,7 +1819,12 @@ document.getElementById('reset-params').addEventListener('click', () => {
   document.getElementById('p-cover').value = 0;
   document.getElementById('p-kelly').value = 0;
   document.getElementById('p-hours').value = 4;
+  // v2: also reset spread back to original 1-2-4-8-10-12 and clear preset highlight
+  const orig = [1, 2, 4, 8, 10, 12];
+  orig.forEach((u, i) => { DEFAULT_SPREAD[i].units = u; });
+  document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
   renderSpreadTable();
+  saveParams();
 });
 
 // ============================================================================
@@ -1670,6 +1880,8 @@ document.getElementById('run-sim').addEventListener('click', async () => {
 
   try {
     const res = await runSimulation(params, p => { bar.style.width = (p * 100).toFixed(1) + '%'; });
+    lastSimResult = res;
+    lastSimParams = params;
     renderResults(params, res);
   } catch (e) {
     console.error(e);
@@ -1721,9 +1933,19 @@ function renderResults(params, res) {
     <h3 style="margin:16px 0 8px 0;font-size:14px">Bankroll Trajectories (sample)</h3>
     <canvas id="sim-chart"></canvas>
     <div class="small" style="margin-top:8px">Showing up to 80 sample bankroll traces. Horizontal axis: hands played. Green = positive final, red = ruined or net-loss.</div>
+    <div class="export-bar">
+      <span class="export-label">Export</span>
+      <button type="button" id="export-finals">Final bankrolls (CSV)</button>
+      <button type="button" id="export-traces">Full traces (CSV)</button>
+      <button type="button" id="export-params">Sim params (JSON)</button>
+    </div>
   `;
   document.getElementById('results-content').innerHTML = html;
   drawChart(res.bankrollTraces, params.startingBankroll);
+  // Wire export buttons (re-attach each render since innerHTML replaced them)
+  document.getElementById('export-finals').addEventListener('click', exportFinalBankrolls);
+  document.getElementById('export-traces').addEventListener('click', exportTraces);
+  document.getElementById('export-params').addEventListener('click', exportParamsJSON);
 }
 
 function drawChart(traces, start) {

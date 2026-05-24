@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  SAT Reading Sprints — timed practice passages with explanations
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+
+  Five passages (literature, social science, history, science, paired) with
+  4-5 questions each. Timer runs while reading. Wrong answers reveal a "why"
+  block walking through the text evidence. Best time + score per passage are
+  saved per user in localStorage.
+
+  Question types modeled here:
+    - Main idea / overall purpose
+    - Detail (locate-it-in-the-text)
+    - Inference (reasonable conclusion from evidence)
+    - Vocabulary in context
+    - Evidence support (which lines best support a previous claim)
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+     1–30    Header comment (this block)
+    32–38    <head>: meta, title
+
+  STYLE  (~lines 39–620)
+    :root            palette (navy + paper + accent crimson), typography
+    Reset + base     serif body for passages, sans for UI
+    .top-bar         brand mark + breadcrumb
+    Landing view     hero, passage cards, "how it works"
+    Read view        2-column (passage + question rail) — collapses < 980px
+    Passage          paragraph with line numbers, hover state
+    Question card    stem + options + submit
+    Explanation      shown after answer, references line numbers
+    Results view     stars + per-question summary
+    Animations       fade, pulse, shake
+
+  BODY  (~lines 630–700)
+
+  SCRIPT  (~lines 710–end, single IIFE)
+    State          { view, passageId, qIdx, timer, answers, log }
+    Persistence    localStorage['satrs_log_v1']
+    PASSAGES       5 curated passages with 4-5 questions each
+    Render         renderLanding / renderRead / renderResults
+    Timing         startTimer / stopTimer / elapsedSec
+    Boot           wire clicks, restore log
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAT Reading Sprints — timed practice with explanations</title>
+  <style>
+    :root {
+      --navy-900: #0a1d3a;
+      --navy-800: #102b54;
+      --navy-700: #1c3e74;
+      --navy-500: #3a64a4;
+      --navy-300: #84a3d0;
+      --navy-100: #d8e3f3;
+      --navy-50:  #ecf2fa;
+
+      --crimson-500: #b8324a;
+      --crimson-600: #962c40;
+      --crimson-300: #de8896;
+      --crimson-100: #f5d6dc;
+
+      --gold-500: #cf9a2c;
+      --gold-300: #ecc475;
+      --gold-100: #f9ecc5;
+
+      --good: #2a8e5c;
+      --good-light: #d2eddb;
+      --bad: #c4364a;
+      --bad-light: #f6d8dd;
+
+      --paper: #fffdf8;
+      --bg: #faf6ec;
+
+      --ink-900: #0a0e15;
+      --ink-700: #2a3142;
+      --ink-500: #5a6478;
+      --ink-300: #a4adc0;
+      --ink-100: #dde2ec;
+
+      --radius-sm: 10px;
+      --radius: 14px;
+      --radius-lg: 22px;
+      --shadow-sm: 0 1px 3px rgba(15, 30, 60, 0.05);
+      --shadow: 0 8px 24px rgba(15, 30, 60, 0.10);
+
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    body {
+      background:
+        radial-gradient(circle at 12% 0%, var(--navy-100) 0%, transparent 36%),
+        radial-gradient(circle at 90% 100%, var(--gold-100) 0%, transparent 36%),
+        var(--bg);
+    }
+    button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.12s ease, box-shadow 0.2s, background 0.2s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--navy-700);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary:hover { background: var(--navy-800); }
+    .btn-crimson {
+      background: var(--crimson-500);
+      color: white;
+    }
+    .btn-crimson:hover { background: var(--crimson-600); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-700);
+      border: 1.5px solid var(--ink-100);
+    }
+    .btn-ghost:hover { border-color: var(--navy-500); color: var(--navy-700); }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--navy-800), var(--navy-500));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-family: var(--serif);
+      font-size: 22px;
+      font-style: italic;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+    .brand-name em { color: var(--crimson-500); font-style: italic; }
+    .breadcrumb { color: var(--ink-500); font-size: 14px; }
+    .breadcrumb a { color: var(--ink-700); cursor: pointer; text-decoration: none; }
+    .breadcrumb a:hover { color: var(--crimson-500); }
+
+    .view {
+      display: none;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 16px 28px 80px;
+    }
+    .view.active { display: block; }
+
+    /* ============================================================
+       Landing
+       ============================================================ */
+    .hero {
+      padding: 16px 0 28px;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--navy-100);
+      color: var(--navy-700);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(36px, 6vw, 56px);
+      margin: 0 0 12px;
+      line-height: 1.05;
+      max-width: 780px;
+    }
+    .hero h1 em { color: var(--crimson-500); font-style: italic; }
+    .hero-sub {
+      font-size: 18px;
+      color: var(--ink-700);
+      max-width: 640px;
+      margin: 0 0 22px;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 22px;
+      color: var(--ink-500);
+      font-size: 14px;
+    }
+    .hero-stats b { color: var(--crimson-500); }
+
+    .section-title {
+      font-family: var(--serif);
+      font-size: 24px;
+      margin: 36px 0 16px;
+    }
+
+    .passage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .passage-card {
+      background: var(--paper);
+      border: 1.5px solid var(--ink-100);
+      border-radius: var(--radius);
+      padding: 22px;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.18s ease, box-shadow 0.2s, border-color 0.2s;
+    }
+    .passage-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+      border-color: var(--navy-300);
+    }
+    .passage-card .genre-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--navy-100);
+      color: var(--navy-700);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .passage-card h3 {
+      font-family: var(--serif);
+      font-size: 22px;
+      margin: 0 0 6px;
+      line-height: 1.2;
+    }
+    .passage-card .source {
+      font-size: 13px;
+      color: var(--ink-500);
+      font-style: italic;
+      margin: 0 0 12px;
+    }
+    .passage-card .blurb {
+      font-size: 14px;
+      color: var(--ink-700);
+      margin: 0 0 16px;
+    }
+    .passage-card .meta {
+      font-size: 12px;
+      color: var(--ink-500);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      border-top: 1px solid var(--ink-100);
+      padding-top: 10px;
+    }
+    .passage-card .meta b { color: var(--navy-700); font-weight: 700; }
+    .passage-card .stars {
+      color: var(--gold-500);
+      letter-spacing: 1px;
+      margin-left: auto;
+    }
+    .passage-card .stars .empty { color: var(--ink-100); }
+
+    .how-panel {
+      margin-top: 36px;
+      background: var(--navy-900);
+      color: var(--navy-100);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 22px;
+    }
+    .how-panel h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 6px;
+      color: var(--gold-300);
+    }
+    .how-panel p { margin: 0; font-size: 14px; opacity: 0.85; }
+
+    /* ============================================================
+       Read view
+       ============================================================ */
+    .read-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 14px 0 18px;
+    }
+    .read-head h2 {
+      font-family: var(--serif);
+      font-size: 24px;
+      margin: 0;
+    }
+    .read-head .timer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--navy-100);
+      color: var(--navy-700);
+      font-weight: 700;
+      font-family: ui-monospace, SF Mono, Menlo, monospace;
+      font-size: 14px;
+    }
+    .read-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+    }
+    @media (max-width: 980px) { .read-grid { grid-template-columns: 1fr; } }
+
+    .passage-panel {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--ink-100);
+    }
+    .passage-panel .source-line {
+      font-size: 13px;
+      color: var(--ink-500);
+      font-style: italic;
+      margin: 0 0 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--ink-100);
+    }
+    .passage-text {
+      font-family: var(--serif);
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--ink-900);
+    }
+    .passage-text p {
+      margin: 0 0 16px;
+      position: relative;
+    }
+    .passage-text .line-num {
+      display: inline-block;
+      color: var(--ink-300);
+      font-family: ui-monospace, SF Mono, Menlo, monospace;
+      font-size: 12px;
+      width: 40px;
+      text-align: right;
+      vertical-align: top;
+      margin-right: 8px;
+      user-select: none;
+    }
+
+    .question-rail {
+      position: sticky;
+      top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .q-progress-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .q-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--ink-100);
+      color: var(--ink-500);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .q-dot.active {
+      background: var(--navy-700);
+      color: white;
+    }
+    .q-dot.correct { background: var(--good); color: white; }
+    .q-dot.wrong { background: var(--bad); color: white; }
+
+    .question-card {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      border: 1px solid var(--ink-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .question-card .q-stem {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 16px;
+      line-height: 1.45;
+    }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .option {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      border: 1.5px solid transparent;
+      text-align: left;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    .option:hover { background: var(--navy-50); border-color: var(--navy-100); }
+    .option.selected { background: var(--navy-100); border-color: var(--navy-500); }
+    .option.correct { background: var(--good-light); border-color: var(--good); }
+    .option.wrong { background: var(--bad-light); border-color: var(--bad); }
+    .option.disabled { cursor: default; opacity: 0.7; }
+    .option .letter {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--paper);
+      color: var(--ink-700);
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      border: 1.5px solid var(--ink-100);
+    }
+    .option.selected .letter { background: var(--navy-500); color: white; border-color: var(--navy-500); }
+    .option.correct .letter { background: var(--good); color: white; border-color: var(--good); }
+    .option.wrong .letter { background: var(--bad); color: white; border-color: var(--bad); }
+
+    .explanation {
+      background: var(--gold-100);
+      color: #6f5715;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      margin-top: 14px;
+      font-size: 14px;
+      border-left: 3px solid var(--gold-500);
+      display: none;
+    }
+    .explanation.show { display: block; }
+    .explanation strong { display: block; margin-bottom: 4px; color: #50410e; }
+    .explanation .ref-lines {
+      font-family: ui-monospace, SF Mono, Menlo, monospace;
+      font-size: 12px;
+      color: #7d6620;
+    }
+
+    .q-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .q-actions .btn { flex: 1; justify-content: center; }
+
+    /* ============================================================
+       Results
+       ============================================================ */
+    .results-card {
+      max-width: 720px;
+      margin: 32px auto 0;
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--ink-100);
+    }
+    .results-card h2 {
+      font-family: var(--serif);
+      margin: 0 0 4px;
+      font-size: 28px;
+    }
+    .results-card .results-sub {
+      color: var(--ink-500);
+      margin: 0 0 18px;
+    }
+    .results-stars {
+      font-size: 42px;
+      color: var(--gold-500);
+      letter-spacing: 8px;
+      margin: 12px 0 18px;
+    }
+    .results-stars .empty { color: var(--ink-100); }
+    .results-stats {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+    .results-stat b {
+      display: block;
+      font-size: 28px;
+      font-family: var(--serif);
+      color: var(--navy-700);
+    }
+    .results-stat span {
+      font-size: 12px;
+      color: var(--ink-500);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .results-summary {
+      border-top: 1px solid var(--ink-100);
+      padding-top: 18px;
+    }
+    .results-summary h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+    .results-q-row {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--ink-100);
+      align-items: center;
+      font-size: 14px;
+    }
+    .results-q-row:first-child { border-top: 0; }
+    .results-q-row .ix {
+      font-family: ui-monospace, SF Mono, Menlo, monospace;
+      color: var(--ink-500);
+    }
+    .results-q-row .stem {
+      color: var(--ink-700);
+      font-size: 13px;
+    }
+    .results-q-row .verdict-pill {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .results-q-row .verdict-pill.correct { background: var(--good-light); color: var(--good); }
+    .results-q-row .verdict-pill.wrong { background: var(--bad-light); color: var(--bad); }
+
+    .results-actions {
+      margin-top: 22px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 640px) {
+      .top-bar { padding: 12px 16px; }
+      .view { padding: 12px 16px 60px; }
+      .passage-panel { padding: 18px 20px; }
+      .passage-text { font-size: 16px; }
+      .question-card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="brand" data-action="home">
+      <div class="brand-mark">SR</div>
+      <div class="brand-name">Reading <em>Sprints</em></div>
+    </div>
+    <div class="breadcrumb"><a data-action="home">All passages</a> <span id="crumb-extra"></span></div>
+  </div>
+
+  <!-- ============================================================
+       Landing
+       ============================================================ -->
+  <div class="view view-landing active" data-view="landing">
+    <div class="hero">
+      <span class="hero-eyebrow">Timed practice · Real explanations · No login</span>
+      <h1>Train the SAT reading muscle <em>one passage at a time</em>.</h1>
+      <p class="hero-sub">Five SAT-style passages. Real questions across every type the test asks. Detailed explanations for every answer — including why the wrong choices are wrong.</p>
+      <div class="hero-stats">
+        <span><b id="stat-passages">5</b> passages</span>
+        <span><b id="stat-questions">21</b> questions</span>
+        <span><b id="stat-stars">0</b> stars earned</span>
+      </div>
+    </div>
+
+    <h2 class="section-title">Pick a passage</h2>
+    <div class="passage-grid" id="passage-grid"></div>
+
+    <div class="how-panel">
+      <div>
+        <h3>Read first, answer second</h3>
+        <p>Skim the passage once before opening questions. Don't memorize details — just locate the argument.</p>
+      </div>
+      <div>
+        <h3>Anchor every claim to a line</h3>
+        <p>Wrong-answer choices on the SAT all "feel" plausible. The right one is supported by a specific sentence. Find it.</p>
+      </div>
+      <div>
+        <h3>Read the explanations</h3>
+        <p>The biggest win on practice tests is understanding the trap, not the right answer. Explanations call out each one.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Read view
+       ============================================================ -->
+  <div class="view view-read" data-view="read">
+    <div class="read-head">
+      <h2 id="read-title">—</h2>
+      <div class="timer-pill"><span>⏱</span><span id="timer-display">0:00</span></div>
+    </div>
+
+    <div class="read-grid">
+      <div class="passage-panel">
+        <div class="source-line" id="passage-source">—</div>
+        <div class="passage-text" id="passage-text"></div>
+      </div>
+
+      <div class="question-rail">
+        <div class="q-progress-row" id="q-progress"></div>
+        <div class="question-card" id="question-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Results
+       ============================================================ -->
+  <div class="view view-results" data-view="results">
+    <div class="results-card">
+      <h2 id="results-title">Run complete</h2>
+      <p class="results-sub" id="results-sub">—</p>
+      <div class="results-stars" id="results-stars"></div>
+      <div class="results-stats">
+        <div class="results-stat">
+          <b id="results-correct">0/0</b>
+          <span>Score</span>
+        </div>
+        <div class="results-stat">
+          <b id="results-time">0:00</b>
+          <span>Time</span>
+        </div>
+        <div class="results-stat">
+          <b id="results-best">—</b>
+          <span>Personal best</span>
+        </div>
+      </div>
+      <div class="results-summary">
+        <h3>Question by question</h3>
+        <div id="results-rows"></div>
+      </div>
+      <div class="results-actions">
+        <button class="btn btn-ghost" data-action="home">All passages</button>
+        <button class="btn btn-crimson" data-action="retry">Retry passage</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       PASSAGES + questions
+       Each passage: id, genre, title, source, blurb, paragraphs (array of
+       paragraphs, each is an array of sentences for line numbering),
+       questions[].
+       Questions: stem, options[4], correctIdx, type, explain (with ref).
+       ============================================================ */
+    const PASSAGES = [
+      {
+        id: 'lit-grandmother',
+        genre: 'Literature',
+        title: 'The Inheritance',
+        source: 'Adapted from a contemporary short story.',
+        blurb: 'A young woman returns to her grandmother\'s house after the funeral and finds an unexpected note.',
+        paragraphs: [
+          [
+            'The house smelled of cedar and old paper, the way it had always smelled when Eliza was small.',
+            'She had not crossed the threshold in eleven years, not since the summer she\'d announced her plan to study geology in another country and her grandmother had set down the teapot, very gently, and said nothing.',
+          ],
+          [
+            'The lawyer\'s envelope sat on the kitchen table where she had dropped it the night before.',
+            'It contained, he had told her, a single page in her grandmother\'s handwriting and the deed to a parcel of land Eliza had never heard of.',
+            'She was tired enough that she had decided to leave both unread until morning.',
+          ],
+          [
+            'Now, with the kettle whistling and her old teacup in her hand, she opened the envelope.',
+            'The page was unsigned but unmistakable: that careful sloping script, each loop closed and tidy.',
+            '"Granddaughter," it began. "When you were eight you brought me a piece of quartz from the river and told me it was the most important thing you owned. I have been keeping it for you. The plot is the river. Go and stand on it."',
+          ],
+          [
+            'Eliza set the page down.',
+            'She had not thought of the quartz in twenty years.',
+            'Outside, in the garden, the wind moved through the apple tree the way it had always moved, as if nothing had been disturbed.',
+          ],
+        ],
+        questions: [
+          {
+            stem: 'The primary purpose of the passage is to',
+            options: [
+              'argue that family relationships are improved by physical distance',
+              'describe a moment of unexpected reconnection between a granddaughter and her absent grandmother',
+              'illustrate the legal complications of inheriting property',
+              'criticize the narrator for staying away from her grandmother for so long',
+            ],
+            correctIdx: 1,
+            type: 'main idea',
+            explain: 'The passage centers on Eliza opening her grandmother\'s posthumous letter and recognizing — through the quartz reference — a love that persisted through their estrangement. Choices A and D place a judgment the passage doesn\'t make, and C is mentioned only as scaffolding. The note "Go and stand on it" is the moment of reconnection.',
+            refLines: '¶3 sentences 1–3, ¶4 sentence 1',
+          },
+          {
+            stem: 'The grandmother\'s reaction described in lines about the teapot ("had set down the teapot, very gently, and said nothing") suggests that she',
+            options: [
+              'was relieved by Eliza\'s decision',
+              'agreed with Eliza\'s plan but was too proud to say so',
+              'was hurt but unwilling to argue',
+              'did not understand what Eliza had told her',
+            ],
+            correctIdx: 2,
+            type: 'inference',
+            explain: 'The grandmother sets the teapot down gently — controlled, deliberate — and says nothing. The control implies hurt; the silence implies an unwillingness to argue. There\'s no textual support for relief (A), pride-disguising-agreement (B), or misunderstanding (D).',
+            refLines: '¶1 sentence 2',
+          },
+          {
+            stem: 'In the context of the passage, the word "tidy" most nearly means',
+            options: [
+              'clean',
+              'controlled',
+              'orderly',
+              'small',
+            ],
+            correctIdx: 1,
+            type: 'vocab',
+            explain: '"Each loop closed and tidy" is describing handwriting that reflects the grandmother\'s personality — controlled and deliberate. While "orderly" is close, "controlled" matches the broader characterization (she "set down the teapot, very gently"). Note that vocab questions test the meaning fitting the specific context, not the most common dictionary definition.',
+            refLines: '¶3 sentence 2',
+          },
+          {
+            stem: 'The reference to the apple tree in the final paragraph primarily serves to',
+            options: [
+              'establish the season of the story',
+              'contrast the unchanged outdoors with Eliza\'s emotional disturbance',
+              'foreshadow Eliza\'s decision to stay at the house',
+              'introduce the parcel of land mentioned in paragraph 2',
+            ],
+            correctIdx: 1,
+            type: 'function',
+            explain: 'The apple tree moves "as if nothing had been disturbed" — the keyword is contrast. Eliza has just been emotionally moved; the world outside hasn\'t changed. A is overly literal; the season is incidental. C and D project events the passage doesn\'t hint at.',
+            refLines: '¶4 sentence 3',
+          },
+          {
+            stem: 'Which choice provides the best evidence for the answer to the previous question?',
+            options: [
+              '"Outside, in the garden, the wind moved through the apple tree the way it had always moved, as if nothing had been disturbed."',
+              '"Eliza set the page down."',
+              '"She had not thought of the quartz in twenty years."',
+              '"It contained, he had told her, a single page in her grandmother\'s handwriting and the deed to a parcel of land Eliza had never heard of."',
+            ],
+            correctIdx: 0,
+            type: 'evidence',
+            explain: 'The "as if nothing had been disturbed" clause is the literal source of the contrast. The other choices describe Eliza\'s actions or the lawyer\'s information — they don\'t establish the contrast between the outdoor stillness and Eliza\'s inner shift.',
+            refLines: '¶4 sentence 3',
+          },
+        ],
+      },
+
+      {
+        id: 'social-attention',
+        genre: 'Social Science',
+        title: 'The Economics of Attention',
+        source: 'Adapted from a 2024 article on digital media markets.',
+        blurb: 'An argument that the "attention economy" framing obscures who actually pays the costs.',
+        paragraphs: [
+          [
+            'For two decades, technology executives have promoted a deceptively neat metaphor: the "attention economy."',
+            'In this framing, attention is a finite resource, and platforms compete for shares of it the way grocers compete for shelf space.',
+            'The metaphor is satisfying because it has the shape of an explanation, but it disguises rather than describes the underlying transaction.',
+          ],
+          [
+            'Markets typically require an exchange of value between two parties.',
+            'When a consumer buys a loaf of bread, the consumer gets calories and the baker gets income.',
+            'Both parties\' interests are roughly aligned — the baker wants the consumer to come back tomorrow, and the consumer wants the loaves to remain edible.',
+            'The attention "market," by contrast, has three parties: the user, the platform, and the advertiser.',
+            'The user provides the attention; the advertiser pays for the attention; the platform takes a fee for arranging the transfer.',
+          ],
+          [
+            'It follows that what the platform optimizes for is not the user\'s satisfaction but the advertiser\'s willingness to pay, which is best served by maximizing the time and emotional intensity of user engagement.',
+            'These two goals are not naturally aligned, and there is little reason to expect they would be.',
+            'A user who closes the app after finding what they were looking for is, from the platform\'s perspective, a partial loss.',
+            'A user who scrolls for an additional forty minutes after finding it is a complete win.',
+          ],
+          [
+            'Critics of this analysis sometimes argue that users have free choice — they can simply close the app.',
+            'But this defense rests on a model of decision-making that the same platforms have, in their internal product research, been working to undermine for years.',
+            'Auto-play queues, infinite scroll, variable-reward notifications, and the deliberate disabling of natural stopping cues are not accidents of design.',
+            'They are the visible artifacts of an engineering culture explicitly committed to overriding user choice at the margin.',
+          ],
+        ],
+        questions: [
+          {
+            stem: 'The author\'s primary argument is that',
+            options: [
+              'the attention economy is a fair market that operates differently from traditional markets',
+              'users should boycott platforms that monetize attention',
+              'the metaphor of the "attention economy" obscures a misalignment between platform incentives and user interests',
+              'advertising is morally wrong and should be banned',
+            ],
+            correctIdx: 2,
+            type: 'main idea',
+            explain: 'The author argues the metaphor "disguises rather than describes" (¶1) and that platforms optimize for advertiser willingness to pay, not user satisfaction (¶3). A misstates the author\'s position — they\'re saying it\'s NOT a fair two-party market. B and D are policy positions the author doesn\'t take.',
+            refLines: '¶1 sentence 3, ¶3 sentence 1',
+          },
+          {
+            stem: 'The author uses the example of the loaf of bread (paragraph 2) primarily to',
+            options: [
+              'establish the historical origins of trade',
+              'describe a transaction in which the parties\' interests are aligned',
+              'argue that platforms should sell physical goods',
+              'show that all markets have only two parties',
+            ],
+            correctIdx: 1,
+            type: 'function',
+            explain: 'The bread example illustrates "both parties\' interests are roughly aligned" — a contrast point the author then breaks with: the attention market has three parties. The example exists to set up the contrast, not for historical or prescriptive reasons.',
+            refLines: '¶2 sentences 2–3',
+          },
+          {
+            stem: 'In the context of the passage, the word "complete" most nearly means',
+            options: [
+              'finished',
+              'thorough',
+              'maximal',
+              'total',
+            ],
+            correctIdx: 2,
+            type: 'vocab',
+            explain: '"A complete win" is contrasted with "a partial loss" — the author is describing degrees of platform success. "Maximal" captures this gradient most precisely. "Finished" implies completion (wrong tone), "thorough" implies effort, "total" overlaps but is less precise about the contrast with "partial."',
+            refLines: '¶3 sentence 4',
+          },
+          {
+            stem: 'The author would most likely respond to the claim that "users have free choice" by',
+            options: [
+              'agreeing, since adults are capable of self-control',
+              'pointing out that platforms invest engineering effort in undermining the conditions for free choice',
+              'arguing that free choice is a philosophical illusion in all contexts',
+              'noting that the choice is technically free but practically expensive',
+            ],
+            correctIdx: 1,
+            type: 'inference',
+            explain: '¶4 directly addresses this argument and rebuts it: design features like infinite scroll and variable-reward notifications are described as "an engineering culture explicitly committed to overriding user choice at the margin." The author doesn\'t argue free choice is illusory in general (C) or that it\'s practically expensive (D).',
+            refLines: '¶4 sentences 2–4',
+          },
+          {
+            stem: 'Which choice best supports the answer to the previous question?',
+            options: [
+              '"Markets typically require an exchange of value between two parties."',
+              '"It follows that what the platform optimizes for is not the user\'s satisfaction but the advertiser\'s willingness to pay..."',
+              '"They are the visible artifacts of an engineering culture explicitly committed to overriding user choice at the margin."',
+              '"For two decades, technology executives have promoted a deceptively neat metaphor..."',
+            ],
+            correctIdx: 2,
+            type: 'evidence',
+            explain: 'This sentence directly states the rebuttal: design choices are deliberate efforts to override user choice. The other choices establish background or related arguments but do not specifically rebut the "free choice" claim.',
+            refLines: '¶4 sentence 4',
+          },
+        ],
+      },
+
+      {
+        id: 'history-document',
+        genre: 'History',
+        title: 'On the Limits of Knowledge',
+        source: 'Adapted from a 19th-century essay on scientific epistemology.',
+        blurb: 'A naturalist defends the unfinished state of natural philosophy against critics demanding final answers.',
+        paragraphs: [
+          [
+            'Among the criticisms most frequently leveled at modern natural philosophy is that, after centuries of careful inquiry, it has settled few of the questions it set out to settle.',
+            'The critic enumerates the great debates — on the age of the earth, on the origin of species, on the nature of light — and observes, not without satisfaction, that none has reached its terminus.',
+            'He concludes that the discipline is therefore unworthy of the public confidence which it enjoys.',
+          ],
+          [
+            'The conclusion does not follow from the premise.',
+            'A discipline that produces final answers in two hundred years is either incurious or in possession of a method I should very much like to learn.',
+            'Natural philosophy proceeds, as does every honest inquiry, by approximation: each generation\'s findings are corrected, qualified, or, on occasion, overturned by the next.',
+            'This is not weakness but the principal mark of a method that takes its object seriously enough to revise itself.',
+          ],
+          [
+            'The critic, I suspect, has confused two senses of "settled."',
+            'In one sense, a question is settled when no inquirer of standing continues to debate it; in the other, when our description of the world has reached such fineness of detail that no further refinement is possible.',
+            'The first kind of settlement is plentiful and arrives, when it does, quickly.',
+            'The second is, so far as I can determine, unattainable, and any inquirer who claims to have produced it is either misled or attempting to mislead.',
+          ],
+        ],
+        questions: [
+          {
+            stem: 'The main purpose of the passage is to',
+            options: [
+              'attack natural philosophers for their slow progress',
+              'defend the practice of natural philosophy by reframing what its incompleteness means',
+              'enumerate the great unsolved problems of natural philosophy',
+              'compare ancient and modern approaches to scientific inquiry',
+            ],
+            correctIdx: 1,
+            type: 'main idea',
+            explain: '¶1 presents the critic\'s charge; ¶2 and ¶3 reply by arguing that "settledness" is the wrong standard. The author defends the discipline through reframing — choice B. A inverts the author\'s position. C and D describe minor elements.',
+            refLines: '¶2 sentences 1–4',
+          },
+          {
+            stem: 'The author uses the phrase "not without satisfaction" (paragraph 1) to suggest that the critic',
+            options: [
+              'is content with the slow pace of progress',
+              'takes a kind of pleasure in pointing out unresolved debates',
+              'agrees with the discipline\'s methods',
+              'is indifferent to the outcome of the debates',
+            ],
+            correctIdx: 1,
+            type: 'inference',
+            explain: 'The phrase is a deliberate understatement (litotes) — the critic enjoys cataloging the failures. "Not without satisfaction" = "with some satisfaction." This is the kind of dry, almost ironic phrasing the passage uses throughout.',
+            refLines: '¶1 sentence 2',
+          },
+          {
+            stem: 'The author distinguishes between two senses of "settled" primarily to',
+            options: [
+              'show that no question can ever be considered settled',
+              'concede that the critic is partially correct',
+              'demonstrate that the critic is using an impossible standard',
+              'introduce a new philosophical concept',
+            ],
+            correctIdx: 2,
+            type: 'function',
+            explain: '¶3 ends with the second sense of "settled" being "unattainable" and any claim to it being "misled or attempting to mislead." The distinction\'s function is rhetorical: it shows the critic\'s standard is one no inquiry could ever meet.',
+            refLines: '¶3 sentences 2–4',
+          },
+          {
+            stem: 'In the context of the passage, the word "fineness" most nearly means',
+            options: [
+              'beauty',
+              'precision',
+              'thinness',
+              'quality',
+            ],
+            correctIdx: 1,
+            type: 'vocab',
+            explain: '"Fineness of detail" describes the level of resolution at which a description matches reality — precision. The other choices use unrelated senses of "fine."',
+            refLines: '¶3 sentence 2',
+          },
+        ],
+      },
+
+      {
+        id: 'science-microbiome',
+        genre: 'Science',
+        title: 'The Hidden Tenants',
+        source: 'Adapted from a popular-science article on the human microbiome.',
+        blurb: 'A primer on the bacteria living inside us, and why "germ-free" was always the wrong goal.',
+        paragraphs: [
+          [
+            'The human body contains roughly thirty trillion human cells and a comparable number of bacteria.',
+            'These microbes, taken together, are called the microbiome, and the largest concentration of them lives in the colon, where their density approaches that of a small city.',
+            'For most of medical history, the colon was treated as either an irrelevant tube or a source of dangerous infection; the bacteria themselves were studied mainly when they made people sick.',
+          ],
+          [
+            'In the past twenty years, this view has been quietly upended.',
+            'Researchers studying mice raised in completely sterile environments — animals that never encountered a single microbe — found that their immune systems failed to develop normally, that their guts remained underdeveloped, and that even their behavior diverged from peers raised with ordinary microbial exposure.',
+            'The microbes, it turned out, were not passive passengers but active partners in nearly every body system the researchers examined.',
+          ],
+          [
+            'The reasons for this partnership begin to become clear when one considers the math of evolution.',
+            'A typical bacterium reproduces in twenty minutes; a human reproduces in twenty years.',
+            'Over five hundred million years of co-evolution, the bacteria have had several quintillion generations in which to fit themselves to us, and we have had only twenty-five million in which to fit ourselves to them.',
+            'The relationship is not symmetrical, and the human body — including, surprisingly, the human brain — appears to have offloaded a substantial number of regulatory functions to its bacterial guests.',
+          ],
+          [
+            'The practical implications are still being worked out.',
+            'Antibiotics, which until recently were prescribed without much consideration of collateral damage, are now understood to disrupt the microbiome in ways that can persist for years.',
+            'Conversely, the deliberate transfer of microbiomes — through fecal transplants, in the most direct case — has produced near-miraculous results in conditions previously considered intractable.',
+            'It is increasingly clear that what was once dismissed as a tube of microbes is in fact one of the body\'s most important organs, and we are only beginning to learn how to care for it.',
+          ],
+        ],
+        questions: [
+          {
+            stem: 'The central claim of the passage is that',
+            options: [
+              'antibiotics should never be prescribed because they damage the microbiome',
+              'humans contain more bacterial cells than human cells',
+              'the microbiome plays an active and underappreciated role in human biology',
+              'fecal transplants will eventually replace most pharmaceuticals',
+            ],
+            correctIdx: 2,
+            type: 'main idea',
+            explain: 'The passage builds toward "what was once dismissed as a tube of microbes is in fact one of the body\'s most important organs." A overstates a cautionary point; B is just one supporting fact; D extrapolates beyond the passage\'s claims.',
+            refLines: '¶4 sentence 4, ¶2 sentences 2–3',
+          },
+          {
+            stem: 'The germ-free mouse experiments described in paragraph 2 primarily serve to',
+            options: [
+              'demonstrate the cruelty of laboratory research',
+              'establish that microbes are necessary for normal development',
+              'prove that mice and humans have identical microbiomes',
+              'illustrate the dangers of antibiotic use',
+            ],
+            correctIdx: 1,
+            type: 'function',
+            explain: 'The mice raised without microbes had abnormal immunity, gut development, and behavior. The point of the experiments is the conclusion that follows: microbes are "active partners in nearly every body system." The experiments don\'t make the other claims.',
+            refLines: '¶2 sentences 2–3',
+          },
+          {
+            stem: 'The author\'s discussion of bacterial generation time (paragraph 3) is meant to',
+            options: [
+              'imply that humans should reproduce more quickly',
+              'argue that bacteria are more important than humans',
+              'explain why the human-microbe relationship is asymmetric in the bacteria\'s favor',
+              'describe the methodology used to study microbiomes',
+            ],
+            correctIdx: 2,
+            type: 'function',
+            explain: '"The relationship is not symmetrical" follows directly from the math: bacteria have had vastly more generations to fit themselves to us. The function is to explain WHY the human body has "offloaded" so much to bacteria.',
+            refLines: '¶3 sentences 2–4',
+          },
+          {
+            stem: 'The phrase "near-miraculous results" in paragraph 4 most directly supports the idea that',
+            options: [
+              'fecal transplants are a cure for all diseases',
+              'microbiome interventions can have dramatic clinical effects',
+              'the body\'s normal healing is supernatural',
+              'science cannot explain microbiome therapy',
+            ],
+            correctIdx: 1,
+            type: 'inference',
+            explain: '"Near-miraculous" is hyperbolic shorthand for "dramatic enough to be surprising." The passage does NOT claim universal effectiveness (A) or anything supernatural (C, D). The phrase supports the clinical-effects framing only.',
+            refLines: '¶4 sentence 3',
+          },
+        ],
+      },
+
+      {
+        id: 'paired-tech',
+        genre: 'Paired',
+        title: 'Two Views on Personal Productivity',
+        source: 'Two adapted op-eds, one from 2008 and one from 2024.',
+        blurb: 'Two writers, separated by sixteen years, reach different conclusions about productivity systems.',
+        paragraphs: [
+          [
+            '— Passage 1 (2008) —',
+            'Most knowledge workers, asked to describe a productive day, would name a half-dozen tasks completed and a desk left tidy.',
+            'These metrics describe motion, not direction.',
+            'A productive day is not one on which a great many small tasks have been crossed off; it is one on which a single difficult task has moved measurably forward, and the question worth asking each evening is not "how much did I do?" but "what did I move?"',
+          ],
+          [
+            'The discipline required to ask this question is unusual, because the small-task list is comforting.',
+            'It rewards us with frequent dopamine; it makes us appear busy to colleagues; it produces, if we let it, an entire career\'s worth of motion in service of objectives no one ever defined.',
+          ],
+          [
+            '— Passage 2 (2024) —',
+            'For sixteen years now, the productivity literature has been dominated by a single piece of advice: do less, but do the deep work.',
+            'The advice is excellent.',
+            'It is also, as currently practiced, a form of hiding.',
+          ],
+          [
+            'The professionals I know who have suffered most from the cult of "deep work" are those who have used it to avoid the small, boring, social labor of which a real career is also made.',
+            'They sequester themselves for four-hour writing blocks and produce essays that nobody reads, because the network through which essays are read consists almost entirely of the small interactions they have systematically declined.',
+            'The "shallow work" they once dismissed — the responsive email, the half-hour conversation, the tedious meeting — turns out to have been most of the actual work.',
+          ],
+        ],
+        questions: [
+          {
+            stem: 'The main idea of Passage 1 is that',
+            options: [
+              'small tasks are unimportant and should be eliminated entirely',
+              'productivity should be measured by progress on substantive work, not task volume',
+              'office workers should keep tidier desks',
+              'dopamine is a poor motivator',
+            ],
+            correctIdx: 1,
+            type: 'main idea',
+            explain: '"What did I move?" is the central reframe. The author critiques small-task counting but does not argue for eliminating small tasks (A). C and D are minor or incidental.',
+            refLines: 'P1 ¶1 sentence 3',
+          },
+          {
+            stem: 'Passage 2 most directly disagrees with Passage 1 on the question of whether',
+            options: [
+              'productivity matters in modern work',
+              'career advancement requires reading widely',
+              'the small interactions of office life are valuable in themselves',
+              'people should keep written task lists',
+            ],
+            correctIdx: 2,
+            type: 'comparison',
+            explain: 'Passage 1 treats small tasks as "comforting" distractions ("motion in service of objectives no one ever defined"). Passage 2 argues those same interactions "turn out to have been most of the actual work." The disagreement is precisely on the value of those small interactions.',
+            refLines: 'P1 ¶2; P2 ¶2 sentence 3',
+          },
+          {
+            stem: 'The author of Passage 2 uses the phrase "form of hiding" to suggest that deep-work advocates',
+            options: [
+              'are physically concealing themselves from coworkers',
+              'are using the advice as an excuse to avoid uncomfortable interpersonal work',
+              'have not actually read the deep-work literature',
+              'are misinterpreting the original advice',
+            ],
+            correctIdx: 1,
+            type: 'inference',
+            explain: 'The next sentence makes the meaning explicit: deep-work practitioners "have used it to avoid the small, boring, social labor of which a real career is also made." The hiding is from interpersonal effort, not literally physical (A) or about misinterpretation (C, D).',
+            refLines: 'P2 ¶1 sentence 4 → ¶2 sentence 1',
+          },
+          {
+            stem: 'Both passages would most likely agree that',
+            options: [
+              'doing fewer things is always better than doing more',
+              'the way work is measured changes how it is performed',
+              'meetings should be eliminated where possible',
+              'most professionals are unproductive',
+            ],
+            correctIdx: 1,
+            type: 'comparison',
+            explain: 'Passage 1 critiques task-volume metrics; Passage 2 critiques the deep-work counter-metric. Both authors are arguing that what we measure shapes what we do. They disagree on the right measure but agree on the meta-point.',
+            refLines: 'P1 ¶1 sentences 2–3; P2 ¶2 sentence 3',
+          },
+        ],
+      },
+    ];
+
+    /* ============================================================
+       State + persistence
+       ============================================================ */
+    const STATE_KEY = 'satrs_log_v1';
+    let state = {
+      view: 'landing',
+      passageId: null,
+      qIdx: 0,
+      timer: 0,
+      timerInterval: null,
+      answers: {},   // qIdx -> selectedIdx
+      log: {},       // passageId -> { bestTimeSec, lastScore, lastTotal, attempts }
+    };
+
+    function loadLog() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (raw) state.log = JSON.parse(raw) || {};
+      } catch (e) {}
+    }
+    function saveLog() {
+      try { localStorage.setItem(STATE_KEY, JSON.stringify(state.log)); } catch (e) {}
+    }
+
+    /* ============================================================
+       Routing
+       ============================================================ */
+    function showView(name) {
+      state.view = name;
+      document.querySelectorAll('.view').forEach(v => {
+        v.classList.toggle('active', v.dataset.view === name);
+      });
+      const crumb = document.getElementById('crumb-extra');
+      if (name === 'landing') crumb.textContent = '';
+      else if (name === 'read') {
+        const p = PASSAGES.find(p => p.id === state.passageId);
+        crumb.textContent = ' · ' + (p ? p.title : '');
+      } else if (name === 'results') {
+        crumb.textContent = ' · Results';
+      }
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    function goHome() {
+      stopTimer();
+      state.passageId = null;
+      state.qIdx = 0;
+      state.answers = {};
+      renderLanding();
+      showView('landing');
+    }
+
+    /* ============================================================
+       Landing
+       ============================================================ */
+    function renderLanding() {
+      const grid = document.getElementById('passage-grid');
+      grid.innerHTML = PASSAGES.map(p => {
+        const log = state.log[p.id];
+        const stars = log ? starsFromScore(log.lastScore, log.lastTotal) : 0;
+        const stargroup = '★★★'.split('').map((s, i) =>
+          i < stars ? '★' : '<span class="empty">★</span>'
+        ).join('');
+        const meta = log
+          ? `<span><b>${log.lastScore}/${log.lastTotal}</b></span><span>best ${formatTime(log.bestTimeSec)}</span>`
+          : `<span style="color:var(--ink-300)">Not started</span>`;
+        return `
+          <button class="passage-card" data-passage="${p.id}">
+            <span class="genre-pill">${p.genre}</span>
+            <h3>${p.title}</h3>
+            <p class="source">${p.source}</p>
+            <p class="blurb">${p.blurb}</p>
+            <div class="meta">${meta}<span class="stars">${stargroup}</span></div>
+          </button>`;
+      }).join('');
+      grid.querySelectorAll('.passage-card').forEach(c => {
+        c.addEventListener('click', () => openPassage(c.dataset.passage));
+      });
+
+      const totalQ = PASSAGES.reduce((a, p) => a + p.questions.length, 0);
+      document.getElementById('stat-passages').textContent = PASSAGES.length;
+      document.getElementById('stat-questions').textContent = totalQ;
+      document.getElementById('stat-stars').textContent = Object.values(state.log).reduce((a, l) => a + starsFromScore(l.lastScore, l.lastTotal), 0);
+    }
+
+    function starsFromScore(score, total) {
+      if (!total) return 0;
+      const ratio = score / total;
+      if (ratio >= 0.95) return 3;
+      if (ratio >= 0.8) return 2;
+      if (ratio >= 0.6) return 1;
+      return 0;
+    }
+
+    /* ============================================================
+       Open passage
+       ============================================================ */
+    function openPassage(id) {
+      const p = PASSAGES.find(p => p.id === id);
+      if (!p) return;
+      state.passageId = id;
+      state.qIdx = 0;
+      state.answers = {};
+      state.timer = 0;
+
+      document.getElementById('read-title').textContent = p.title;
+      document.getElementById('passage-source').innerHTML = `<strong>${p.genre}</strong> · ${p.source}`;
+      renderPassageText(p);
+      renderProgress();
+      renderQuestion();
+      startTimer();
+      showView('read');
+    }
+
+    function renderPassageText(p) {
+      const el = document.getElementById('passage-text');
+      let line = 1;
+      const html = p.paragraphs.map(para => {
+        const sentences = para.map(s => {
+          const lineMark = `<span class="line-num">${line}</span>`;
+          line++;
+          return lineMark + s;
+        }).join(' ');
+        return `<p>${sentences}</p>`;
+      }).join('');
+      el.innerHTML = html;
+    }
+
+    /* ============================================================
+       Timer
+       ============================================================ */
+    function startTimer() {
+      stopTimer();
+      const start = Date.now() - state.timer * 1000;
+      state.timerInterval = setInterval(() => {
+        state.timer = Math.floor((Date.now() - start) / 1000);
+        document.getElementById('timer-display').textContent = formatTime(state.timer);
+      }, 250);
+      document.getElementById('timer-display').textContent = formatTime(state.timer);
+    }
+    function stopTimer() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+    }
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    /* ============================================================
+       Render question + progress
+       ============================================================ */
+    function renderProgress() {
+      const p = currentPassage();
+      const row = document.getElementById('q-progress');
+      row.innerHTML = p.questions.map((_, i) => {
+        const ans = state.answers[i];
+        let cls = '';
+        if (i === state.qIdx) cls = 'active';
+        else if (ans !== undefined && ans === p.questions[i].correctIdx) cls = 'correct';
+        else if (ans !== undefined) cls = 'wrong';
+        return `<div class="q-dot ${cls}" data-qi="${i}">${i + 1}</div>`;
+      }).join('');
+      row.querySelectorAll('.q-dot').forEach(d => {
+        d.addEventListener('click', () => {
+          state.qIdx = parseInt(d.dataset.qi, 10);
+          renderProgress();
+          renderQuestion();
+        });
+      });
+    }
+
+    function currentPassage() { return PASSAGES.find(p => p.id === state.passageId); }
+
+    function renderQuestion() {
+      const p = currentPassage();
+      const q = p.questions[state.qIdx];
+      const card = document.getElementById('question-card');
+      const answered = state.answers.hasOwnProperty(state.qIdx);
+      const correct = answered && state.answers[state.qIdx] === q.correctIdx;
+
+      const optsHTML = q.options.map((opt, i) => {
+        let cls = 'option';
+        if (answered) {
+          cls += ' disabled';
+          if (i === q.correctIdx) cls += ' correct';
+          else if (i === state.answers[state.qIdx]) cls += ' wrong';
+        } else if (state.answers[state.qIdx] === i) {
+          cls += ' selected';
+        }
+        const letter = String.fromCharCode(65 + i);
+        return `<button class="${cls}" data-opt="${i}"><span class="letter">${letter}</span><span>${opt}</span></button>`;
+      }).join('');
+
+      const isLast = state.qIdx >= p.questions.length - 1;
+      const buttons = answered
+        ? `<button class="btn btn-ghost" data-action="prev-q">← Prev</button>
+           <button class="btn btn-${isLast ? 'crimson' : 'primary'}" data-action="${isLast ? 'finish' : 'next-q'}">${isLast ? 'See results →' : 'Next →'}</button>`
+        : `<button class="btn btn-ghost" data-action="prev-q" ${state.qIdx === 0 ? 'disabled' : ''}>← Prev</button>
+           <button class="btn btn-primary" data-action="submit" id="submit-btn" disabled>Submit</button>`;
+
+      card.innerHTML = `
+        <div class="q-stem">Q${state.qIdx + 1}. ${q.stem}</div>
+        <div class="options">${optsHTML}</div>
+        <div class="explanation ${answered ? 'show' : ''}">
+          <strong>${correct ? '✓ Correct.' : '✗ Not quite.'}</strong>
+          ${q.explain}
+          ${q.refLines ? `<div class="ref-lines">Reference: ${q.refLines}</div>` : ''}
+        </div>
+        <div class="q-actions">${buttons}</div>`;
+
+      // Wire option clicks
+      card.querySelectorAll('.option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          if (answered) return;
+          const idx = parseInt(opt.dataset.opt, 10);
+          // Pre-select (allow change before submit)
+          card.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          card.querySelector('#submit-btn').disabled = false;
+          state.answers[state.qIdx] = idx; // Tentative — converted to answered on submit
+          // But don't render explanation yet — only on submit
+          // Use a tentative flag
+          state._tentative = true;
+        });
+      });
+
+      // Wire actions
+      card.querySelectorAll('[data-action]').forEach(b => {
+        b.addEventListener('click', () => {
+          const a = b.dataset.action;
+          if (a === 'submit') submitAnswer();
+          else if (a === 'next-q') { state.qIdx++; renderProgress(); renderQuestion(); }
+          else if (a === 'prev-q') { state.qIdx = Math.max(0, state.qIdx - 1); renderProgress(); renderQuestion(); }
+          else if (a === 'finish') finishPassage();
+        });
+      });
+    }
+
+    function submitAnswer() {
+      if (!state.answers.hasOwnProperty(state.qIdx)) return;
+      // Mark as final by re-rendering with answered=true logic
+      state._tentative = false;
+      renderProgress();
+      renderQuestion();
+    }
+
+    /* ============================================================
+       Finish passage
+       ============================================================ */
+    function finishPassage() {
+      stopTimer();
+      const p = currentPassage();
+      const total = p.questions.length;
+      let correct = 0;
+      const detail = p.questions.map((q, i) => {
+        const ans = state.answers[i];
+        const isCorrect = ans === q.correctIdx;
+        if (isCorrect) correct++;
+        return { idx: i, stem: q.stem, picked: ans, correctIdx: q.correctIdx, isCorrect };
+      });
+
+      // Save
+      const prev = state.log[p.id] || {};
+      const bestTime = (prev.bestTimeSec && correct >= total * 0.8 && prev.bestTimeSec < state.timer)
+        ? prev.bestTimeSec
+        : (correct >= total * 0.8 ? state.timer : (prev.bestTimeSec || null));
+      state.log[p.id] = {
+        bestTimeSec: bestTime,
+        lastScore: correct,
+        lastTotal: total,
+        attempts: (prev.attempts || 0) + 1,
+        lastWhen: Date.now(),
+      };
+      saveLog();
+
+      // Render
+      document.getElementById('results-title').textContent = `${p.title}`;
+      document.getElementById('results-sub').textContent = `${p.genre} · ${p.source}`;
+      const stars = starsFromScore(correct, total);
+      document.getElementById('results-stars').innerHTML = '★★★'.split('').map((_, i) =>
+        i < stars ? '★' : '<span class="empty">★</span>').join('');
+      document.getElementById('results-correct').textContent = `${correct} / ${total}`;
+      document.getElementById('results-time').textContent = formatTime(state.timer);
+      document.getElementById('results-best').textContent = bestTime ? formatTime(bestTime) : '—';
+
+      const rows = document.getElementById('results-rows');
+      rows.innerHTML = detail.map(d => `
+        <div class="results-q-row">
+          <div class="ix">Q${d.idx + 1}</div>
+          <div class="stem">${d.stem}</div>
+          <div class="verdict-pill ${d.isCorrect ? 'correct' : 'wrong'}">${d.isCorrect ? '✓' : '✗'}</div>
+        </div>`).join('');
+
+      showView('results');
+    }
+
+    /* ============================================================
+       Wiring
+       ============================================================ */
+    function wireGlobal() {
+      document.body.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        if (action === 'home') goHome();
+        else if (action === 'retry') openPassage(state.passageId);
+      });
+    }
+
+    /* ============================================================
+       Boot
+       ============================================================ */
+    loadLog();
+    renderLanding();
+    wireGlobal();
+  })();
+  </script>
+</body>
+</html>

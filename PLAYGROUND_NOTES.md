@@ -24,7 +24,12 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html`
 13. [Bio Basics (Molecular Biology for Everyone)](#13-bio-basicshtml) — `bio-basics.html`
 14. [NiHao (Mandarin Learning Site)](#14-nihaohtml) — `nihao.html`
-15. [Cross-Project Patterns](#cross-project-patterns)
+15. [Pawn Path (Chess Tactics Trainer)](#15-pawn-pathhtml) — `pawn-path.html`
+16. [Speak Sharp (Public Speaking Coach)](#16-speak-sharphtml) — `speak-sharp.html`
+17. [Mortgage Lab (Home Affordability Suite)](#17-mortgage-labhtml) — `mortgage-lab.html`
+18. [SAT Reading Sprints (Test Prep)](#18-sat-readinghtml) — `sat-reading.html`
+19. [Interview Drill (Behavioral Practice)](#19-interview-drillhtml) — `interview-drill.html`
+20. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -1189,25 +1194,312 @@ Within M3: 3 decompose demos → 24-radical table → 3 compound-type cards → 
 
 ---
 
+## 15. `pawn-path.html`
+
+**Chess tactics trainer.** Themed sets of curated puzzles (forks, pins, skewers, mate-in-1, mate-in-2, discovered attacks). Click-to-select piece, click target square. Curated solutions are checked by from→to match — no chess engine required at runtime. Stars per theme + best times saved in `localStorage`.
+
+- **Lines:** ~1,580
+- **Layout:** Landing (theme grid) → puzzle (board + sidebar) → results
+- **Dependencies:** None — Unicode chess glyphs (♚♛♜♝♞♟), no images, no engine
+
+### Curriculum
+
+| Theme | Puzzles | Pattern |
+|-------|---------|---------|
+| Forks | 5 | One piece attacks two enemy pieces simultaneously |
+| Pins | 4 | Trap a piece against something more valuable |
+| Skewers | 4 | Force a high-value piece to move, win the piece behind |
+| Mate in 1 | 5 | Single-move checkmate patterns |
+| Mate in 2 | 3 | Sequence-puzzle warmups |
+| Discovered Attacks | 3 | Move one piece, unmask an attack from another |
+
+### Key JS Entry Points
+
+| Function | Purpose |
+|----------|---------|
+| `parseSquare`, `squareName`, `buildPosition`, `applyMove` | 8x8 board engine + algebraic ↔ index conversion |
+| `THEMES`, `PUZZLES` | All curated content (~25 puzzles, hand-set positions) |
+| `openTheme(id)` / `renderPuzzle()` | Theme flow, sets up board + sidebar |
+| `drawBoard()` | Renders 8x8 grid with target dots, last-move highlights, selected square |
+| `onSquareClick(sq)` / `attemptMove(from, to)` | Two-click move handling, success/failure flash |
+| `finishTheme()` | Computes stars (≥60% / ≥80% / 100%-no-hints), saves best time |
+
+### CSS Variables (wood + ivory palette)
+
+```css
+--wood-700 #5b3a25     --light-sq #f4e8d2     --gold-500 #c9982e
+--wood-500 #8a5a3a     --dark-sq  #b58863     --gold-400 #e9b94f
+--ivory-50 #fbf6ec     --ivory-100 #f4e8d2
+```
+
+Intentionally evocative of a real chess board (light/dark square colors match Lichess defaults). Gold accents for selected squares + earned stars.
+
+### Notes / Limitations
+
+- **No legality validation.** The trainer trusts the curated solution and only checks that user's `from→to` matches the expected `from→to`. A user trying an illegal move with the right squares would still register as correct — acceptable for a tactics trainer where finding the move IS the skill.
+- **No engine** means we can't auto-play the opponent's reply or verify mate. For mate-in-2 puzzles, only the user's first move is graded; the explanation describes the full sequence.
+- **Puzzle math is curated**, not generated — adding more puzzles is just appending to `PUZZLES[themeId]`.
+
+---
+
+## 16. `speak-sharp.html`
+
+**Public speaking coach.** Pick a 60-second prompt (10 across 5 categories: elevator pitch, story, persuasive, explanation, toast). Hit mic. The browser captures speech via `webkitSpeechRecognition` + analyzes pitch via `AnalyserNode` + autocorrelation (the same algorithm as nihao). Real-time WPM / fillers / pitch HUD + post-run report with coach-style notes.
+
+- **Lines:** ~1,540
+- **Layout:** Landing (prompt grid) → coach (prompt + mic + live HUD) → report (4-card score row + transcript with filler highlights + history)
+- **Dependencies:** `webkitSpeechRecognition` (Chrome / Safari / Edge), `AudioContext`, `getUserMedia`. Graceful degradation: no SR → pace + pitch still work; no mic → friendly warning.
+
+### Metric Stack
+
+| Metric | Computation |
+|--------|-------------|
+| WPM | `wordCount / elapsedSec * 60` |
+| Filler density | Count of `um/uh/like/so/you know/i mean/actually/basically/literally/right/kinda/sorta/whatever` per 100 words |
+| Pitch range (Hz) | 90th percentile − 10th percentile of valid pitch samples |
+| Mean pitch | Average of valid pitch samples (after dropping silence) |
+| Long pauses | Run of ≥ 8 consecutive null samples (~640 ms) |
+| Speaking fraction | Valid pitch samples / total samples |
+
+### Key JS Entry Points
+
+| Function | Purpose |
+|----------|---------|
+| `PROMPTS` | 10 prompts, each `{id, cat, title, text, tips}` |
+| `FILLERS` | Filler word/phrase list (longer phrases prioritized in regex match) |
+| `startRecording()` / `stopRecording()` | Mic + AudioContext + recognition lifecycle |
+| `samplePitch()` (every 80ms) → `autoCorrelate(buf, sampleRate)` | Pitch detection |
+| `drawPitchCanvas(series)` | Live pitch curve on dark canvas (gold line, Hz grid) |
+| `countFillers(text)` / `highlightFillers(text)` | Counting + visual highlighting |
+| `finishAttempt()` → `computeAdvice(metrics)` | Coach-style natural-language tips |
+
+### CSS Variables (sapphire + gold)
+
+```css
+--sapphire-700 #1c3e74    --gold-500 #d8a13b
+--sapphire-500 #3766b8    --gold-400 #e9b95a
+--sapphire-100 #dbe6f5    --gold-300 #f1cf86
+```
+
+Sapphire reads "professional / corporate"; gold accents for the live pitch curve and call-to-action highlights.
+
+### Persistence
+
+`localStorage['speaksharp_log_v1']` — `{ log: { promptId: [{when, wpm, fillers, words, pitchRange, meanPitch, durationSec, transcript}, ...] } }`. Capped at 20 attempts per prompt. The landing card shows the most recent attempt's WPM + filler count + relative timestamp.
+
+### Differences vs nihao (which also uses pitch detection)
+
+- nihao trains tone shape vs. a target curve; speak-sharp tracks free-form pitch range as a proxy for vocal expressiveness
+- nihao records ~3 seconds; speak-sharp records 30–120 seconds
+- speak-sharp adds `webkitSpeechRecognition` for transcript + filler detection (nihao does no transcription)
+
+---
+
+## 17. `mortgage-lab.html`
+
+**Home affordability calculator suite.** Four linked calculators in a tab UI: Payment (PITI + amortization), Affordability (28/36-rule reverse-solve), Rent vs. Buy (cumulative cost curves with opportunity cost on down payment), Refinance (break-even + monthly savings). All inputs persist to `localStorage` so users can come back and tweak.
+
+- **Lines:** ~1,680
+- **Layout:** Tab pills + per-tab two-column grid (form left, results right) — collapses < 900px
+- **Dependencies:** None — all charts drawn on Canvas with a generic `drawLineChart()`
+
+### Calculators
+
+| Tab | Inputs | Output highlights |
+|-----|--------|-------------------|
+| **Payment** | price, down, rate, term, tax, ins, HOA | PITI total, P&I, PMI (auto if LTV > 80%), total interest paid, balance-over-time chart, yearly amortization table |
+| **Affordability** | income, front/back ratios, debts, down, rate, term, tax-rate | Max home price, target monthly housing, available P&I after tax + insurance, max-price-by-rate sweep chart with marker on user's rate |
+| **Rent vs. Buy** | rent + growth, price, down, rate, appreciation, invest return, tax %, maintenance %, holding years | Total renting cost, total net buying cost (cumulative housing − equity built + 6% sale cost), break-even year, equity at exit, dual-line cost-over-time chart |
+| **Refinance** | current balance/rate/years remaining, new rate/term, closing costs | Monthly savings, break-even (months), cumulative cost: keep vs refinance |
+
+### Math Helpers
+
+| Function | Purpose |
+|----------|---------|
+| `pmt(principal, annualRate, years)` | Standard amortizing-loan monthly payment |
+| `amortSchedule(principal, annualRate, years)` | Per-month interest/principal/balance breakdown |
+| `drawLineChart(canvas, series, opts)` | Generic Canvas line chart — auto-scales, draws grid, supports vertical marker line |
+| `fmtCurrency(n, decimals)` | `Intl.NumberFormat` USD formatter |
+
+### Persistence
+
+`localStorage['mortlab_inputs_v1']` — full input state per tab. `DEFAULTS` ships with realistic 2025-era US numbers ($600k home, 6.75% rate, 1.1% property tax). Inputs save on every change (debounced 80ms together with re-render).
+
+### CSS Variables (teal + amber)
+
+```css
+--teal-700 #1a574e     --amber-500 #d68b1d
+--teal-500 #2d8a78     --amber-400 #e7a548
+--teal-100 #cfeae3     --amber-100 #fae6c2
+```
+
+Teal reads "money / growth"; amber is used for warning-tone metrics (interest paid, "keep current" line in refinance chart).
+
+### Notes
+
+- PMI estimated at 0.75% annual of loan amount — actual rate depends on credit score / lender.
+- Maintenance estimated at user-input %/yr of home value (default 1%).
+- Insurance estimated at 0.5%/yr of home value (where not directly entered).
+- Footer disclaimer notes these are estimates and to confirm with a lender.
+
+---
+
+## 18. `sat-reading.html`
+
+**SAT reading practice with timed passages and detailed explanations.** 5 SAT-style passages (literature, social science, history, science, paired) with 4–5 questions each. Question types modeled: main idea, function, vocabulary in context, inference, evidence support, comparison (paired only). Timer runs while reading; submission reveals a per-question explanation that calls out *why* each wrong answer is wrong.
+
+- **Lines:** ~1,485
+- **Layout:** Landing (passage cards) → read (passage + sticky question rail) → results (per-question summary + stars)
+- **Dependencies:** None
+
+### Passages (curated, original)
+
+| ID | Genre | Source framing | Q count |
+|----|-------|----------------|---------|
+| `lit-grandmother` | Literature | Adapted contemporary short story (granddaughter + posthumous letter) | 5 |
+| `social-attention` | Social Science | 2024 op-ed on the "attention economy" framing | 5 |
+| `history-document` | History | 19th-century essay on the limits of natural philosophy | 4 |
+| `science-microbiome` | Science | Popular-science article on the human microbiome | 4 |
+| `paired-tech` | Paired | Two productivity op-eds (2008 + 2024) | 4 |
+
+**Total: 22 questions across 5 passages.** Passages are deliberately NOT actual SAT released material — they\'re original prose written to mimic SAT difficulty (quasi-formal register, ~250–400 words, layered argumentation).
+
+### Question Types Modeled
+
+| Type | What it tests |
+|------|---------------|
+| `main idea` | Overall purpose of the passage |
+| `function` | What a specific element (paragraph, example, phrase) does in the argument |
+| `vocab` | Word meaning in the passage's specific context (not dictionary default) |
+| `inference` | Reasonable conclusion from textual evidence |
+| `evidence` | Which specific quote best supports a previous answer |
+| `comparison` | Cross-passage agreement / disagreement (paired only) |
+
+### Key JS Entry Points
+
+| Function | Purpose |
+|----------|---------|
+| `PASSAGES` | All passage data: id, genre, title, source, blurb, paragraphs (sentence-arrays for line numbering), questions[] |
+| `renderPassageText(p)` | Walks paragraphs, prepends per-sentence line-number markers (`<span class="line-num">N</span>`) |
+| `openPassage(id)` | Resets state, renders passage + first question, starts timer |
+| `submitAnswer()` | Locks in selection, reveals explanation + correct/wrong styling |
+| `finishPassage()` | Computes score, awards stars (≥95% → 3, ≥80% → 2, ≥60% → 1), updates best time |
+
+### CSS Variables (navy + paper + crimson)
+
+```css
+--navy-800 #102b54       --crimson-500 #b8324a
+--navy-700 #1c3e74       --paper #fffdf8
+--navy-100 #d8e3f3       --bg #faf6ec
+--gold-500 #cf9a2c       --serif Iowan Old Style → Palatino → Georgia
+```
+
+Editorial palette — paper-cream background, serif body for passages, navy chrome. Crimson is the accent for "primary action" buttons (Retry, See results), distinct from the passage-genre pills.
+
+### Persistence
+
+`localStorage['satrs_log_v1']` — per-passage `{ bestTimeSec, lastScore, lastTotal, attempts, lastWhen }`. Best time only updates when the run is ≥ 80% accurate (so a fast-but-wrong run doesn't ruin the record).
+
+### Differences vs math-ace
+
+- **Reading is deeper, problem count is smaller** — math-ace drills 15 problems per topic; sat-reading is 4–5 questions per passage. Different optimal UX.
+- **Explanations are part of the product**, not a compliance line at the end. Each wrong answer gets a sentence explaining the trap.
+- **No streak / star pressure during the run** — stars only land at the results screen.
+
+---
+
+## 19. `interview-drill.html`
+
+**Behavioral interview practice with STAR scaffolding and mic feedback.** 20 questions across 6 categories (Leadership, Conflict, Failure, Initiative, Ambiguity, Career fit). Browser TTS reads the question; mic captures the answer; metrics + STAR-section coverage are graded after. Per-question STAR notes save automatically.
+
+- **Lines:** ~1,460
+- **Layout:** Landing (category nav + question list) → drill (question + STAR card + mic + transcript) → report (4-card scores + STAR coverage + coach notes + transcript)
+- **Dependencies:** `speechSynthesis` (TTS for question read-aloud), `webkitSpeechRecognition` (transcript), `getUserMedia` (mic). Same graceful-degrade fallback as speak-sharp.
+
+### Question Library (20 questions × 6 categories)
+
+| Category | Sample question | What it tests |
+|----------|-----------------|---------------|
+| Leadership | "Tell me about a time you led a team through a difficult challenge" | Ownership verbs ("I decided", "I owned") |
+| Conflict | "Describe a conflict with a coworker" | Empathy for the other side |
+| Failure | "Tell me about a project that didn\'t go well" | Real ownership, not "we shipped late" hedging |
+| Initiative | "Describe a problem nobody else saw" | Insight + execution combined |
+| Ambiguity | "Decision without all the information" | Frame the trade-off explicitly |
+| Career fit | "Why this role and this company?" | Specific homework, not generic enthusiasm |
+
+Each question carries a `listenFor` field — interviewer-side notes about what the question is *really* probing.
+
+### STAR Coverage Detection
+
+| Section | Trigger phrases |
+|---------|-----------------|
+| Situation | "the situation", "context", "background", "i was working", "last quarter", … |
+| Task | "my task", "my job was", "i was responsible", "the goal was", "we needed to", … |
+| Action | "what i did", "i decided", "so i", "first i", "i pushed for", "i suggested", … |
+| Result | "the result", "in the end", "ultimately", "we shipped", "what i learned", … |
+
+Detection is presence-of-trigger only (substring match in lowercased transcript). The four-bar STAR display in the report shows hits/misses, and the coach-feedback function calls out missing sections specifically.
+
+### Key JS Entry Points
+
+| Function | Purpose |
+|----------|---------|
+| `QUESTIONS` | 20 entries `{id, cat, stem, listenFor}` |
+| `STAR_TRIGGERS` | Section → phrase list lookup table |
+| `speakQuestion()` | Reads stem via `speechSynthesis` (en-US, rate 0.95) |
+| `startRecording()` / `stopRecording()` / `startRecognition()` | Same shape as speak-sharp |
+| `detectStarCoverage(text)` | Walks STAR_TRIGGERS, returns `{S: bool, T: bool, A: bool, R: bool}` |
+| `computeAdvice(metrics, question)` | Category-aware coach notes (e.g. failure questions warn if no Result detected) |
+
+### CSS Variables (forest green + cream + gold)
+
+```css
+--forest-700 #1d4a3c    --gold-500 #c9952a
+--forest-500 #2e7158    --gold-400 #ddb154
+--forest-100 #d4ebde    --gold-100 #f9ecc7
+```
+
+Forest green reads "career / growth"; gold accents for STAR letters and CTA buttons.
+
+### Persistence
+
+- `localStorage['intdrill_log_v1']` — per-question history `[{wpm, fillers, fillerPer100, words, durationSec, starCoverage, transcript, when}, ...]`, capped at 20.
+- `localStorage['intdrill_notes_v1']` — per-question STAR notes `{ qId: { S: '', T: '', A: '', R: '' } }`. Saves on input (debounced 500ms).
+
+### Differences vs speak-sharp
+
+- **STAR-aware**: speak-sharp grades pace + fillers; interview-drill adds structural detection specific to behavioral answers.
+- **TTS reads the question**: simulates the actual interview moment — listening, then responding under time pressure.
+- **Persistent prep notes**: each question keeps your written STAR draft. Speak-sharp has no per-prompt notes (the prompts are already given).
+- **Categorized**: questions filter by category, mirroring how you\'d practice for a real interview round (focus on leadership-heavy or conflict-heavy preps).
+
+---
+
+
+
 ## Cross-Project Patterns
 
 | Pattern | Where |
 |---------|-------|
-| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics, nihao |
+| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics, nihao, pawn-path, speak-sharp, sat-reading, interview-drill |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
-| **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), slot machines (none — DOM), spades (none — DOM) |
+| **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), mortgage-lab (line charts), speak-sharp (live pitch curve) |
 | **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare), nihao (tone tracks, live pitch curves) |
+| **Unicode glyphs as art** | pawn-path (chess pieces ♚♛♜♝♞♟ — no images at all) |
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
-| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map) |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map), pawn-path (stars + best times per theme), speak-sharp (per-prompt history), mortgage-lab (input state per tab), sat-reading (per-passage best time + score), interview-drill (per-question history + STAR notes) |
 | **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow), nihao (single-module 6-scene flow, no landing) |
 | **Microphone input + pitch analysis** | nihao (autocorrelation; first project to capture mic input for shape-based grading) |
-| **Web Speech API (TTS + recognition)** | habla-clara (TTS + recognition), nihao (TTS-only fallback when MP3 audio missing) |
+| **Web Speech API (TTS + recognition)** | habla-clara (TTS + recognition), nihao (TTS-only fallback when MP3 audio missing), speak-sharp (recognition for transcript), interview-drill (TTS asks question + recognition for answer) |
+| **Pitch detection (autocorrelate)** | nihao (tone trainer), speak-sharp (vocal-range metric) |
 | **No build step / no framework** | Every project |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
 | **Chrome extension (MV3) / content script** | youtube-smart-skip only |
 | **`chrome.storage.sync` for settings** | youtube-smart-skip only |
+| **Tabbed multi-calculator UI** | mortgage-lab (4 calculators in one file) |
+| **Curated content (no procedural gen)** | pawn-path (chess puzzles), sat-reading (passages), interview-drill (behavioral questions) |
 
 ### File Size Summary
 
@@ -1221,6 +1513,11 @@ Within M3: 3 decompose demos → 24-radical table → 3 compound-type cards → 
 | math-ace.html | 2,766 | K–5 math tutor |
 | bio-basics.html | 4,120 | Molecular biology learning site |
 | nihao.html | 4,158 | Mandarin learning site (tones, pinyin, radicals — 3 of 11 modules) |
+| pawn-path.html | 1,580 | Chess tactics trainer (6 themes, ~25 puzzles) |
+| speak-sharp.html | 1,540 | Public speaking coach (10 prompts, mic-graded) |
+| mortgage-lab.html | 1,680 | Home affordability calculator suite (4 tabs) |
+| sat-reading.html | 1,485 | SAT reading practice (5 passages, 22 questions) |
+| interview-drill.html | 1,460 | Behavioral interview practice (20 questions, STAR-aware) |
 | slot-machine-memes.html | 1,754 | Slot game |
 | glow-studio-easy.html | 1,662 | Photo editor |
 | glow-studio-video.html | 1,713 | Video editor |
@@ -1235,7 +1532,9 @@ Within M3: 3 decompose demos → 24-radical table → 3 compound-type cards → 
 | youtube-smart-skip/content.css | 64 | Extension toast styling |
 | youtube-smart-skip/README.md | 55 | Extension docs |
 | youtube-smart-skip/manifest.json | 21 | Extension manifest (MV3) |
-| **Total** | **24,167** | |
+| **Total documented** | **31,917** | |
+
+> Note: file size summary documents the projects covered in the sections above. Other projects in the repo (`fridge-feast.html`, `violin-voyage.html`, `money-smarts.html`, `hello.html`, `slop-shield/`, `stock-screener/`) exist but aren\'t fully indexed here yet — open them directly to see their own header comments.
 
 ### Quick `grep` recipes
 

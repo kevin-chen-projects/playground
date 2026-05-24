@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Speak Sharp — Public Speaking Coach
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+  Microphone access requires HTTPS or localhost (file:// also works locally).
+
+  WHAT IT IS
+  ==============================================================================
+  A spoken-language coach. Pick a prompt, hit record, talk for 30-90 seconds.
+  Speak Sharp listens with a) `webkitSpeechRecognition` for transcript and
+  b) `AnalyserNode` + autocorrelation for live pitch tracking. After you stop,
+  it surfaces a coach-style report:
+    - Words per minute (target: 130-160 for clarity, 160-200 for energy)
+    - Filler-word count + density (uh/um/like/so/you know/literally/...)
+    - Pitch variation (monotone vs. expressive)
+    - Pause behavior (long-pause count)
+    - Suggested fixes
+
+  10 curated prompts across 5 categories: elevator pitch, story, persuasive,
+  explanation, gratitude/toast.
+
+  Past attempts are saved per prompt with metric history → see your trend.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+     1–45    Header comment (this block)
+    47–53    <head>: meta, title
+
+  STYLE  (~lines 54–680)
+    :root            palette (sapphire + accent gold + neutrals), radii, shadows
+    Reset + base
+    .top-bar         brand mark + breadcrumb
+    Buttons          .btn variants
+    Landing view     hero, prompt category cards, "how it works"
+    Prompt card      icon, title, subtitle, last-attempt summary
+    Coach view       prompt panel, mic UI, live readout, pitch canvas
+    Mic button       big circle with pulsing record state
+    Live HUD         WPM, fillers, pitch — update in real time
+    Report view      transcript with filler-word highlights, metric cards,
+                     coach feedback, attempts history
+    Animations       pulse, bars, live-cursor, fadeIn
+
+  BODY  (~lines 690–810)
+    .top-bar
+    .view.view-landing
+    .view.view-coach
+    .view.view-report
+
+  SCRIPT  (~lines 820–end, single IIFE)
+    State          { view, promptId, recording, micStream, recognition,
+                     transcript, metrics, pitchSeries, pauseSeries, log }
+    Persistence    localStorage['speaksharp_log_v1']
+    PROMPTS        10 prompts grouped by 5 categories
+    FILLERS        word list with multipliers
+    Audio          startMic() / stopMic(), AnalyserNode + autoCorrelate
+    Recognition    startRecognition() / stopRecognition()
+    Render         renderLanding / renderCoach / renderReport
+    Coach feedback computeAdvice(metrics) → list of short tips
+    Boot           wire clicks, restore log
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speak Sharp — Public Speaking Coach</title>
+  <style>
+    :root {
+      --sapphire-900: #0c1e3d;
+      --sapphire-800: #122b54;
+      --sapphire-700: #1c3e74;
+      --sapphire-500: #3766b8;
+      --sapphire-300: #84a8de;
+      --sapphire-100: #dbe6f5;
+      --sapphire-50:  #eff4fb;
+
+      --gold-500: #d8a13b;
+      --gold-400: #e9b95a;
+      --gold-300: #f1cf86;
+      --gold-100: #faecc7;
+
+      --good: #2f9e6e;
+      --good-light: #d2efe1;
+      --warn: #d68b1f;
+      --warn-light: #fae6c2;
+      --bad: #c84a4a;
+      --bad-light: #f7d8d8;
+
+      --ink-900: #0a1226;
+      --ink-700: #2c3856;
+      --ink-500: #647088;
+      --ink-300: #a3acbf;
+      --ink-100: #d8dde8;
+
+      --paper: #ffffff;
+      --bg: #f6f8fc;
+
+      --radius-sm: 10px;
+      --radius: 16px;
+      --radius-lg: 24px;
+      --shadow-sm: 0 1px 3px rgba(15, 35, 80, 0.06);
+      --shadow: 0 8px 24px rgba(15, 35, 80, 0.10);
+      --shadow-lg: 0 20px 48px rgba(15, 35, 80, 0.16);
+
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    body {
+      background:
+        radial-gradient(circle at 12% 0%, var(--sapphire-100) 0%, transparent 40%),
+        radial-gradient(circle at 88% 100%, var(--gold-100) 0%, transparent 40%),
+        var(--bg);
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--sapphire-700);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary:hover { background: var(--sapphire-800); box-shadow: var(--shadow); }
+    .btn-gold {
+      background: var(--gold-500);
+      color: var(--ink-900);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-gold:hover { background: var(--gold-400); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-700);
+      border: 1.5px solid var(--ink-100);
+    }
+    .btn-ghost:hover { border-color: var(--sapphire-500); color: var(--sapphire-700); }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--sapphire-700), var(--sapphire-500));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+    .brand-name em { color: var(--gold-500); font-style: italic; }
+    .breadcrumb { color: var(--ink-500); font-size: 14px; }
+    .breadcrumb a { color: var(--ink-700); cursor: pointer; text-decoration: none; }
+    .breadcrumb a:hover { color: var(--sapphire-700); }
+
+    .view {
+      display: none;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 28px 80px;
+    }
+    .view.active { display: block; }
+
+    /* ============================================================
+       Landing
+       ============================================================ */
+    .hero {
+      padding: 16px 0 32px;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--sapphire-100);
+      color: var(--sapphire-700);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(36px, 6vw, 56px);
+      margin: 0 0 12px;
+      line-height: 1.05;
+      max-width: 720px;
+    }
+    .hero h1 em { color: var(--sapphire-700); font-style: italic; }
+    .hero-sub {
+      font-size: 18px;
+      color: var(--ink-700);
+      max-width: 600px;
+      margin: 0 0 20px;
+    }
+    .browser-warn {
+      background: var(--warn-light);
+      color: #7a4f0d;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      margin: 0 0 16px;
+      max-width: 560px;
+      display: none;
+    }
+
+    .section-title {
+      font-family: var(--serif);
+      font-size: 22px;
+      margin: 36px 0 12px;
+      color: var(--ink-900);
+    }
+    .section-sub {
+      color: var(--ink-500);
+      margin: 0 0 18px;
+      font-size: 14px;
+    }
+
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .prompt-card {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 18px 18px 16px;
+      text-align: left;
+      border: 1.5px solid var(--ink-100);
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.2s, border-color 0.2s;
+      position: relative;
+    }
+    .prompt-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+      border-color: var(--sapphire-300);
+    }
+    .prompt-card .cat-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--sapphire-100);
+      color: var(--sapphire-700);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .prompt-card h3 {
+      margin: 0 0 6px;
+      font-family: var(--serif);
+      font-size: 19px;
+    }
+    .prompt-card p {
+      color: var(--ink-700);
+      font-size: 14px;
+      margin: 0 0 12px;
+    }
+    .prompt-card .last-meta {
+      font-size: 12px;
+      color: var(--ink-500);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      border-top: 1px solid var(--ink-100);
+      padding-top: 10px;
+      margin-top: auto;
+    }
+    .prompt-card .last-meta b { color: var(--sapphire-700); font-weight: 700; }
+
+    .how-panel {
+      margin-top: 36px;
+      background: var(--sapphire-900);
+      color: var(--sapphire-100);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 22px;
+    }
+    .how-panel .step-num {
+      display: inline-grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--gold-500);
+      color: var(--ink-900);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .how-panel h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 6px;
+      color: white;
+    }
+    .how-panel p { margin: 0; font-size: 14px; opacity: 0.85; }
+
+    /* ============================================================
+       Coach view
+       ============================================================ */
+    .coach-prompt {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin: 24px 0;
+      border: 1px solid var(--ink-100);
+    }
+    .coach-prompt .cat-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--sapphire-100);
+      color: var(--sapphire-700);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .coach-prompt h2 {
+      margin: 0 0 8px;
+      font-family: var(--serif);
+      font-size: 26px;
+    }
+    .coach-prompt .prompt-text {
+      font-size: 17px;
+      color: var(--ink-700);
+      margin: 0 0 12px;
+      line-height: 1.55;
+    }
+    .coach-prompt .prompt-tips {
+      font-size: 13px;
+      color: var(--ink-500);
+      background: var(--sapphire-50);
+      padding: 10px 14px;
+      border-radius: 10px;
+      border-left: 3px solid var(--sapphire-500);
+    }
+
+    .mic-area {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--ink-100);
+    }
+    .mic-button {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: var(--sapphire-700);
+      color: white;
+      font-size: 36px;
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 6px 14px rgba(28, 62, 116, 0.3);
+    }
+    .mic-button:hover { transform: scale(1.05); }
+    .mic-button.recording {
+      background: var(--bad);
+      animation: micPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(200, 74, 74, 0.55); }
+      50% { box-shadow: 0 0 0 18px rgba(200, 74, 74, 0); }
+    }
+    .mic-status {
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--ink-500);
+    }
+    .mic-status.recording { color: var(--bad); font-weight: 600; }
+    .timer {
+      font-family: var(--serif);
+      font-size: 30px;
+      color: var(--sapphire-700);
+      margin: 14px 0 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .pitch-canvas-wrap {
+      width: 100%;
+      max-width: 720px;
+      margin: 18px auto 0;
+      background: var(--sapphire-900);
+      border-radius: var(--radius);
+      padding: 8px;
+      position: relative;
+      height: 120px;
+    }
+    .pitch-canvas-wrap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 10px;
+    }
+    .pitch-legend {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      color: var(--gold-300);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .live-hud {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 14px;
+      margin: 18px 0 0;
+    }
+    .hud-cell {
+      background: var(--sapphire-50);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      text-align: left;
+    }
+    .hud-cell .label {
+      font-size: 11px;
+      color: var(--ink-500);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .hud-cell .value {
+      font-family: var(--serif);
+      font-size: 26px;
+      color: var(--sapphire-800);
+      font-weight: 700;
+    }
+    .hud-cell .unit {
+      font-size: 12px;
+      color: var(--ink-500);
+      margin-left: 4px;
+    }
+
+    .live-transcript {
+      margin-top: 18px;
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--ink-700);
+      text-align: left;
+      min-height: 40px;
+      border: 1px dashed var(--ink-100);
+    }
+    .live-transcript:empty::before {
+      content: "Your words will appear here as you speak…";
+      color: var(--ink-300);
+      font-style: italic;
+    }
+    .filler { background: rgba(216, 161, 59, 0.28); border-radius: 4px; padding: 0 4px; }
+
+    .actions-row {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================================
+       Report view
+       ============================================================ */
+    .report-grid {
+      display: grid;
+      gap: 18px;
+      margin: 24px 0;
+    }
+    .score-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    .score-card {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 18px;
+      border: 1px solid var(--ink-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .score-card .label {
+      font-size: 11px;
+      color: var(--ink-500);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .score-card .value {
+      font-family: var(--serif);
+      font-size: 32px;
+      font-weight: 700;
+      margin: 6px 0 4px;
+      color: var(--ink-900);
+    }
+    .score-card .value .small { font-size: 16px; color: var(--ink-500); }
+    .score-card .verdict {
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+    .score-card .verdict.good { background: var(--good-light); color: var(--good); }
+    .score-card .verdict.warn { background: var(--warn-light); color: var(--warn); }
+    .score-card .verdict.bad  { background: var(--bad-light); color: var(--bad); }
+
+    .coach-feedback {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid var(--ink-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .coach-feedback h3 {
+      font-family: var(--serif);
+      font-size: 20px;
+      margin: 0 0 12px;
+    }
+    .coach-feedback ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .coach-feedback li {
+      padding: 10px 0 10px 30px;
+      position: relative;
+      border-top: 1px solid var(--ink-100);
+      font-size: 14px;
+      color: var(--ink-700);
+    }
+    .coach-feedback li:first-child { border-top: 0; }
+    .coach-feedback li::before {
+      content: "→";
+      position: absolute;
+      left: 4px;
+      top: 10px;
+      color: var(--gold-500);
+      font-weight: 800;
+    }
+
+    .transcript-card {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid var(--ink-100);
+    }
+    .transcript-card h3 {
+      font-family: var(--serif);
+      font-size: 20px;
+      margin: 0 0 6px;
+    }
+    .transcript-card .transcript-meta {
+      font-size: 12px;
+      color: var(--ink-500);
+      margin-bottom: 10px;
+    }
+    .transcript-text {
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--ink-700);
+    }
+    .transcript-empty {
+      color: var(--ink-300);
+      font-style: italic;
+    }
+
+    .history-card {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid var(--ink-100);
+    }
+    .history-card h3 {
+      font-family: var(--serif);
+      font-size: 20px;
+      margin: 0 0 12px;
+    }
+    .history-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 80px 80px;
+      gap: 12px;
+      padding: 8px 0;
+      border-top: 1px solid var(--ink-100);
+      font-size: 13px;
+      align-items: center;
+    }
+    .history-row:first-of-type { border-top: 0; }
+    .history-row .when { color: var(--ink-500); }
+    .history-row .num { font-family: ui-monospace, SF Mono, Menlo, monospace; }
+    .history-row .num b { color: var(--sapphire-700); }
+    .history-empty { color: var(--ink-500); font-style: italic; }
+
+    @media (max-width: 640px) {
+      .top-bar { padding: 12px 16px; }
+      .view { padding: 12px 16px 60px; }
+      .hero h1 { font-size: 32px; }
+      .coach-prompt h2 { font-size: 22px; }
+      .timer { font-size: 24px; }
+      .history-row { grid-template-columns: 1fr 60px 60px 60px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="brand" data-action="home">
+      <div class="brand-mark">●</div>
+      <div class="brand-name">Speak <em>Sharp</em></div>
+    </div>
+    <div class="breadcrumb"><a data-action="home">Home</a> <span id="crumb-extra"></span></div>
+  </div>
+
+  <!-- ============================================================
+       Landing
+       ============================================================ -->
+  <div class="view view-landing active" data-view="landing">
+    <div class="hero">
+      <span class="hero-eyebrow">Live coaching · Local-only · Private</span>
+      <h1>Hear what your audience <em>actually hears</em>.</h1>
+      <p class="hero-sub">Pick a prompt. Hit the mic. Get coached on pace, filler words, pitch range, and pauses — instantly. Nothing leaves your browser.</p>
+      <div class="browser-warn" id="browser-warn"></div>
+    </div>
+
+    <h2 class="section-title">Pick a prompt</h2>
+    <p class="section-sub">Each prompt is 30–90 seconds. Speak as if you're in the room with someone.</p>
+    <div class="prompt-grid" id="prompt-grid"></div>
+
+    <div class="how-panel">
+      <div>
+        <span class="step-num">1</span>
+        <h3>Speak naturally</h3>
+        <p>Pick one of ten prompts. The mic listens for words, pace, pitch, and pauses while you speak.</p>
+      </div>
+      <div>
+        <span class="step-num">2</span>
+        <h3>See your habits</h3>
+        <p>Your transcript is highlighted by filler word. Live readouts show pace, pitch range, and length.</p>
+      </div>
+      <div>
+        <span class="step-num">3</span>
+        <h3>Improve every run</h3>
+        <p>Coach feedback names the top 2–3 things to try next. History tracks your trend across attempts.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Coach view
+       ============================================================ -->
+  <div class="view view-coach" data-view="coach">
+    <div class="coach-prompt">
+      <span class="cat-pill" id="coach-cat">—</span>
+      <h2 id="coach-title">—</h2>
+      <p class="prompt-text" id="coach-text">—</p>
+      <div class="prompt-tips" id="coach-tips">—</div>
+    </div>
+
+    <div class="mic-area">
+      <button class="mic-button" id="mic-btn" aria-label="Record">●</button>
+      <div class="timer" id="coach-timer">0:00</div>
+      <div class="mic-status" id="coach-status">Tap the mic when you're ready.</div>
+
+      <div class="pitch-canvas-wrap">
+        <span class="pitch-legend">Live pitch</span>
+        <canvas id="pitch-canvas" width="720" height="120"></canvas>
+      </div>
+
+      <div class="live-hud">
+        <div class="hud-cell">
+          <div class="label">Pace</div>
+          <div class="value"><span id="hud-wpm">—</span><span class="unit">wpm</span></div>
+        </div>
+        <div class="hud-cell">
+          <div class="label">Fillers</div>
+          <div class="value"><span id="hud-fillers">—</span></div>
+        </div>
+        <div class="hud-cell">
+          <div class="label">Words</div>
+          <div class="value"><span id="hud-words">—</span></div>
+        </div>
+        <div class="hud-cell">
+          <div class="label">Pitch range</div>
+          <div class="value"><span id="hud-pitch">—</span><span class="unit">Hz</span></div>
+        </div>
+      </div>
+
+      <div class="live-transcript" id="coach-transcript"></div>
+
+      <div class="actions-row">
+        <button class="btn btn-ghost" data-action="restart">Restart</button>
+        <button class="btn btn-primary" data-action="finish" id="finish-btn" disabled>Get report →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Report view
+       ============================================================ -->
+  <div class="view view-report" data-view="report">
+    <h2 class="section-title" style="margin-top:8px;">Your run</h2>
+    <p class="section-sub" id="report-prompt">—</p>
+
+    <div class="report-grid">
+      <div class="score-row" id="score-row"></div>
+      <div class="coach-feedback">
+        <h3>Coach notes</h3>
+        <ul id="coach-notes"></ul>
+      </div>
+      <div class="transcript-card">
+        <h3>Transcript</h3>
+        <div class="transcript-meta" id="transcript-meta">—</div>
+        <div class="transcript-text" id="transcript-text"></div>
+      </div>
+      <div class="history-card">
+        <h3>Past attempts on this prompt</h3>
+        <div id="history-list"></div>
+      </div>
+    </div>
+
+    <div class="actions-row" style="justify-content:flex-start;">
+      <button class="btn btn-ghost" data-action="home">All prompts</button>
+      <button class="btn btn-gold" data-action="retry">Try again →</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       PROMPTS — 10 across 5 categories
+       ============================================================ */
+    const PROMPTS = [
+      {
+        id: 'elev-self',
+        cat: 'Elevator pitch',
+        title: 'Introduce yourself in 60 seconds',
+        text: 'Imagine you just met someone at a conference. They asked, "What do you do?" Tell them — what you work on, what you find interesting about it, and what you\'re looking for next.',
+        tips: 'Try to avoid starting with "So…". Land on a clear "what I\'m looking for" line at the end.',
+      },
+      {
+        id: 'elev-product',
+        cat: 'Elevator pitch',
+        title: 'Pitch a product or project',
+        text: 'Pick something you\'ve worked on. Explain in 60 seconds: what it is, who it\'s for, why it matters, and one concrete result. No jargon.',
+        tips: 'A strong pitch has a clear "for X who struggle with Y" sentence.',
+      },
+      {
+        id: 'story-childhood',
+        cat: 'Story',
+        title: 'A story from your childhood',
+        text: 'Tell a 60-second story from when you were a kid. Aim for a beginning ("I was eight, in my grandma\'s kitchen..."), a turning point, and a small reflection at the end.',
+        tips: 'Slow down at the turning point. Stories breathe better with one or two pauses.',
+      },
+      {
+        id: 'story-failure',
+        cat: 'Story',
+        title: 'A time something didn\'t work out',
+        text: 'Describe a project, plan, or trip that went sideways. What went wrong, what you did, and what you learned. Don\'t hide the messy part — that\'s the story.',
+        tips: 'Vary your pace. The "things falling apart" middle should sound different from your calm reflection.',
+      },
+      {
+        id: 'persuade-cause',
+        cat: 'Persuasive',
+        title: 'Persuade me about a cause you care about',
+        text: 'Pick something you genuinely believe in — a habit, a piece of software, a book, a cause. In 60 seconds, persuade me to care too. Use a concrete example.',
+        tips: 'Persuasive speech rewards pitch range. Land your strongest sentence with a lower, slower delivery.',
+      },
+      {
+        id: 'persuade-recommend',
+        cat: 'Persuasive',
+        title: 'Recommend a book, movie, or restaurant',
+        text: 'In 60 seconds, recommend a book/movie/restaurant. Tell me what it is, the specific moment that hooked you, and who you\'d recommend it to.',
+        tips: 'Drop the word "really" and watch the energy go up. Specific > intense.',
+      },
+      {
+        id: 'explain-skill',
+        cat: 'Explanation',
+        title: 'Explain something complex',
+        text: 'Pick a topic you understand well. Explain it to a smart friend who has no background. Use one analogy. End with "...so that\'s why X matters."',
+        tips: 'Explanations usually need shorter sentences. If you find yourself in a long sentence, breathe and reset.',
+      },
+      {
+        id: 'explain-howto',
+        cat: 'Explanation',
+        title: 'Walk me through a process',
+        text: 'Pick a process you know — making coffee, debugging code, training a model, baking bread. Walk me through each step in 45–60 seconds.',
+        tips: 'Use signal words: "first…", "then…", "the trick is…". They keep listeners oriented.',
+      },
+      {
+        id: 'gratitude-thanks',
+        cat: 'Toast / gratitude',
+        title: 'Toast someone you appreciate',
+        text: 'Imagine raising a glass to someone you\'re grateful for. In 60 seconds, share why — name a specific moment they helped you, not generalities.',
+        tips: 'Toasts work best slow. Aim for ~120 wpm. Resist the urge to fill silence.',
+      },
+      {
+        id: 'gratitude-team',
+        cat: 'Toast / gratitude',
+        title: 'Thank a team or community',
+        text: 'A team you were on. A community that supported you. In 60 seconds, name what they did, what it meant, and one image you carry from that time.',
+        tips: 'Pause once — the audience earns the pause when the moment is genuine.',
+      },
+    ];
+
+    /* ============================================================
+       Filler words — case-insensitive, multi-word phrases supported
+       ============================================================ */
+    const FILLERS = [
+      'um', 'uh', 'er', 'ah',
+      'like',
+      'so',
+      'you know',
+      'i mean',
+      'actually',
+      'basically',
+      'literally',
+      'right',
+      'kind of', 'kinda',
+      'sort of', 'sorta',
+      'whatever',
+    ];
+
+    /* ============================================================
+       State
+       ============================================================ */
+    const STATE_KEY = 'speaksharp_log_v1';
+    let state = {
+      view: 'landing',
+      promptId: null,
+      recording: false,
+      micStream: null,
+      audioCtx: null,
+      analyser: null,
+      sampleBuffer: null,
+      recognition: null,
+      finalTranscript: '',
+      interimTranscript: '',
+      startTime: 0,
+      timerInterval: null,
+      pitchSeries: [],
+      pitchSampleInterval: null,
+      // Per-attempt metrics
+      latestMetrics: null,
+      log: {}, // promptId -> [{when, wpm, fillers, words, pitchRange, durationSec, transcript}]
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data.log) state.log = data.log;
+      } catch (e) { /* ignore */ }
+    }
+    function saveState() {
+      try {
+        localStorage.setItem(STATE_KEY, JSON.stringify({ log: state.log }));
+      } catch (e) { /* ignore */ }
+    }
+
+    /* ============================================================
+       Routing
+       ============================================================ */
+    function showView(name) {
+      state.view = name;
+      document.querySelectorAll('.view').forEach(v => {
+        v.classList.toggle('active', v.dataset.view === name);
+      });
+      const crumb = document.getElementById('crumb-extra');
+      if (name === 'landing') crumb.textContent = '';
+      else if (name === 'coach') {
+        const p = PROMPTS.find(p => p.id === state.promptId);
+        crumb.textContent = ' · ' + (p ? p.title : '');
+      } else if (name === 'report') {
+        crumb.textContent = ' · Report';
+      }
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function goHome() {
+      stopRecording();
+      state.promptId = null;
+      renderLanding();
+      showView('landing');
+    }
+
+    /* ============================================================
+       Landing render
+       ============================================================ */
+    function renderLanding() {
+      const grid = document.getElementById('prompt-grid');
+      grid.innerHTML = PROMPTS.map(p => {
+        const log = (state.log[p.id] || []);
+        const latest = log[log.length - 1];
+        const lastMetaHTML = latest
+          ? `<span><b>${latest.wpm}</b> wpm</span><span><b>${latest.fillers}</b> fillers</span><span class="when">${formatRelative(latest.when)}</span>`
+          : `<span style="color:var(--ink-300)">No attempts yet</span>`;
+        return `
+          <button class="prompt-card" data-prompt="${p.id}">
+            <span class="cat-pill">${p.cat}</span>
+            <h3>${p.title}</h3>
+            <p>${p.text}</p>
+            <div class="last-meta">${lastMetaHTML}</div>
+          </button>`;
+      }).join('');
+      grid.querySelectorAll('.prompt-card').forEach(card => {
+        card.addEventListener('click', () => openPrompt(card.dataset.prompt));
+      });
+
+      // Browser-feature warning
+      const warn = document.getElementById('browser-warn');
+      const supportSR = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+      const supportMic = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      if (!supportSR || !supportMic) {
+        warn.style.display = 'block';
+        if (!supportSR && !supportMic) warn.textContent = 'Microphone + speech recognition aren\'t available in this browser. Try Chrome, Safari, or Edge.';
+        else if (!supportSR) warn.textContent = 'Speech recognition isn\'t available in this browser — transcript + filler counting will be disabled. Pace and pitch still work. Try Chrome or Safari.';
+        else if (!supportMic) warn.textContent = 'Microphone access isn\'t available. Try Chrome, Safari, or Edge.';
+      }
+    }
+
+    function formatRelative(ts) {
+      const diff = (Date.now() - ts) / 1000;
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    /* ============================================================
+       Open prompt
+       ============================================================ */
+    function openPrompt(id) {
+      state.promptId = id;
+      const p = PROMPTS.find(p => p.id === id);
+      if (!p) return;
+      document.getElementById('coach-cat').textContent = p.cat;
+      document.getElementById('coach-title').textContent = p.title;
+      document.getElementById('coach-text').textContent = p.text;
+      document.getElementById('coach-tips').textContent = p.tips;
+      resetCoachUI();
+      showView('coach');
+    }
+
+    function resetCoachUI() {
+      state.finalTranscript = '';
+      state.interimTranscript = '';
+      state.pitchSeries = [];
+      document.getElementById('coach-timer').textContent = '0:00';
+      document.getElementById('coach-status').textContent = "Tap the mic when you're ready.";
+      document.getElementById('coach-status').classList.remove('recording');
+      document.getElementById('mic-btn').classList.remove('recording');
+      document.getElementById('coach-transcript').innerHTML = '';
+      document.getElementById('hud-wpm').textContent = '—';
+      document.getElementById('hud-fillers').textContent = '—';
+      document.getElementById('hud-words').textContent = '—';
+      document.getElementById('hud-pitch').textContent = '—';
+      document.getElementById('finish-btn').disabled = true;
+      drawPitchCanvas([]);
+    }
+
+    /* ============================================================
+       Mic + audio plumbing
+       ============================================================ */
+    async function startRecording() {
+      if (state.recording) return;
+      try {
+        state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        document.getElementById('coach-status').textContent = 'Mic permission denied — allow access in your browser, then try again.';
+        return;
+      }
+      // Audio context + analyser for pitch detection
+      try {
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = state.audioCtx.createMediaStreamSource(state.micStream);
+        state.analyser = state.audioCtx.createAnalyser();
+        state.analyser.fftSize = 2048;
+        source.connect(state.analyser);
+        state.sampleBuffer = new Float32Array(state.analyser.fftSize);
+      } catch (err) {
+        // best-effort; pitch will be skipped
+      }
+
+      // Speech recognition
+      startRecognition();
+
+      // Sample pitch every 80ms
+      state.pitchSeries = [];
+      state.pitchSampleInterval = setInterval(samplePitch, 80);
+
+      state.recording = true;
+      state.startTime = Date.now();
+      state.timerInterval = setInterval(updateTimer, 200);
+      document.getElementById('mic-btn').classList.add('recording');
+      const status = document.getElementById('coach-status');
+      status.textContent = 'Listening… tap mic to stop.';
+      status.classList.add('recording');
+      document.getElementById('finish-btn').disabled = false;
+    }
+
+    function stopRecording() {
+      if (!state.recording) return;
+      state.recording = false;
+      if (state.recognition) {
+        try { state.recognition.stop(); } catch (e) {}
+        state.recognition = null;
+      }
+      if (state.pitchSampleInterval) {
+        clearInterval(state.pitchSampleInterval);
+        state.pitchSampleInterval = null;
+      }
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+      if (state.micStream) {
+        state.micStream.getTracks().forEach(t => t.stop());
+        state.micStream = null;
+      }
+      if (state.audioCtx && state.audioCtx.state !== 'closed') {
+        try { state.audioCtx.close(); } catch (e) {}
+      }
+      state.audioCtx = null;
+      state.analyser = null;
+      document.getElementById('mic-btn').classList.remove('recording');
+      const status = document.getElementById('coach-status');
+      status.textContent = "Done — tap 'Get report' to see your run.";
+      status.classList.remove('recording');
+    }
+
+    function updateTimer() {
+      if (!state.recording) return;
+      const sec = Math.floor((Date.now() - state.startTime) / 1000);
+      const m = Math.floor(sec / 60);
+      const s = (sec % 60).toString().padStart(2, '0');
+      document.getElementById('coach-timer').textContent = `${m}:${s}`;
+      updateLiveHUD();
+    }
+
+    /* ============================================================
+       Speech recognition
+       ============================================================ */
+    function startRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.maxAlternatives = 1;
+
+      rec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            state.finalTranscript += r[0].transcript + ' ';
+          } else {
+            interim += r[0].transcript;
+          }
+        }
+        state.interimTranscript = interim;
+        renderLiveTranscript();
+      };
+      rec.onerror = () => { /* swallow */ };
+      rec.onend = () => {
+        // Browsers stop recognition on silence — restart while still recording
+        if (state.recording) {
+          try { rec.start(); } catch (e) { /* race */ }
+        }
+      };
+      try { rec.start(); } catch (e) { /* ignore */ }
+      state.recognition = rec;
+    }
+
+    function renderLiveTranscript() {
+      const el = document.getElementById('coach-transcript');
+      const fullText = state.finalTranscript + state.interimTranscript;
+      el.innerHTML = highlightFillers(fullText);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function highlightFillers(text) {
+      if (!text) return '';
+      const escaped = text.replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+      // Match word boundaries; longer phrases first
+      const sorted = [...FILLERS].sort((a, b) => b.length - a.length);
+      let out = escaped;
+      for (const f of sorted) {
+        const pattern = new RegExp(`\\b${f.replace(/\s/g, '\\s+')}\\b`, 'gi');
+        out = out.replace(pattern, m => `<span class="filler">${m}</span>`);
+      }
+      return out;
+    }
+
+    /* ============================================================
+       Pitch detection (autocorrelation)
+       ============================================================ */
+    function samplePitch() {
+      if (!state.analyser || !state.sampleBuffer) {
+        state.pitchSeries.push(null);
+        return;
+      }
+      try {
+        state.analyser.getFloatTimeDomainData(state.sampleBuffer);
+      } catch (e) {
+        state.pitchSeries.push(null);
+        return;
+      }
+      const pitch = autoCorrelate(state.sampleBuffer, state.audioCtx.sampleRate);
+      state.pitchSeries.push(pitch);
+      drawPitchCanvas(state.pitchSeries);
+    }
+
+    function autoCorrelate(buf, sampleRate) {
+      const SIZE = buf.length;
+      let rms = 0;
+      for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.01) return null; // too quiet
+
+      // Trim leading/trailing silence
+      let r1 = 0, r2 = SIZE - 1;
+      const thresh = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) {
+        if (Math.abs(buf[i]) < thresh) { r1 = i; break; }
+      }
+      for (let i = 1; i < SIZE / 2; i++) {
+        if (Math.abs(buf[SIZE - i]) < thresh) { r2 = SIZE - i; break; }
+      }
+      const trimmed = buf.subarray(r1, r2);
+      const N = trimmed.length;
+      if (N < 64) return null;
+
+      const c = new Array(N).fill(0);
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N - i; j++) {
+          c[i] = c[i] + trimmed[j] * trimmed[j + i];
+        }
+      }
+      // Find first dip then peak
+      let d = 0;
+      while (d < N - 1 && c[d] > c[d + 1]) d++;
+      let maxVal = -1, maxPos = -1;
+      for (let i = d; i < N; i++) {
+        if (c[i] > maxVal) { maxVal = c[i]; maxPos = i; }
+      }
+      let T0 = maxPos;
+      // Parabolic interpolation
+      const x1 = c[T0 - 1] || 0;
+      const x2 = c[T0] || 0;
+      const x3 = c[T0 + 1] || 0;
+      const a = (x1 + x3 - 2 * x2) / 2;
+      const b = (x3 - x1) / 2;
+      if (a) T0 = T0 - b / (2 * a);
+
+      const freq = sampleRate / T0;
+      // Filter to plausible vocal range
+      if (freq < 65 || freq > 500) return null;
+      return freq;
+    }
+
+    /* ============================================================
+       Pitch canvas drawing
+       ============================================================ */
+    function drawPitchCanvas(series) {
+      const canvas = document.getElementById('pitch-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width = canvas.clientWidth;
+      const H = canvas.height = canvas.clientHeight;
+      ctx.clearRect(0, 0, W, H);
+
+      // Background grid lines for Hz
+      ctx.strokeStyle = 'rgba(132, 168, 222, 0.18)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const y = (H / 4) * i + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
+
+      if (!series.length) return;
+
+      const N = series.length;
+      // Show last N points fitting width (1 px per sample, drift if longer)
+      const maxN = Math.max(W, 360);
+      const slice = N > maxN ? series.slice(N - maxN) : series;
+      const sliceN = slice.length;
+
+      // Use 80–300 Hz typical speech range for plot mapping
+      const minHz = 70, maxHz = 320;
+      const hzToY = (hz) => H - ((hz - minHz) / (maxHz - minHz)) * H;
+
+      // Draw points/lines (skip nulls)
+      ctx.strokeStyle = '#f1cf86';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let drawing = false;
+      for (let i = 0; i < sliceN; i++) {
+        const v = slice[i];
+        const x = (i / Math.max(sliceN - 1, 1)) * W;
+        if (v == null) {
+          drawing = false;
+          continue;
+        }
+        const clamped = Math.max(minHz, Math.min(maxHz, v));
+        const y = hzToY(clamped);
+        if (!drawing) {
+          ctx.moveTo(x, y);
+          drawing = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+
+    /* ============================================================
+       Live HUD update (during recording)
+       ============================================================ */
+    function updateLiveHUD() {
+      const text = (state.finalTranscript + ' ' + state.interimTranscript).trim();
+      const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
+      const elapsed = Math.max(1, (Date.now() - state.startTime) / 1000);
+      const wpm = Math.round((wordCount / elapsed) * 60);
+      const fillerCount = countFillers(text);
+      const validPitches = state.pitchSeries.filter(v => v != null);
+      let range = 0;
+      if (validPitches.length > 4) {
+        const sorted = [...validPitches].sort((a, b) => a - b);
+        const lo = sorted[Math.floor(sorted.length * 0.1)];
+        const hi = sorted[Math.floor(sorted.length * 0.9)];
+        range = Math.round(hi - lo);
+      }
+      document.getElementById('hud-wpm').textContent = wpm || '—';
+      document.getElementById('hud-fillers').textContent = fillerCount;
+      document.getElementById('hud-words').textContent = wordCount;
+      document.getElementById('hud-pitch').textContent = range || '—';
+    }
+
+    function countFillers(text) {
+      if (!text) return 0;
+      let count = 0;
+      const sorted = [...FILLERS].sort((a, b) => b.length - a.length);
+      // Count overlapping prevention: replace longer phrases first with placeholder
+      let scratch = ' ' + text.toLowerCase() + ' ';
+      for (const f of sorted) {
+        const pattern = new RegExp(`\\b${f.replace(/\s/g, '\\s+')}\\b`, 'gi');
+        const matches = scratch.match(pattern);
+        if (matches) {
+          count += matches.length;
+          scratch = scratch.replace(pattern, ' '.repeat(f.length));
+        }
+      }
+      return count;
+    }
+
+    /* ============================================================
+       Finish + report
+       ============================================================ */
+    function finishAttempt() {
+      stopRecording();
+      const text = state.finalTranscript.trim();
+      const elapsed = Math.max(1, Math.floor((Date.now() - state.startTime) / 1000));
+      const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
+      const wpm = Math.round((wordCount / elapsed) * 60);
+      const fillerCount = countFillers(text);
+      const fillerPer100 = wordCount ? Math.round((fillerCount / wordCount) * 100) : 0;
+      const validPitches = state.pitchSeries.filter(v => v != null);
+      let pitchRange = 0, meanPitch = 0;
+      if (validPitches.length > 4) {
+        const sorted = [...validPitches].sort((a, b) => a - b);
+        const lo = sorted[Math.floor(sorted.length * 0.1)];
+        const hi = sorted[Math.floor(sorted.length * 0.9)];
+        pitchRange = Math.round(hi - lo);
+        meanPitch = Math.round(validPitches.reduce((a, b) => a + b, 0) / validPitches.length);
+      }
+      const speakingFraction = state.pitchSeries.length
+        ? validPitches.length / state.pitchSeries.length
+        : 0;
+      const longPauses = countLongPauses(state.pitchSeries);
+
+      const metrics = {
+        wpm,
+        fillers: fillerCount,
+        fillerPer100,
+        words: wordCount,
+        pitchRange,
+        meanPitch,
+        speakingFraction: Math.round(speakingFraction * 100),
+        longPauses,
+        durationSec: elapsed,
+        transcript: text,
+        when: Date.now(),
+      };
+      state.latestMetrics = metrics;
+
+      // Save to log
+      if (!state.log[state.promptId]) state.log[state.promptId] = [];
+      state.log[state.promptId].push(metrics);
+      // Cap to last 20
+      if (state.log[state.promptId].length > 20) {
+        state.log[state.promptId] = state.log[state.promptId].slice(-20);
+      }
+      saveState();
+
+      renderReport();
+      showView('report');
+    }
+
+    function countLongPauses(series) {
+      // A "long pause" = ≥ 8 consecutive null samples (~640 ms)
+      let pauses = 0, run = 0;
+      for (const v of series) {
+        if (v == null) {
+          run++;
+          if (run === 8) pauses++;
+        } else {
+          run = 0;
+        }
+      }
+      return pauses;
+    }
+
+    /* ============================================================
+       Report render
+       ============================================================ */
+    function renderReport() {
+      const m = state.latestMetrics;
+      if (!m) return;
+      const p = PROMPTS.find(p => p.id === state.promptId);
+      document.getElementById('report-prompt').textContent = p ? `${p.cat} · ${p.title}` : '';
+
+      const verdictWPM = m.wpm < 110 ? ['Slow', 'warn']
+        : m.wpm < 140 ? ['Reflective', 'good']
+        : m.wpm < 175 ? ['Engaging', 'good']
+        : m.wpm < 200 ? ['Fast', 'warn']
+        : ['Rushed', 'bad'];
+      const verdictFiller = m.fillerPer100 < 2 ? ['Crisp', 'good']
+        : m.fillerPer100 < 5 ? ['Some', 'warn']
+        : ['Heavy', 'bad'];
+      const verdictPitch = m.pitchRange === 0 ? ['—', 'warn']
+        : m.pitchRange < 35 ? ['Monotone', 'bad']
+        : m.pitchRange < 80 ? ['Expressive', 'good']
+        : ['Very dynamic', 'good'];
+      const verdictLength = m.durationSec < 25 ? ['Brief', 'warn']
+        : m.durationSec < 100 ? ['On target', 'good']
+        : ['Long', 'warn'];
+
+      const cards = [
+        { label: 'Pace', value: m.wpm, unit: 'wpm', verdict: verdictWPM },
+        { label: 'Filler density', value: m.fillerPer100, unit: 'per 100 words', verdict: verdictFiller },
+        { label: 'Pitch range', value: m.pitchRange || '—', unit: 'Hz', verdict: verdictPitch },
+        { label: 'Length', value: formatDuration(m.durationSec), unit: '', verdict: verdictLength },
+      ];
+      const row = document.getElementById('score-row');
+      row.innerHTML = cards.map(c => `
+        <div class="score-card">
+          <div class="label">${c.label}</div>
+          <div class="value">${c.value}<span class="small">${c.unit ? ' ' + c.unit : ''}</span></div>
+          <div class="verdict ${c.verdict[1]}">${c.verdict[0]}</div>
+        </div>`).join('');
+
+      // Coach notes
+      const notes = computeAdvice(m);
+      const notesEl = document.getElementById('coach-notes');
+      if (notes.length === 0) {
+        notesEl.innerHTML = '<li>Strong run across all metrics. Try a harder prompt or push for tighter time.</li>';
+      } else {
+        notesEl.innerHTML = notes.map(n => `<li>${n}</li>`).join('');
+      }
+
+      // Transcript
+      const meta = `${m.words} words · ${m.fillers} filler${m.fillers === 1 ? '' : 's'} · ${formatDuration(m.durationSec)}`;
+      document.getElementById('transcript-meta').textContent = meta;
+      const tEl = document.getElementById('transcript-text');
+      if (!m.transcript) {
+        tEl.innerHTML = '<span class="transcript-empty">No transcript captured. Speech recognition may be disabled in this browser.</span>';
+      } else {
+        tEl.innerHTML = highlightFillers(m.transcript);
+      }
+
+      // History
+      const hist = (state.log[state.promptId] || []).slice().reverse();
+      const histEl = document.getElementById('history-list');
+      if (hist.length <= 1) {
+        histEl.innerHTML = '<div class="history-empty">First attempt — come back to see your trend.</div>';
+      } else {
+        histEl.innerHTML = hist.map((entry, i) => `
+          <div class="history-row">
+            <div class="when">${i === 0 ? 'just now' : formatRelative(entry.when)}</div>
+            <div class="num"><b>${entry.wpm}</b> wpm</div>
+            <div class="num"><b>${entry.fillers}</b> filler</div>
+            <div class="num"><b>${entry.pitchRange || '—'}</b> Hz</div>
+          </div>`).join('');
+      }
+    }
+
+    function formatDuration(s) {
+      const m = Math.floor(s / 60);
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    function computeAdvice(m) {
+      const out = [];
+      if (m.wpm > 0 && m.wpm < 110) {
+        out.push(`Your pace was ${m.wpm} wpm — slower than typical conversational speech (130–160). Either you\'re going for thoughtful weight, or you\'re hesitating. Try the same prompt aiming for ~145.`);
+      }
+      if (m.wpm > 200) {
+        out.push(`At ${m.wpm} wpm, you\'re sprinting. Audiences process best around 150 wpm. Try inserting a deliberate pause after each main point.`);
+      }
+      if (m.fillerPer100 >= 5) {
+        out.push(`Filler density was ${m.fillerPer100}/100 words. The big offenders are usually "um", "like", and "so" at the start of sentences. Try replacing them with a half-second silence — silence is shorter than you think.`);
+      } else if (m.fillerPer100 >= 2 && m.fillerPer100 < 5) {
+        out.push(`A handful of fillers (${m.fillers} total). Notice which one you favor — most people lean on a single word — and target just that one in the next attempt.`);
+      }
+      if (m.pitchRange > 0 && m.pitchRange < 35) {
+        out.push(`Pitch range was only ${m.pitchRange} Hz — you sound monotone. Try emphasizing your most important sentence with a wider drop and lift in pitch. Mark it on paper if needed.`);
+      }
+      if (m.longPauses > 4 && m.wpm < 130) {
+        out.push(`${m.longPauses} long pauses combined with a slow pace suggests you\'re searching for words. Outline 3–4 beats before you start, even just in your head.`);
+      }
+      if (m.longPauses === 0 && m.wpm > 160) {
+        out.push(`Zero long pauses + fast pace = you\'re rolling without breath. Listeners need silences to absorb. One pause per main idea is the goal.`);
+      }
+      if (m.durationSec < 25) {
+        out.push(`The run was only ${formatDuration(m.durationSec)}. Most prompts have 60-second target. Push yourself to the full minute next time, even if it means slowing down.`);
+      }
+      if (m.durationSec > 100) {
+        out.push(`Run was ${formatDuration(m.durationSec)} — long. Listener attention drops after ~90s on a single thought. Try cutting to your 3 strongest sentences.`);
+      }
+      if (!m.transcript) {
+        out.push('No transcript was captured — speech recognition appears disabled in this browser. Pace and pitch metrics still work; for filler-word coaching, try Chrome, Safari, or Edge.');
+      }
+      return out;
+    }
+
+    /* ============================================================
+       Wiring
+       ============================================================ */
+    function wireGlobal() {
+      document.body.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        if (action === 'home') goHome();
+        else if (action === 'finish') finishAttempt();
+        else if (action === 'restart') {
+          stopRecording();
+          resetCoachUI();
+        }
+        else if (action === 'retry') {
+          openPrompt(state.promptId);
+        }
+      });
+      document.getElementById('mic-btn').addEventListener('click', () => {
+        if (state.recording) stopRecording();
+        else startRecording();
+      });
+    }
+
+    /* ============================================================
+       Boot
+       ============================================================ */
+    loadState();
+    renderLanding();
+    wireGlobal();
+    drawPitchCanvas([]);
+  })();
+  </script>
+</body>
+</html>

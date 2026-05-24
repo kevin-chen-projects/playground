@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Mortgage Lab — Home Affordability Calculator Suite
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+
+  Four linked calculators in tabs:
+    1. Payment       — Monthly P&I + PITI breakdown + amortization chart
+    2. Affordability — Reverse: target payment + DTI → max home price
+    3. Rent vs. Buy  — Cumulative cost curves over a holding period
+    4. Refinance     — New vs. current loan: monthly savings + break-even
+
+  Last inputs are stored in localStorage so users can come back and tweak.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+     1–32    Header comment (this block)
+    34–40    <head>: meta, title
+
+  STYLE  (~lines 41–700)
+    :root            palette (teal + amber + neutrals), radii, shadows
+    Reset + base
+    .top-bar         brand + "share these numbers" hint
+    Tab nav          horizontal pill nav, active state
+    Calc layout      form (left) + result (right), collapses < 900px
+    Form controls    .field, .field-row, .slider, .currency-input
+    Results          .result-grid, .stat, .badge
+    Chart wrap       canvas styling
+    Amortization
+    schedule table   compact table view
+    Animations       fade, slide
+
+  BODY  (~lines 710–820)
+    .top-bar
+    .tabs
+    .tab[data-tab=payment]
+    .tab[data-tab=affordability]
+    .tab[data-tab=rentbuy]
+    .tab[data-tab=refinance]
+    .footer-note
+
+  SCRIPT  (~lines 830–end, single IIFE)
+    State          { activeTab, inputs }   (each tab has its own input set)
+    Persistence    localStorage['mortlab_inputs_v1']
+    Math           pmt(), amortSchedule(), affordableHomePrice(),
+                   rentVsBuyCurve(), refinanceSavings()
+    Chart          drawLineChart(canvas, series[], opts)
+    Render         renderPayment / renderAffordability / renderRentBuy /
+                   renderRefinance
+    Wiring         wireInputs (debounced re-render), tab switching, presets
+    Boot           restore inputs, render active tab
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mortgage Lab — payment, affordability, rent vs buy, refinance</title>
+  <style>
+    :root {
+      --teal-900: #0a352f;
+      --teal-700: #1a574e;
+      --teal-500: #2d8a78;
+      --teal-400: #45a890;
+      --teal-300: #75c5b2;
+      --teal-100: #cfeae3;
+      --teal-50:  #ecf6f3;
+
+      --amber-500: #d68b1d;
+      --amber-400: #e7a548;
+      --amber-300: #f1c277;
+      --amber-100: #fae6c2;
+
+      --slate-900: #131c1a;
+      --slate-700: #2c3835;
+      --slate-500: #5a6864;
+      --slate-300: #a5afa9;
+      --slate-200: #c5cdc8;
+      --slate-100: #e3e8e5;
+
+      --good: #2c8e6a;
+      --good-light: #d1ebd9;
+      --warn: #c4791f;
+      --warn-light: #f7e1bd;
+      --bad: #c84a4a;
+      --bad-light: #f7d8d8;
+
+      --paper: #ffffff;
+      --bg: #f6faf8;
+
+      --radius-sm: 10px;
+      --radius: 16px;
+      --radius-lg: 22px;
+      --shadow-sm: 0 1px 3px rgba(20, 60, 50, 0.06);
+      --shadow: 0 8px 24px rgba(20, 60, 50, 0.10);
+
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SF Mono, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--slate-900);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    body {
+      background:
+        radial-gradient(circle at 14% 0%, var(--teal-100) 0%, transparent 38%),
+        radial-gradient(circle at 90% 100%, var(--amber-100) 0%, transparent 36%),
+        var(--bg);
+    }
+    button, input, select { font: inherit; color: inherit; }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--teal-700), var(--teal-500));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+    .brand-name em { color: var(--teal-700); font-style: italic; }
+    .top-note {
+      color: var(--slate-500);
+      font-size: 13px;
+      max-width: 280px;
+      text-align: right;
+    }
+    @media (max-width: 720px) { .top-note { display: none; } }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 8px 28px 80px;
+    }
+
+    /* ============================================================
+       Tabs
+       ============================================================ */
+    .tabs-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 4px;
+      background: var(--paper);
+      border: 1px solid var(--slate-100);
+      border-radius: 999px;
+      margin: 12px 0 20px;
+      width: fit-content;
+      box-shadow: var(--shadow-sm);
+    }
+    .tab-btn {
+      padding: 9px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--slate-700);
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.18s, color 0.18s;
+    }
+    .tab-btn:hover { color: var(--teal-700); }
+    .tab-btn.active {
+      background: var(--teal-700);
+      color: white;
+    }
+    @media (max-width: 640px) {
+      .tabs-bar { width: 100%; }
+      .tab-btn { flex: 1; padding: 9px 8px; font-size: 13px; }
+    }
+
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    /* ============================================================
+       Calc layout
+       ============================================================ */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .calc-grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      border: 1px solid var(--slate-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .panel h2 {
+      font-family: var(--serif);
+      margin: 0 0 4px;
+      font-size: 22px;
+    }
+    .panel .panel-sub {
+      color: var(--slate-500);
+      font-size: 14px;
+      margin: 0 0 18px;
+    }
+    .field {
+      margin-bottom: 14px;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+    }
+    .field .input-wrap {
+      position: relative;
+    }
+    .field input[type="number"], .field input[type="text"] {
+      width: 100%;
+      padding: 10px 14px 10px 28px;
+      border: 1.5px solid var(--slate-100);
+      border-radius: var(--radius-sm);
+      background: var(--paper);
+      transition: border-color 0.15s;
+    }
+    .field input[type="number"]:focus,
+    .field input[type="text"]:focus {
+      outline: none;
+      border-color: var(--teal-500);
+    }
+    .field .prefix {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--slate-500);
+      font-size: 14px;
+      font-weight: 600;
+      pointer-events: none;
+    }
+    .field .suffix {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--slate-500);
+      font-size: 13px;
+      pointer-events: none;
+    }
+    .field input.with-suffix { padding-right: 38px; }
+    .field-help {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr 60px;
+      gap: 10px;
+      align-items: center;
+    }
+    .slider-row input[type="range"] {
+      width: 100%;
+    }
+    .slider-row .slider-val {
+      font-family: var(--mono);
+      font-size: 13px;
+      text-align: right;
+      color: var(--teal-700);
+    }
+
+    .preset-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .preset-chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--teal-50);
+      color: var(--teal-700);
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      font-weight: 600;
+    }
+    .preset-chip:hover { background: var(--teal-100); }
+
+    /* ============================================================
+       Results
+       ============================================================ */
+    .result-panel {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      border: 1px solid var(--slate-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .result-headline {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--slate-100);
+      margin-bottom: 16px;
+    }
+    .result-headline .big-number {
+      font-family: var(--serif);
+      font-size: 44px;
+      font-weight: 700;
+      color: var(--teal-700);
+      line-height: 1;
+    }
+    .result-headline .big-label {
+      color: var(--slate-500);
+      font-size: 14px;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .stat {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .stat .label {
+      font-size: 11px;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .stat .value {
+      font-family: var(--serif);
+      font-size: 22px;
+      color: var(--slate-900);
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .stat .sub {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-top: 2px;
+    }
+    .stat.accent .value { color: var(--teal-700); }
+    .stat.warn .value { color: var(--amber-500); }
+    .stat.danger .value { color: var(--bad); }
+
+    .verdict {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .verdict.good { background: var(--good-light); color: var(--good); }
+    .verdict.warn { background: var(--warn-light); color: var(--warn); }
+    .verdict.bad  { background: var(--bad-light); color: var(--bad); }
+    .verdict strong { display: block; margin-bottom: 2px; }
+
+    .chart-wrap {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .chart-title {
+      font-family: var(--serif);
+      font-size: 16px;
+      margin: 0 0 8px;
+    }
+    .chart-canvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--slate-500);
+    }
+    .chart-legend .swatch {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .schedule {
+      max-height: 320px;
+      overflow-y: auto;
+      border: 1px solid var(--slate-100);
+      border-radius: var(--radius);
+    }
+    .schedule table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-family: var(--mono);
+    }
+    .schedule th, .schedule td {
+      padding: 7px 12px;
+      text-align: right;
+      border-bottom: 1px solid var(--slate-100);
+    }
+    .schedule th {
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      font-weight: 700;
+      color: var(--slate-700);
+      text-align: right;
+      font-family: var(--sans);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .schedule td:first-child, .schedule th:first-child { text-align: left; }
+    .schedule tr:hover td { background: var(--teal-50); }
+
+    .footer-note {
+      max-width: 720px;
+      margin: 24px auto 0;
+      color: var(--slate-500);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 640px) {
+      .top-bar { padding: 12px 16px; }
+      .container { padding: 8px 16px 60px; }
+      .panel, .result-panel { padding: 18px; }
+      .result-headline .big-number { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="brand">
+      <div class="brand-mark">$</div>
+      <div class="brand-name">Mortgage <em>Lab</em></div>
+    </div>
+    <div class="top-note">Local-only. Nothing leaves your browser. No login, no email collection.</div>
+  </div>
+
+  <div class="container">
+    <div class="tabs-bar" role="tablist">
+      <button class="tab-btn active" data-tab="payment">Payment</button>
+      <button class="tab-btn" data-tab="affordability">Affordability</button>
+      <button class="tab-btn" data-tab="rentbuy">Rent vs. Buy</button>
+      <button class="tab-btn" data-tab="refinance">Refinance</button>
+    </div>
+
+    <!-- ============================================================
+         Tab 1 — Payment
+         ============================================================ -->
+    <div class="tab active" data-tab="payment">
+      <div class="calc-grid">
+        <div class="panel">
+          <h2>Monthly payment</h2>
+          <p class="panel-sub">Estimate principal, interest, taxes, insurance, and PMI for a fixed-rate mortgage.</p>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="p-price">Home price</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="p-price" min="0" step="1000" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="p-down">Down payment</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="p-down" min="0" step="500" />
+              </div>
+              <div class="field-help" id="p-down-pct">—</div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="p-rate">Interest rate</label>
+              <div class="input-wrap">
+                <input type="number" id="p-rate" min="0" max="20" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="p-term">Loan term</label>
+              <div class="input-wrap">
+                <input type="number" id="p-term" min="1" max="40" step="1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">yrs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="p-tax">Property tax (annual)</label>
+            <div class="input-wrap">
+              <span class="prefix">$</span>
+              <input type="number" id="p-tax" min="0" step="100" />
+            </div>
+            <div class="field-help" id="p-tax-pct">—</div>
+          </div>
+
+          <div class="field">
+            <label for="p-ins">Home insurance (annual)</label>
+            <div class="input-wrap">
+              <span class="prefix">$</span>
+              <input type="number" id="p-ins" min="0" step="50" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="p-hoa">HOA (monthly, if any)</label>
+            <div class="input-wrap">
+              <span class="prefix">$</span>
+              <input type="number" id="p-hoa" min="0" step="10" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Quick presets</label>
+            <div class="preset-row">
+              <button class="preset-chip" data-preset='{"price":350000,"down":70000,"rate":6.75,"term":30}'>Starter $350k</button>
+              <button class="preset-chip" data-preset='{"price":600000,"down":120000,"rate":6.75,"term":30}'>$600k · 20% down</button>
+              <button class="preset-chip" data-preset='{"price":900000,"down":180000,"rate":6.75,"term":30}'>$900k · 20% down</button>
+              <button class="preset-chip" data-preset='{"price":600000,"down":30000,"rate":7.1,"term":30}'>FHA-style 5%</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-panel">
+          <div class="result-headline">
+            <div>
+              <div class="big-number" id="p-piti">—</div>
+              <div class="big-label">Total monthly (PITI + HOA)</div>
+            </div>
+          </div>
+
+          <div class="result-grid">
+            <div class="stat accent">
+              <div class="label">Principal &amp; Interest</div>
+              <div class="value" id="p-pi">—</div>
+              <div class="sub" id="p-pi-sub">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Property tax / mo</div>
+              <div class="value" id="p-tax-mo">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Insurance / mo</div>
+              <div class="value" id="p-ins-mo">—</div>
+            </div>
+            <div class="stat" id="p-pmi-cell">
+              <div class="label">PMI / mo</div>
+              <div class="value" id="p-pmi">—</div>
+              <div class="sub" id="p-pmi-sub">—</div>
+            </div>
+          </div>
+
+          <div class="result-grid">
+            <div class="stat">
+              <div class="label">Loan amount</div>
+              <div class="value" id="p-loan">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Total interest paid</div>
+              <div class="value warn" id="p-total-int">—</div>
+              <div class="sub" id="p-total-int-sub">over loan term</div>
+            </div>
+            <div class="stat">
+              <div class="label">Total cost</div>
+              <div class="value" id="p-total-cost">—</div>
+              <div class="sub">principal + interest</div>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <div class="chart-title">Loan balance over time</div>
+            <canvas id="p-chart" class="chart-canvas"></canvas>
+            <div class="chart-legend">
+              <span><span class="swatch" style="background:var(--teal-500)"></span>Balance</span>
+              <span><span class="swatch" style="background:var(--amber-500)"></span>Cumulative interest</span>
+            </div>
+          </div>
+
+          <div class="chart-title" style="margin-bottom:8px;">Amortization schedule (yearly)</div>
+          <div class="schedule">
+            <table>
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Interest</th>
+                  <th>Principal</th>
+                  <th>Balance</th>
+                </tr>
+              </thead>
+              <tbody id="p-schedule"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         Tab 2 — Affordability
+         ============================================================ -->
+    <div class="tab" data-tab="affordability">
+      <div class="calc-grid">
+        <div class="panel">
+          <h2>How much house can I afford?</h2>
+          <p class="panel-sub">Reverse-calculate from your income, debts, and target down payment using the 28/36 rule.</p>
+
+          <div class="field">
+            <label for="a-income">Gross annual income</label>
+            <div class="input-wrap">
+              <span class="prefix">$</span>
+              <input type="number" id="a-income" min="0" step="1000" />
+            </div>
+            <div class="field-help">Pre-tax household income.</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="a-front">Front-end ratio</label>
+              <div class="slider-row">
+                <input type="range" id="a-front-r" min="20" max="36" step="1" />
+                <div class="slider-val" id="a-front-v">28%</div>
+              </div>
+              <div class="field-help">Housing as % of gross. Lenders typically use 28%.</div>
+            </div>
+            <div class="field">
+              <label for="a-back">Back-end ratio</label>
+              <div class="slider-row">
+                <input type="range" id="a-back-r" min="28" max="50" step="1" />
+                <div class="slider-val" id="a-back-v">36%</div>
+              </div>
+              <div class="field-help">Total debt incl. housing. 36-43% typical max.</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="a-debts">Other monthly debt</label>
+            <div class="input-wrap">
+              <span class="prefix">$</span>
+              <input type="number" id="a-debts" min="0" step="50" />
+            </div>
+            <div class="field-help">Car, student loans, credit-card minimums.</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="a-down">Down payment</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="a-down" min="0" step="500" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="a-rate">Interest rate</label>
+              <div class="input-wrap">
+                <input type="number" id="a-rate" min="0" max="20" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="a-term">Loan term</label>
+              <div class="input-wrap">
+                <input type="number" id="a-term" min="1" max="40" step="1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">yrs</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="a-taxrate">Property tax rate</label>
+              <div class="input-wrap">
+                <input type="number" id="a-taxrate" min="0" max="5" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%/yr</span>
+              </div>
+              <div class="field-help">~1.1% national avg, varies by state.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-panel">
+          <div class="result-headline">
+            <div>
+              <div class="big-number" id="a-max-price">—</div>
+              <div class="big-label">Max home price (28% rule)</div>
+            </div>
+          </div>
+
+          <div class="verdict good" id="a-verdict">—</div>
+
+          <div class="result-grid">
+            <div class="stat">
+              <div class="label">Target monthly housing</div>
+              <div class="value" id="a-target-mo">—</div>
+              <div class="sub">28% of gross income</div>
+            </div>
+            <div class="stat">
+              <div class="label">Available for P&amp;I</div>
+              <div class="value accent" id="a-pi">—</div>
+              <div class="sub">after tax + insurance</div>
+            </div>
+            <div class="stat">
+              <div class="label">Loan amount</div>
+              <div class="value" id="a-loan">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Down payment %</div>
+              <div class="value" id="a-down-pct">—</div>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <div class="chart-title">Max price by interest rate</div>
+            <canvas id="a-chart" class="chart-canvas"></canvas>
+            <div class="chart-legend">
+              <span>X-axis: rate (4–9%) · Y-axis: max price · Vertical line = your rate</span>
+            </div>
+          </div>
+
+          <div class="verdict warn" id="a-back-warn" style="display:none">
+            <strong>Back-end ratio caveat</strong>
+            <span id="a-back-msg">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         Tab 3 — Rent vs. Buy
+         ============================================================ -->
+    <div class="tab" data-tab="rentbuy">
+      <div class="calc-grid">
+        <div class="panel">
+          <h2>Rent vs. Buy</h2>
+          <p class="panel-sub">Compare cumulative cost of renting vs. buying over a holding period — including opportunity cost on the down payment.</p>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rb-rent">Current monthly rent</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="rb-rent" min="0" step="50" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="rb-rentgrow">Rent growth /yr</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-rentgrow" min="0" max="20" step="0.1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rb-price">Home price</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="rb-price" min="0" step="1000" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="rb-down">Down payment</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="rb-down" min="0" step="500" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rb-rate">Mortgage rate</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-rate" min="0" max="20" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="rb-term">Loan term</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-term" min="1" max="40" step="1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">yrs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rb-appreciation">Home appreciation /yr</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-appreciation" min="-10" max="20" step="0.1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+              <div class="field-help">Long-run US avg ~3.5%. Be conservative.</div>
+            </div>
+            <div class="field">
+              <label for="rb-invest">Investment return /yr</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-invest" min="0" max="20" step="0.1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+              <div class="field-help">Opportunity cost on down payment.</div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rb-tax">Property tax</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-tax" min="0" max="5" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%/yr</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="rb-maint">Maintenance</label>
+              <div class="input-wrap">
+                <input type="number" id="rb-maint" min="0" max="5" step="0.1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%/yr</span>
+              </div>
+              <div class="field-help">~1% of price/yr is typical.</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="rb-years">Holding period</label>
+            <div class="slider-row">
+              <input type="range" id="rb-years-r" min="1" max="30" step="1" />
+              <div class="slider-val" id="rb-years-v">10 yrs</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-panel">
+          <div class="result-headline">
+            <div>
+              <div class="big-number" id="rb-headline">—</div>
+              <div class="big-label" id="rb-headline-sub">—</div>
+            </div>
+          </div>
+
+          <div class="verdict good" id="rb-verdict">—</div>
+
+          <div class="result-grid">
+            <div class="stat">
+              <div class="label">Total renting cost</div>
+              <div class="value" id="rb-rent-total">—</div>
+              <div class="sub" id="rb-rent-sub">over holding period</div>
+            </div>
+            <div class="stat">
+              <div class="label">Total buying cost</div>
+              <div class="value" id="rb-buy-total">—</div>
+              <div class="sub">net of equity built</div>
+            </div>
+            <div class="stat accent">
+              <div class="label">Break-even year</div>
+              <div class="value" id="rb-breakeven">—</div>
+              <div class="sub" id="rb-breakeven-sub">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Equity at exit</div>
+              <div class="value" id="rb-equity">—</div>
+              <div class="sub" id="rb-equity-sub">—</div>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <div class="chart-title">Cumulative cost over time</div>
+            <canvas id="rb-chart" class="chart-canvas"></canvas>
+            <div class="chart-legend">
+              <span><span class="swatch" style="background:var(--teal-500)"></span>Buying (net of equity)</span>
+              <span><span class="swatch" style="background:var(--amber-500)"></span>Renting</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         Tab 4 — Refinance
+         ============================================================ -->
+    <div class="tab" data-tab="refinance">
+      <div class="calc-grid">
+        <div class="panel">
+          <h2>Refinance break-even</h2>
+          <p class="panel-sub">Compare your current mortgage to a refinance offer. See monthly savings and how long until closing costs pay off.</p>
+
+          <h3 style="margin:14px 0 6px; font-size:14px; color:var(--slate-500); text-transform:uppercase; letter-spacing:0.05em;">Current loan</h3>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rf-cur-bal">Current balance</label>
+              <div class="input-wrap">
+                <span class="prefix">$</span>
+                <input type="number" id="rf-cur-bal" min="0" step="500" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="rf-cur-rate">Current rate</label>
+              <div class="input-wrap">
+                <input type="number" id="rf-cur-rate" min="0" max="20" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rf-cur-remain">Years remaining</label>
+              <div class="input-wrap">
+                <input type="number" id="rf-cur-remain" min="1" max="40" step="1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">yrs</span>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="margin:18px 0 6px; font-size:14px; color:var(--slate-500); text-transform:uppercase; letter-spacing:0.05em;">New loan</h3>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rf-new-rate">New rate</label>
+              <div class="input-wrap">
+                <input type="number" id="rf-new-rate" min="0" max="20" step="0.05" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="rf-new-term">New term</label>
+              <div class="input-wrap">
+                <input type="number" id="rf-new-term" min="1" max="40" step="1" class="with-suffix" style="padding-left:14px;" />
+                <span class="suffix">yrs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="rf-cost">Closing costs</label>
+            <div class="input-wrap">
+              <span class="prefix">$</span>
+              <input type="number" id="rf-cost" min="0" step="100" />
+            </div>
+            <div class="field-help">Typically 2–5% of loan amount.</div>
+          </div>
+        </div>
+
+        <div class="result-panel">
+          <div class="result-headline">
+            <div>
+              <div class="big-number" id="rf-savings">—</div>
+              <div class="big-label">Monthly P&amp;I savings</div>
+            </div>
+          </div>
+
+          <div class="verdict" id="rf-verdict">—</div>
+
+          <div class="result-grid">
+            <div class="stat">
+              <div class="label">Current P&amp;I</div>
+              <div class="value" id="rf-cur-pi">—</div>
+            </div>
+            <div class="stat accent">
+              <div class="label">New P&amp;I</div>
+              <div class="value" id="rf-new-pi">—</div>
+            </div>
+            <div class="stat">
+              <div class="label">Break-even</div>
+              <div class="value" id="rf-be">—</div>
+              <div class="sub">months to recoup costs</div>
+            </div>
+            <div class="stat">
+              <div class="label">Total interest savings</div>
+              <div class="value warn" id="rf-int-savings">—</div>
+              <div class="sub">over new loan term</div>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <div class="chart-title">Cumulative cost: current vs new</div>
+            <canvas id="rf-chart" class="chart-canvas"></canvas>
+            <div class="chart-legend">
+              <span><span class="swatch" style="background:var(--amber-500)"></span>Keep current</span>
+              <span><span class="swatch" style="background:var(--teal-500)"></span>Refinance</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="footer-note">Numbers are estimates. Actual loan costs include underwriting fees, title fees, escrow, and other items not modeled here. Always confirm with your lender before making a decision. Mortgage Lab is informational only.</p>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       State + persistence
+       ============================================================ */
+    const STATE_KEY = 'mortlab_inputs_v1';
+    const DEFAULTS = {
+      payment: { price: 600000, down: 120000, rate: 6.75, term: 30, tax: 6500, ins: 1500, hoa: 0 },
+      affordability: { income: 150000, front: 28, back: 36, debts: 500, down: 100000, rate: 6.75, term: 30, taxrate: 1.1 },
+      rentbuy: { rent: 2500, rentgrow: 4, price: 600000, down: 120000, rate: 6.75, term: 30, appreciation: 3, invest: 6, tax: 1.1, maint: 1, years: 10 },
+      refinance: { curBal: 400000, curRate: 7.5, curRemain: 27, newRate: 6.0, newTerm: 30, cost: 7000 },
+    };
+    let inputs = JSON.parse(JSON.stringify(DEFAULTS));
+
+    function loadInputs() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (raw) inputs = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), JSON.parse(raw) || {});
+      } catch (e) { /* ignore */ }
+    }
+    function saveInputs() {
+      try { localStorage.setItem(STATE_KEY, JSON.stringify(inputs)); } catch (e) {}
+    }
+
+    /* ============================================================
+       Math
+       ============================================================ */
+    function pmt(principal, annualRate, years) {
+      // Monthly payment for fixed-rate amortizing loan
+      const r = annualRate / 100 / 12;
+      const n = years * 12;
+      if (r === 0) return principal / n;
+      return principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    }
+    function amortSchedule(principal, annualRate, years) {
+      const r = annualRate / 100 / 12;
+      const n = years * 12;
+      const pay = pmt(principal, annualRate, years);
+      let bal = principal;
+      const months = [];
+      for (let m = 1; m <= n; m++) {
+        const interest = bal * r;
+        let prin = pay - interest;
+        if (prin > bal) prin = bal;
+        bal = Math.max(0, bal - prin);
+        months.push({ m, payment: pay, interest, principal: prin, balance: bal });
+      }
+      return { months, payment: pay };
+    }
+    function fmtUSD(n, opts = {}) {
+      if (!isFinite(n)) return '—';
+      const d = opts.decimals ?? 0;
+      return '$' + Math.round(n * Math.pow(10, d)) / Math.pow(10, d)
+        .toLocaleString('en-US', { maximumFractionDigits: d });
+    }
+    // Better number formatter using Intl
+    function fmtCurrency(n, decimals = 0) {
+      if (!isFinite(n)) return '—';
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: decimals, minimumFractionDigits: decimals }).format(n);
+    }
+    function fmtPct(n, decimals = 1) {
+      if (!isFinite(n)) return '—';
+      return n.toFixed(decimals) + '%';
+    }
+
+    /* ============================================================
+       Generic line chart
+       ============================================================ */
+    function drawLineChart(canvas, series, opts) {
+      opts = opts || {};
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.width = canvas.clientWidth * dpr;
+      const H = canvas.height = canvas.clientHeight * dpr;
+      ctx.scale(dpr, dpr);
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      const padL = 50, padR = 12, padT = 12, padB = 28;
+      const innerW = w - padL - padR;
+      const innerH = h - padT - padB;
+
+      // Combine all y values for scaling
+      let ymin = opts.ymin ?? Infinity;
+      let ymax = opts.ymax ?? -Infinity;
+      for (const s of series) for (const v of s.data) {
+        if (v < ymin) ymin = v;
+        if (v > ymax) ymax = v;
+      }
+      if (!isFinite(ymin) || !isFinite(ymax) || ymin === ymax) {
+        ymin = ymin === ymax ? ymin - 1 : 0;
+        ymax = (isFinite(ymax) ? ymax : 0) + 1;
+      }
+      // Pad y range
+      const range = ymax - ymin;
+      ymax += range * 0.05;
+      ymin = Math.min(ymin, 0);
+      const xMax = (series[0]?.data?.length || 1) - 1;
+
+      const xToPx = (i) => padL + (i / Math.max(xMax, 1)) * innerW;
+      const yToPx = (v) => padT + innerH - ((v - ymin) / (ymax - ymin)) * innerH;
+
+      // Grid
+      ctx.strokeStyle = '#e3e8e5';
+      ctx.lineWidth = 1;
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillStyle = '#5a6864';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const gridLines = 4;
+      for (let i = 0; i <= gridLines; i++) {
+        const v = ymin + ((ymax - ymin) * i) / gridLines;
+        const y = yToPx(v);
+        ctx.beginPath();
+        ctx.moveTo(padL, y + 0.5);
+        ctx.lineTo(w - padR, y + 0.5);
+        ctx.stroke();
+        ctx.fillText(opts.yFormat ? opts.yFormat(v) : Math.round(v), padL - 6, y);
+      }
+
+      // X axis labels
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const xLabels = opts.xLabels || [];
+      const labelEvery = Math.max(1, Math.ceil((xMax + 1) / 6));
+      for (let i = 0; i <= xMax; i += labelEvery) {
+        const x = xToPx(i);
+        const lbl = xLabels[i] != null ? xLabels[i] : i;
+        ctx.fillText(lbl, x, h - padB + 4);
+      }
+
+      // Series
+      for (const s of series) {
+        ctx.strokeStyle = s.color || '#2d8a78';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let i = 0; i < s.data.length; i++) {
+          const x = xToPx(i);
+          const y = yToPx(s.data[i]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        if (s.fill) {
+          ctx.fillStyle = s.fill;
+          ctx.lineTo(xToPx(s.data.length - 1), yToPx(0));
+          ctx.lineTo(xToPx(0), yToPx(0));
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Vertical marker
+      if (opts.markerX != null) {
+        const x = xToPx(opts.markerX);
+        ctx.strokeStyle = '#d68b1d';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, h - padB);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    /* ============================================================
+       Tab 1 — Payment
+       ============================================================ */
+    function renderPayment() {
+      const i = inputs.payment;
+      const loan = Math.max(0, i.price - i.down);
+      const sched = amortSchedule(loan, i.rate, i.term);
+      const pi = sched.payment;
+
+      // PMI: applies if loan-to-value > 80%
+      const ltv = i.price > 0 ? (loan / i.price) * 100 : 0;
+      const pmi = ltv > 80 ? loan * 0.0075 / 12 : 0; // 0.75% annual rough estimate
+      const taxMo = i.tax / 12;
+      const insMo = i.ins / 12;
+      const piti = pi + taxMo + insMo + pmi + i.hoa;
+
+      document.getElementById('p-piti').textContent = fmtCurrency(piti);
+      document.getElementById('p-pi').textContent = fmtCurrency(pi);
+      document.getElementById('p-pi-sub').textContent = `${i.term} yrs at ${i.rate.toFixed(2)}%`;
+      document.getElementById('p-tax-mo').textContent = fmtCurrency(taxMo);
+      document.getElementById('p-ins-mo').textContent = fmtCurrency(insMo);
+      document.getElementById('p-pmi').textContent = pmi > 0 ? fmtCurrency(pmi) : '—';
+      document.getElementById('p-pmi-sub').textContent = pmi > 0 ? `LTV ${ltv.toFixed(0)}% — drops at 80%` : 'LTV under 80%';
+      document.getElementById('p-loan').textContent = fmtCurrency(loan);
+      const totalPaid = pi * i.term * 12;
+      const totalInterest = totalPaid - loan;
+      document.getElementById('p-total-int').textContent = fmtCurrency(totalInterest);
+      document.getElementById('p-total-cost').textContent = fmtCurrency(totalPaid);
+
+      const downPct = i.price > 0 ? (i.down / i.price) * 100 : 0;
+      document.getElementById('p-down-pct').textContent = `${downPct.toFixed(1)}% of price`;
+      const taxPct = i.price > 0 ? (i.tax / i.price) * 100 : 0;
+      document.getElementById('p-tax-pct').textContent = `${taxPct.toFixed(2)}% of price/yr`;
+
+      // Chart: yearly balance + cumulative interest
+      const balByYear = [], cumInt = [];
+      let intRun = 0;
+      balByYear.push(loan);
+      cumInt.push(0);
+      for (let yr = 1; yr <= i.term; yr++) {
+        for (let m = (yr - 1) * 12; m < yr * 12; m++) {
+          intRun += sched.months[m].interest;
+        }
+        balByYear.push(sched.months[yr * 12 - 1].balance);
+        cumInt.push(intRun);
+      }
+      const xLabels = balByYear.map((_, idx) => idx === 0 || idx % 5 === 0 ? `Y${idx}` : '');
+      drawLineChart(document.getElementById('p-chart'),
+        [
+          { data: balByYear, color: '#2d8a78' },
+          { data: cumInt, color: '#d68b1d' },
+        ],
+        { xLabels, yFormat: (v) => v >= 1e6 ? '$' + (v/1e6).toFixed(1) + 'M' : '$' + Math.round(v/1000) + 'k' }
+      );
+
+      // Yearly schedule
+      const sch = document.getElementById('p-schedule');
+      const rows = [];
+      let yrInt = 0, yrPrin = 0;
+      for (let m = 0; m < sched.months.length; m++) {
+        yrInt += sched.months[m].interest;
+        yrPrin += sched.months[m].principal;
+        if ((m + 1) % 12 === 0) {
+          const yr = (m + 1) / 12;
+          rows.push(`<tr>
+            <td>Year ${yr}</td>
+            <td>${fmtCurrency(yrInt)}</td>
+            <td>${fmtCurrency(yrPrin)}</td>
+            <td>${fmtCurrency(sched.months[m].balance)}</td>
+          </tr>`);
+          yrInt = 0; yrPrin = 0;
+        }
+      }
+      sch.innerHTML = rows.join('');
+    }
+
+    /* ============================================================
+       Tab 2 — Affordability
+       ============================================================ */
+    function renderAffordability() {
+      const i = inputs.affordability;
+      const monthlyIncome = i.income / 12;
+      const targetHousing = monthlyIncome * (i.front / 100);
+      const backLimit = monthlyIncome * (i.back / 100) - i.debts;
+      const effectiveLimit = Math.min(targetHousing, backLimit);
+
+      // Solve for max loan: target P+I = effectiveLimit - tax_mo - ins_mo where tax depends on price
+      // Iteratively converge: assume insurance ~ 0.5% of price/yr, tax = i.taxrate% of price/yr
+      let price = 500000;
+      const r = i.rate / 100 / 12;
+      const n = i.term * 12;
+      const pmtFactor = r === 0 ? 1 / n : (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+      // monthly_pi = (price - down) * pmtFactor
+      // monthly_tax = price * taxrate/100 / 12
+      // monthly_ins = price * 0.005 / 12 (assumed)
+      // Solve: (price - down) * pmtFactor + price * (taxrate/100 + 0.005)/12 = effectiveLimit
+      // price * pmtFactor - down * pmtFactor + price * monthlyOther = effectiveLimit
+      // price * (pmtFactor + monthlyOther) = effectiveLimit + down * pmtFactor
+      const monthlyOther = (i.taxrate / 100 + 0.005) / 12;
+      price = (effectiveLimit + i.down * pmtFactor) / (pmtFactor + monthlyOther);
+      price = Math.max(i.down, price);
+      const loan = Math.max(0, price - i.down);
+      const piMo = loan * pmtFactor;
+
+      document.getElementById('a-max-price').textContent = fmtCurrency(price);
+      document.getElementById('a-target-mo').textContent = fmtCurrency(targetHousing);
+      document.getElementById('a-pi').textContent = fmtCurrency(piMo);
+      document.getElementById('a-loan').textContent = fmtCurrency(loan);
+      const downPct = price > 0 ? (i.down / price) * 100 : 0;
+      document.getElementById('a-down-pct').textContent = downPct.toFixed(1) + '%';
+
+      const verdict = document.getElementById('a-verdict');
+      if (downPct < 20) {
+        verdict.className = 'verdict warn';
+        verdict.innerHTML = `<strong>You'll likely pay PMI</strong>Down payment of ${downPct.toFixed(1)}% triggers private mortgage insurance until you reach 20% equity. Estimated added cost: ~${fmtCurrency(loan * 0.0075 / 12)}/mo.`;
+      } else {
+        verdict.className = 'verdict good';
+        verdict.innerHTML = `<strong>Healthy down payment</strong>${downPct.toFixed(1)}% down avoids PMI. Your front-end ratio is ${i.front}% — comfortable for most lenders.`;
+      }
+
+      const backWarn = document.getElementById('a-back-warn');
+      if (backLimit < targetHousing) {
+        backWarn.style.display = 'block';
+        document.getElementById('a-back-msg').textContent =
+          `Your back-end (debt incl. housing) is the limiting factor. With ${fmtCurrency(i.debts)}/mo of other debt, max housing budget drops to ${fmtCurrency(backLimit)} — below the 28%-rule cap.`;
+      } else {
+        backWarn.style.display = 'none';
+      }
+
+      // Chart: max price across rates 4% to 9%
+      const rates = [];
+      const prices = [];
+      for (let rt = 4; rt <= 9; rt += 0.25) {
+        const rr = rt / 100 / 12;
+        const pf = rr === 0 ? 1 / n : (rr * Math.pow(1 + rr, n)) / (Math.pow(1 + rr, n) - 1);
+        const p = (effectiveLimit + i.down * pf) / (pf + monthlyOther);
+        rates.push(rt);
+        prices.push(Math.max(i.down, p));
+      }
+      const markerIdx = rates.findIndex(r => Math.abs(r - i.rate) < 0.13);
+      drawLineChart(document.getElementById('a-chart'),
+        [{ data: prices, color: '#2d8a78' }],
+        {
+          xLabels: rates.map((r, i) => i % 4 === 0 ? `${r.toFixed(1)}%` : ''),
+          yFormat: (v) => v >= 1e6 ? '$' + (v/1e6).toFixed(1) + 'M' : '$' + Math.round(v/1000) + 'k',
+          markerX: markerIdx >= 0 ? markerIdx : null,
+        }
+      );
+    }
+
+    /* ============================================================
+       Tab 3 — Rent vs Buy
+       ============================================================ */
+    function renderRentBuy() {
+      const i = inputs.rentbuy;
+      const loan = Math.max(0, i.price - i.down);
+      const sched = amortSchedule(loan, i.rate, i.term);
+      const piMo = sched.payment;
+      const yrTax = i.price * i.tax / 100;
+      const yrMaint = i.price * i.maint / 100;
+      // Insurance flat estimate
+      const yrIns = i.price * 0.005;
+      const yrHousing = piMo * 12 + yrTax + yrMaint + yrIns;
+
+      // Cumulative cost arrays
+      const buyCum = [0];
+      const rentCum = [0];
+      const equityArr = [0];
+      let rent = i.rent;
+      let homeValue = i.price;
+      let equity = i.down;
+      let invested = i.down;
+      const r = i.rate / 100 / 12;
+      let bal = loan;
+
+      for (let yr = 1; yr <= i.years; yr++) {
+        // Rent year
+        const yrRent = rent * 12;
+        rentCum.push(rentCum[yr - 1] + yrRent);
+        rent *= (1 + i.rentgrow / 100);
+
+        // Buy year — pay 12 months of mortgage
+        let yrInt = 0, yrPrin = 0;
+        for (let m = (yr - 1) * 12; m < yr * 12 && m < sched.months.length; m++) {
+          yrInt += sched.months[m].interest;
+          yrPrin += sched.months[m].principal;
+          bal = sched.months[m].balance;
+        }
+        // Home appreciates
+        homeValue *= (1 + i.appreciation / 100);
+        equity = homeValue - bal;
+        // Buy cost = year's housing + opportunity cost of down + invested money at investment rate
+        invested *= (1 + i.invest / 100);
+        // Net buying cost = cumulative housing payments + opportunity cost - equity gained
+        const yearHousing = piMo * 12 + (homeValue * i.tax / 100) + (homeValue * i.maint / 100) + (homeValue * 0.005);
+        // Sum housing all years up to yr
+        // Simpler: track running buying cost = housing + opp cost - equity gain
+        // Use running approach:
+        buyCum.push(buyCum[yr - 1] + yearHousing);
+        equityArr.push(equity);
+      }
+
+      // Net buying cost (cumulative housing) - equity built (above original down) - savings differential
+      // Simplified: buyNet[t] = cumHousing[t] - (equity[t] - down) - sale costs (~6% at exit, applied at end)
+      const buyNetSeries = [];
+      for (let t = 0; t <= i.years; t++) {
+        const cumHousing = buyCum[t];
+        const eq = equityArr[t];
+        // Exit: subtract ~6% of home sale at final year only
+        const homeValueT = i.price * Math.pow(1 + i.appreciation / 100, t);
+        const saleCost = t === i.years ? homeValueT * 0.06 : 0;
+        const netCost = cumHousing - (eq - i.down) + saleCost;
+        buyNetSeries.push(netCost);
+      }
+
+      // Find break-even: first year where buyNet < rentCum
+      let breakeven = -1;
+      for (let t = 1; t <= i.years; t++) {
+        if (buyNetSeries[t] < rentCum[t]) { breakeven = t; break; }
+      }
+
+      const totalRent = rentCum[i.years];
+      const totalBuy = buyNetSeries[i.years];
+      const finalEquity = equityArr[i.years];
+
+      document.getElementById('rb-rent-total').textContent = fmtCurrency(totalRent);
+      document.getElementById('rb-rent-sub').textContent = `over ${i.years} years`;
+      document.getElementById('rb-buy-total').textContent = fmtCurrency(totalBuy);
+      document.getElementById('rb-equity').textContent = fmtCurrency(finalEquity);
+      const homeValueExit = i.price * Math.pow(1 + i.appreciation / 100, i.years);
+      document.getElementById('rb-equity-sub').textContent = `home ~${fmtCurrency(homeValueExit)}`;
+
+      const verdict = document.getElementById('rb-verdict');
+      const headline = document.getElementById('rb-headline');
+      const headlineSub = document.getElementById('rb-headline-sub');
+      if (breakeven > 0 && breakeven <= i.years) {
+        document.getElementById('rb-breakeven').textContent = `Year ${breakeven}`;
+        document.getElementById('rb-breakeven-sub').textContent = `buying becomes cheaper`;
+        const diff = totalRent - totalBuy;
+        if (diff > 0) {
+          headline.textContent = fmtCurrency(diff);
+          headlineSub.textContent = `Buying saves over ${i.years} years`;
+          verdict.className = 'verdict good';
+          verdict.innerHTML = `<strong>Buying wins after year ${breakeven}</strong>If you stay put for the full ${i.years} years, you come out ahead by ${fmtCurrency(diff)} (after sale costs).`;
+        } else {
+          headline.textContent = fmtCurrency(-diff);
+          headlineSub.textContent = `Renting wins despite break-even`;
+          verdict.className = 'verdict warn';
+          verdict.innerHTML = `<strong>Mixed result</strong>Buying breaks even at year ${breakeven} but is more expensive over your full ${i.years}-year hold. Tweak holding period or appreciation.`;
+        }
+      } else {
+        document.getElementById('rb-breakeven').textContent = '—';
+        document.getElementById('rb-breakeven-sub').textContent = `buying never catches up`;
+        const diff = totalBuy - totalRent;
+        headline.textContent = fmtCurrency(diff);
+        headlineSub.textContent = `Renting saves over ${i.years} years`;
+        verdict.className = 'verdict bad';
+        verdict.innerHTML = `<strong>Renting wins</strong>At these inputs, buying never beats renting in the holding period. Renting saves ~${fmtCurrency(diff)}.`;
+      }
+
+      // Chart
+      const xLabels = [];
+      for (let t = 0; t <= i.years; t++) {
+        xLabels.push(t === 0 || t % Math.max(1, Math.ceil(i.years/8)) === 0 ? `Y${t}` : '');
+      }
+      drawLineChart(document.getElementById('rb-chart'),
+        [
+          { data: buyNetSeries, color: '#2d8a78' },
+          { data: rentCum, color: '#d68b1d' },
+        ],
+        { xLabels, yFormat: (v) => v >= 1e6 ? '$' + (v/1e6).toFixed(1) + 'M' : '$' + Math.round(v/1000) + 'k' }
+      );
+    }
+
+    /* ============================================================
+       Tab 4 — Refinance
+       ============================================================ */
+    function renderRefinance() {
+      const i = inputs.refinance;
+      const curPI = pmt(i.curBal, i.curRate, i.curRemain);
+      const newPI = pmt(i.curBal, i.newRate, i.newTerm);
+      const monthlySavings = curPI - newPI;
+      const breakEven = monthlySavings > 0 ? Math.ceil(i.cost / monthlySavings) : -1;
+
+      const totalCur = curPI * i.curRemain * 12;
+      const totalNew = newPI * i.newTerm * 12 + i.cost;
+      const intSavings = (totalCur - i.curBal) - (totalNew - i.curBal - i.cost) - i.cost;
+
+      document.getElementById('rf-savings').textContent = monthlySavings > 0 ? fmtCurrency(monthlySavings) : fmtCurrency(0);
+      document.getElementById('rf-cur-pi').textContent = fmtCurrency(curPI);
+      document.getElementById('rf-new-pi').textContent = fmtCurrency(newPI);
+      document.getElementById('rf-be').textContent = breakEven > 0 ? `${breakEven} mo` : '—';
+      document.getElementById('rf-int-savings').textContent = fmtCurrency(intSavings);
+
+      const verdict = document.getElementById('rf-verdict');
+      if (monthlySavings <= 0) {
+        verdict.className = 'verdict bad';
+        verdict.innerHTML = `<strong>This refinance costs you money</strong>The new payment is higher than your current. Either rate isn't low enough or new term is too short.`;
+      } else if (breakEven > 60) {
+        verdict.className = 'verdict warn';
+        verdict.innerHTML = `<strong>Long break-even</strong>You'll need ${breakEven} months (${(breakEven/12).toFixed(1)} years) before closing costs pay off. Only worth it if you're staying ≥ ${Math.ceil(breakEven/12) + 2} more years.`;
+      } else if (breakEven > 24) {
+        verdict.className = 'verdict good';
+        verdict.innerHTML = `<strong>Reasonable break-even</strong>Costs paid off in ${breakEven} months. After that, you save ${fmtCurrency(monthlySavings)}/mo for the rest of the loan.`;
+      } else {
+        verdict.className = 'verdict good';
+        verdict.innerHTML = `<strong>Strong refinance candidate</strong>Break-even in only ${breakEven} months. Quick payback + ${fmtCurrency(monthlySavings)}/mo savings is hard to beat.`;
+      }
+
+      // Chart: cumulative monthly cost (current vs new + closing)
+      const months = Math.min(i.curRemain, i.newTerm) * 12;
+      const curCum = [], newCum = [];
+      let curRun = 0, newRun = i.cost;
+      for (let m = 0; m <= months; m++) {
+        curCum.push(curRun);
+        newCum.push(newRun);
+        curRun += curPI;
+        newRun += newPI;
+      }
+      const xLabels = curCum.map((_, idx) => idx === 0 || idx % Math.max(1, Math.ceil(months / 8)) === 0 ? `M${idx}` : '');
+      drawLineChart(document.getElementById('rf-chart'),
+        [
+          { data: curCum, color: '#d68b1d' },
+          { data: newCum, color: '#2d8a78' },
+        ],
+        { xLabels, yFormat: (v) => v >= 1e6 ? '$' + (v/1e6).toFixed(1) + 'M' : '$' + Math.round(v/1000) + 'k' }
+      );
+    }
+
+    /* ============================================================
+       Tab switching + input wiring
+       ============================================================ */
+    function activateTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === name);
+      });
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === name);
+      });
+      renderActive();
+    }
+    function renderActive() {
+      const active = document.querySelector('.tab.active')?.dataset?.tab;
+      if (active === 'payment') renderPayment();
+      else if (active === 'affordability') renderAffordability();
+      else if (active === 'rentbuy') renderRentBuy();
+      else if (active === 'refinance') renderRefinance();
+    }
+
+    let renderTimer = null;
+    function scheduleRender() {
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(() => {
+        saveInputs();
+        renderActive();
+      }, 80);
+    }
+
+    function bindInput(id, group, key, transform) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = inputs[group][key];
+      el.addEventListener('input', () => {
+        let v = parseFloat(el.value);
+        if (isNaN(v)) v = 0;
+        if (transform) v = transform(v);
+        inputs[group][key] = v;
+        scheduleRender();
+      });
+    }
+    function bindSlider(id, valId, group, key, suffix) {
+      const el = document.getElementById(id);
+      const valEl = document.getElementById(valId);
+      if (!el) return;
+      el.value = inputs[group][key];
+      const updateLabel = () => { valEl.textContent = el.value + (suffix || ''); };
+      updateLabel();
+      el.addEventListener('input', () => {
+        inputs[group][key] = parseFloat(el.value);
+        updateLabel();
+        scheduleRender();
+      });
+    }
+
+    function wireInputs() {
+      // Payment
+      bindInput('p-price', 'payment', 'price');
+      bindInput('p-down', 'payment', 'down');
+      bindInput('p-rate', 'payment', 'rate');
+      bindInput('p-term', 'payment', 'term');
+      bindInput('p-tax', 'payment', 'tax');
+      bindInput('p-ins', 'payment', 'ins');
+      bindInput('p-hoa', 'payment', 'hoa');
+
+      // Affordability
+      bindInput('a-income', 'affordability', 'income');
+      bindSlider('a-front-r', 'a-front-v', 'affordability', 'front', '%');
+      bindSlider('a-back-r', 'a-back-v', 'affordability', 'back', '%');
+      bindInput('a-debts', 'affordability', 'debts');
+      bindInput('a-down', 'affordability', 'down');
+      bindInput('a-rate', 'affordability', 'rate');
+      bindInput('a-term', 'affordability', 'term');
+      bindInput('a-taxrate', 'affordability', 'taxrate');
+
+      // Rent vs buy
+      bindInput('rb-rent', 'rentbuy', 'rent');
+      bindInput('rb-rentgrow', 'rentbuy', 'rentgrow');
+      bindInput('rb-price', 'rentbuy', 'price');
+      bindInput('rb-down', 'rentbuy', 'down');
+      bindInput('rb-rate', 'rentbuy', 'rate');
+      bindInput('rb-term', 'rentbuy', 'term');
+      bindInput('rb-appreciation', 'rentbuy', 'appreciation');
+      bindInput('rb-invest', 'rentbuy', 'invest');
+      bindInput('rb-tax', 'rentbuy', 'tax');
+      bindInput('rb-maint', 'rentbuy', 'maint');
+      bindSlider('rb-years-r', 'rb-years-v', 'rentbuy', 'years', ' yrs');
+
+      // Refinance
+      bindInput('rf-cur-bal', 'refinance', 'curBal');
+      bindInput('rf-cur-rate', 'refinance', 'curRate');
+      bindInput('rf-cur-remain', 'refinance', 'curRemain');
+      bindInput('rf-new-rate', 'refinance', 'newRate');
+      bindInput('rf-new-term', 'refinance', 'newTerm');
+      bindInput('rf-cost', 'refinance', 'cost');
+
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.addEventListener('click', () => activateTab(b.dataset.tab));
+      });
+
+      // Presets
+      document.querySelectorAll('.preset-chip').forEach(c => {
+        c.addEventListener('click', () => {
+          try {
+            const ps = JSON.parse(c.dataset.preset);
+            for (const k in ps) {
+              if (inputs.payment.hasOwnProperty(k)) inputs.payment[k] = ps[k];
+              const el = document.getElementById('p-' + k);
+              if (el) el.value = ps[k];
+            }
+            saveInputs();
+            renderActive();
+          } catch (e) { /* ignore */ }
+        });
+      });
+    }
+
+    /* ============================================================
+       Boot
+       ============================================================ */
+    loadInputs();
+    wireInputs();
+    renderActive();
+    window.addEventListener('resize', () => {
+      // Redraw active charts
+      renderActive();
+    });
+  })();
+  </script>
+</body>
+</html>

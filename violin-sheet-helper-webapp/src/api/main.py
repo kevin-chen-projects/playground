@@ -5,10 +5,9 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
-from src.services.ocr_service import run_ocr
-from src.services.music_parser_service import parse_notes
 from src.services.fingering_engine import build_guidance
+from src.services.music_parser_service import parse_notes
+from src.services.ocr_service import run_ocr
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 WEB_DIR = BASE_DIR / "src" / "web"

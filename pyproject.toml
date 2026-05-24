@@ -1,0 +1,45 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = [
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".git",
+  "logs",
+  "build",
+  "dist",
+  "node_modules",
+  # The repo ships several .py.backup_<timestamp> files from contributor
+  # tooling. They live next to real .py files and aren't meant to be
+  # linted — they're snapshot history, not source.
+  "**/*backup*",
+  # JS-heavy sub-project (no Python to lint).
+  "escape-room-simulator/**",
+]
+
+[tool.ruff.lint]
+# Playground-scale config: catch real bugs (pyflakes, pycodestyle errors,
+# import sorting) without forcing perfection on experimental code.
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes (undefined names, unused imports)
+  "I",   # isort (import sorting)
+]
+ignore = [
+  "E501",  # line length — Ruff formatter handles this when run; lint should not block
+  "E402",  # module-level import not at top — sometimes needed for sys.path setup
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files commonly use assert + may import for side effects.
+"**/tests/**" = ["F401", "F811"]
+# Backup snapshots are not linted (extend-exclude above), but belt-and-suspenders.
+"**/*backup*" = ["ALL"]
+
+[tool.pytest.ini_options]
+# Each sub-project can have its own pytest config; this is just defaults.
+# CI runs pytest with `working-directory: violin-sheet-helper-webapp` so
+# this root config is essentially a fallback.
+testpaths = ["tests"]
+addopts = "-q"

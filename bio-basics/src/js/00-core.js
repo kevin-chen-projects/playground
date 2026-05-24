@@ -44,15 +44,15 @@
         { id: 'evolve',        name: 'Mutations & Evolution',     icon: '🦎', color: 'var(--leaf-100)',
           blurb: 'Tiny copy errors → giant changes over time. The engine of life.', status: 'unlocked' },
         { id: 'disease',       name: 'Cancer & Genetic Disease',  icon: '🩺', color: 'var(--coral-100)',
-          blurb: 'When the recipes get scrambled. What goes wrong, and what we can do about it.', status: 'soon' },
+          blurb: 'When the recipes get scrambled. What goes wrong, and what we can do about it.', status: 'unlocked' },
         { id: 'viruses',       name: 'Viruses',                   icon: '🦠', color: 'var(--grape-100)',
-          blurb: 'The freeloaders. How they hijack your cells to make more of themselves.', status: 'soon' },
+          blurb: 'The freeloaders. How they hijack your cells to make more of themselves.', status: 'unlocked' },
         { id: 'immune',        name: 'The Immune System',         icon: '🛡️', color: 'var(--sky-100)',
-          blurb: 'Your body\'s built-in security force. Antibodies, T-cells, memory.', status: 'soon' },
+          blurb: 'Your body\'s built-in security force. Antibodies, T-cells, memory.', status: 'unlocked' },
         { id: 'vaccines',      name: 'Vaccines & Pandemics',      icon: '💉', color: 'var(--sun-100)',
-          blurb: 'How vaccines train your immune system. Why pandemics happen.', status: 'soon' },
+          blurb: 'How vaccines train your immune system. Why pandemics happen.', status: 'unlocked' },
         { id: 'crispr',        name: 'CRISPR & Modern Tools',     icon: '✂️', color: 'var(--leaf-100)',
-          blurb: 'Bacteria invented gene editing. Now we use it to cure disease.', status: 'soon' },
+          blurb: 'Bacteria invented gene editing. Now we use it to cure disease.', status: 'unlocked' },
       ];
 
       // ----- DOM helpers -----

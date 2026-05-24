@@ -1611,6 +1611,146 @@
       .mutation-options { flex-wrap: wrap; justify-content: center; }
       .sickle-story { grid-template-columns: 1fr; }
     }
+
+/* ============================================================
+   MODULES 7-11 — disease, viruses, immune, vaccines, crispr
+   ============================================================ */
+
+/* Hallmark grid (cancer), virus stages, vaccine types, CRISPR steps
+   all share the same "card grid that you click to reveal detail" pattern */
+.hallmark-grid,
+.virus-stages,
+.vaccine-types,
+.crispr-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.hallmark-card,
+.stage-card {
+  background: var(--paper);
+  border: 1.5px solid var(--leaf-100);
+  border-radius: 14px;
+  padding: 16px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.18s, border-color 0.18s;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+.hallmark-card:hover,
+.stage-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--leaf-400);
+}
+.hallmark-card.active,
+.stage-card.active {
+  background: var(--leaf-100);
+  border-color: var(--leaf-500);
+}
+
+.hallmark-icon,
+.stage-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+.hallmark-name,
+.stage-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink-900);
+  line-height: 1.3;
+}
+
+.hallmark-detail,
+.virus-stage-detail,
+.vaccine-detail,
+.crispr-stage-detail {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 6px;
+  min-height: 80px;
+  color: var(--ink-700);
+  font-size: 15px;
+}
+.hallmark-detail strong,
+.virus-stage-detail strong,
+.vaccine-detail strong,
+.crispr-stage-detail strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink-900);
+  font-size: 16px;
+}
+
+/* Immune system layer toggle */
+.immune-toggle {
+  display: inline-flex;
+  background: var(--paper);
+  border: 1.5px solid var(--sky-100);
+  border-radius: 999px;
+  padding: 4px;
+  margin: 8px 0 18px;
+  box-shadow: var(--shadow-sm);
+}
+.immune-toggle button {
+  background: transparent;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-700);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.immune-toggle button.active {
+  background: var(--sky-500);
+  color: white;
+}
+
+.immune-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.immune-cell {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.immune-cell-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+.immune-cell-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--ink-900);
+}
+.immune-cell-desc {
+  font-size: 13px;
+  color: var(--ink-700);
+  line-height: 1.4;
+}
+
+.immune-explain {
+  background: var(--sky-100);
+  color: var(--ink-700);
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-top: 8px;
+  font-size: 14px;
+  border-left: 3px solid var(--sky-500);
+}
   </style>
 </head>
 <body>
@@ -2677,6 +2817,789 @@
           </div>
 
         </div><!-- /module-section data-module="evolve" -->
+
+        <!-- ============= MODULE: DISEASE (Cancer & Genetic Disease) ============= -->
+        <div class="module-section" data-module="disease" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">1 in 3</span>
+                <div class="big-number-label">people will get cancer in their lifetime. Where does it come from?</div>
+                <h2>Cancer is what happens when <em>the recipes get scrambled</em>.</h2>
+                <p>
+                  You already know cells follow DNA recipes. Cancer is what happens
+                  when key recipes get damaged — specifically, the recipes that tell
+                  a cell when to stop growing and when to die.
+                </p>
+                <p>
+                  It isn't a single disease. It's hundreds of different diseases that
+                  all share one pattern: a cell forgets the rules and starts copying
+                  itself when it shouldn't.
+                </p>
+              </div>
+              <div class="hook-stage" id="disease-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 7 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">What goes wrong →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea -->
+          <div class="scene" data-scene="1">
+            <h2>Cancer cells break four rules.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Healthy cells are obedient. They grow when needed, stop when crowded,
+              and quietly self-destruct when damaged. Cancer cells defy all four:
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">📈</div>
+                <div class="pair"><span class="biology">Grow without permission</span></div>
+                <p class="desc">Normal cells wait for "go" signals from neighbors. Cancer cells produce their own.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🚫</div>
+                <div class="pair"><span class="biology">Ignore "stop" signals</span></div>
+                <p class="desc">Normal cells stop dividing when crowded. Cancer cells keep going.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">⏳</div>
+                <div class="pair"><span class="biology">Refuse to die</span></div>
+                <p class="desc">Damaged cells normally self-destruct (apoptosis). Cancer cells disable this.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🩸</div>
+                <div class="pair"><span class="biology">Build their own blood supply</span></div>
+                <p class="desc">Growing tumors trick the body into sprouting new blood vessels to feed them.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · How cells turn cancerous</span>
+              <button class="btn btn-primary" data-action="next">See the hallmarks →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — the 6 hallmarks of cancer -->
+          <div class="scene" data-scene="2">
+            <h2>The 6 hallmarks of cancer.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              In 2000, two researchers (Hanahan and Weinberg) wrote a famous paper saying
+              every cancer — no matter what tissue — develops the same six traits.
+              Click each to see what it means.
+            </p>
+            <div class="hallmark-grid" id="hallmark-grid"></div>
+            <div class="hallmark-detail" id="hallmark-detail">
+              <p style="color: var(--ink-500); font-style: italic;">Click a hallmark above to read more.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · Which genes break?</span>
+              <button class="btn btn-primary" data-action="next">Oncogenes vs tumor suppressors →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — oncogenes vs tumor suppressors -->
+          <div class="scene" data-scene="3">
+            <h2>Two kinds of broken genes.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Cancer-causing mutations hit two categories of genes: the gas pedals
+              and the brakes of cell division. Each behaves differently when broken.
+            </p>
+            <div class="vs-table" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; max-width: 800px;">
+              <div class="city-card" style="background: var(--coral-100); border: 1px solid var(--coral-300);">
+                <div class="icons">🏎️</div>
+                <div class="pair"><span class="biology">Oncogenes (gas pedals)</span></div>
+                <p class="desc">
+                  Normally tell the cell "grow now". Cancer happens when they get
+                  <strong>stuck ON</strong>. <em>One broken copy is enough</em> — like a stuck
+                  accelerator. Examples: RAS, MYC, HER2.
+                </p>
+              </div>
+              <div class="city-card" style="background: var(--sky-100); border: 1px solid var(--sky-300);">
+                <div class="icons">🛑</div>
+                <div class="pair"><span class="biology">Tumor suppressors (brakes)</span></div>
+                <p class="desc">
+                  Normally tell the cell "stop" or "die if damaged". Cancer happens when they
+                  <strong>both copies break</strong>. <em>Two-hit rule</em> — like losing
+                  brakes AND emergency brake. Examples: p53, BRCA1/2, RB.
+                </p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px;">
+              <strong>💡 Why p53 is called "the guardian of the genome".</strong>
+              <p>
+                p53 detects DNA damage. If damage is fixable, it pauses the cell to fix.
+                If not, it orders apoptosis (self-destruction). Roughly <strong>half of
+                all human cancers</strong> have a broken p53. When the guardian sleeps,
+                damage accumulates.
+              </p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="disease-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap -->
+          <div class="scene" data-scene="5">
+            <h2>Cancer in one sentence.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              Cancer is what happens when a cell accumulates enough mutations in
+              the right genes (oncogenes ON + tumor suppressors OFF) that it forgets
+              the body's growth rules and starts copying itself unchecked.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">📈</span><span class="lbl">Grows without permission</span></div>
+              <div class="recap-pill"><span class="ic">🚫</span><span class="lbl">Ignores stop signals</span></div>
+              <div class="recap-pill"><span class="ic">⏳</span><span class="lbl">Refuses apoptosis</span></div>
+              <div class="recap-pill"><span class="ic">🏎️</span><span class="lbl">Oncogenes = stuck gas</span></div>
+              <div class="recap-pill"><span class="ic">🛑</span><span class="lbl">Tumor suppressors = lost brakes</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🦠</div>
+              <div>
+                <h3>Coming up next: Viruses</h3>
+                <p>
+                  Cancer is your own cells betraying you. Viruses are something else
+                  entirely — outsiders that hijack your cells to make copies of themselves.
+                  Let's meet them.
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 7 complete · Disease arc continues</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="viruses">Continue to Viruses →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="disease" -->
+
+        <!-- ============= MODULE: VIRUSES ============= -->
+        <div class="module-section" data-module="viruses" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">10³¹</span>
+                <div class="big-number-label">viruses on Earth — more than every star in the universe.</div>
+                <h2>Viruses are <em>biology's freeloaders</em>.</h2>
+                <p>
+                  A virus isn't really alive. It has DNA or RNA wrapped in a protein
+                  shell, and that's it — no cells, no metabolism, no way to reproduce
+                  on its own.
+                </p>
+                <p>
+                  But give it a living cell to hijack, and it becomes a copy machine.
+                  It turns the cell's machinery against itself, makes hundreds of new
+                  virus particles, and bursts out to find more cells.
+                </p>
+              </div>
+              <div class="hook-stage" id="viruses-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 8 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">How they work →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea -->
+          <div class="scene" data-scene="1">
+            <h2>The basic anatomy of a virus.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Strip a virus down to its essentials. There are only a few parts —
+              and not every virus has all of them.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🧬</div>
+                <div class="pair"><span class="biology">Genetic payload</span></div>
+                <p class="desc">DNA or RNA — usually just a few thousand to a few hundred thousand bases. Tiny.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📦</div>
+                <div class="pair"><span class="biology">Capsid (protein shell)</span></div>
+                <p class="desc">A geometric protein cage that protects the genome until it finds a host.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🛢️</div>
+                <div class="pair"><span class="biology">Envelope (sometimes)</span></div>
+                <p class="desc">A fatty outer layer stolen from a previous host cell. Influenza and HIV have one; many others don't.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🔑</div>
+                <div class="pair"><span class="biology">Surface keys</span></div>
+                <p class="desc">Spike proteins that fit specific lock receptors on host cells — what determines which cells the virus can infect.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Watch the takeover</span>
+              <button class="btn btn-primary" data-action="next">See the replication cycle →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — replication cycle -->
+          <div class="scene" data-scene="2">
+            <h2>The replication cycle, step by step.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              A virus that gets into a cell goes through five distinct stages.
+              Click each one to see what's happening.
+            </p>
+            <div class="virus-stages" id="virus-stages"></div>
+            <div class="virus-stage-detail" id="virus-stage-detail">
+              <p style="color: var(--ink-500); font-style: italic;">Click a stage above to see how it works.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · How viruses vary</span>
+              <button class="btn btn-primary" data-action="next">Three kinds of viruses →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — virus categories -->
+          <div class="scene" data-scene="3">
+            <h2>Not all viruses are alike.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              The category mostly comes down to what's inside the capsid and how
+              that genetic payload gets copied. These three are the main families
+              for human disease.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">📘</div>
+                <div class="pair"><span class="biology">DNA viruses</span></div>
+                <p class="desc">
+                  Carry DNA. Use the host's normal copy machinery. Slow to mutate
+                  (good copying). Examples: herpes, chickenpox, HPV, smallpox.
+                </p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📕</div>
+                <div class="pair"><span class="biology">RNA viruses</span></div>
+                <p class="desc">
+                  Carry RNA. Use a sloppy enzyme (RNA-dependent RNA polymerase) that
+                  copies fast but makes errors. <em>Fast mutators.</em> Examples: flu,
+                  cold, measles, COVID, hepatitis A/C, polio.
+                </p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📒</div>
+                <div class="pair"><span class="biology">Retroviruses</span></div>
+                <p class="desc">
+                  Carry RNA but reverse-transcribe it into DNA, then insert into
+                  your genome <em>permanently</em>. Examples: HIV. About 8% of
+                  human DNA came from ancient retroviruses long ago.
+                </p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px;">
+              <strong>🌊 Why flu changes every year.</strong>
+              <p>
+                Flu is an RNA virus. Each replication round, the sloppy enzyme
+                makes a few errors. Most are deleterious — but rare ones change
+                the surface keys enough that last year's antibodies don't recognize
+                this year's virus. That's why you need a new flu shot annually.
+              </p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="viruses-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap -->
+          <div class="scene" data-scene="5">
+            <h2>Viruses in one sentence.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              A virus is a genetic payload wrapped in protein that hijacks a living
+              cell's machinery to copy itself, then breaks out to find more cells.
+              That's the whole thing.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">🧬</span><span class="lbl">Genome + capsid (± envelope)</span></div>
+              <div class="recap-pill"><span class="ic">🔑</span><span class="lbl">Surface keys pick the target cell</span></div>
+              <div class="recap-pill"><span class="ic">🏭</span><span class="lbl">Hijacks host machinery</span></div>
+              <div class="recap-pill"><span class="ic">📘</span><span class="lbl">DNA virus = slow mutator</span></div>
+              <div class="recap-pill"><span class="ic">📕</span><span class="lbl">RNA virus = fast mutator</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🛡️</div>
+              <div>
+                <h3>Coming up next: The Immune System</h3>
+                <p>
+                  Viruses are constantly trying to infect you. So why aren't you sick
+                  all the time? Because your body has a small army of cells whose
+                  whole job is to find and destroy them. Let's meet that army.
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 8 complete</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="immune">Continue to Immune System →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="viruses" -->
+
+        <!-- ============= MODULE: IMMUNE SYSTEM ============= -->
+        <div class="module-section" data-module="immune" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">10¹¹</span>
+                <div class="big-number-label">lymphocytes patrolling your body right now — 100 billion soldiers.</div>
+                <h2>Your body has <em>a built-in security force</em>.</h2>
+                <p>
+                  Every second, you breathe in thousands of microbes. Some could kill
+                  you. But you don't notice — because hidden inside you, an enormous
+                  distributed army is doing nothing but identifying threats.
+                </p>
+                <p>
+                  This is the immune system. It has two layers that work together:
+                  a fast generalist (innate) and a slow specialist (adaptive).
+                </p>
+              </div>
+              <div class="hook-stage" id="immune-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 9 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Meet the two layers →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea -->
+          <div class="scene" data-scene="1">
+            <h2>Two layers of defense.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Most invaders never get past the first layer. The second layer only
+              shows up if the first one can't finish the job — but when it does, it
+              brings precision weapons.
+            </p>
+            <div class="city-grid">
+              <div class="city-card" style="background: var(--leaf-100); border: 1px solid var(--leaf-300);">
+                <div class="icons">⚡</div>
+                <div class="pair"><span class="biology">Innate (fast generalist)</span></div>
+                <p class="desc">Born with it. Responds to anything "not me" in minutes. Skin, mucus, fever, macrophages. No memory.</p>
+              </div>
+              <div class="city-card" style="background: var(--grape-100); border: 1px solid var(--grape-300);">
+                <div class="icons">🎯</div>
+                <div class="pair"><span class="biology">Adaptive (slow specialist)</span></div>
+                <p class="desc">Takes 7–14 days to ramp up. Makes custom weapons. Has memory. This is what vaccines target.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🤝</div>
+                <div class="pair"><span class="biology">They cooperate</span></div>
+                <p class="desc">Innate cells show samples of invaders to adaptive cells, which design precision weapons.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🧠</div>
+                <div class="pair"><span class="biology">Memory is the magic</span></div>
+                <p class="desc">After the first fight, memory cells stay for years. Next time: hours, not days.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Toggle the layers</span>
+              <button class="btn btn-primary" data-action="next">Innate vs adaptive →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — toggle innate vs adaptive -->
+          <div class="scene" data-scene="2">
+            <h2>What cells does each layer have?</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              The two layers use different cells with different jobs. Toggle between
+              them to see who plays for which team.
+            </p>
+            <div class="immune-toggle" id="immune-toggle">
+              <button class="active" data-layer="innate">⚡ Innate (fast)</button>
+              <button data-layer="adaptive">🎯 Adaptive (precise)</button>
+            </div>
+            <div class="immune-cells" id="immune-cells"></div>
+            <div class="immune-explain" id="immune-explain"></div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · The precision weapons</span>
+              <button class="btn btn-primary" data-action="next">B-cells &amp; T-cells →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — adaptive immunity -->
+          <div class="scene" data-scene="3">
+            <h2>The two stars of adaptive immunity.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              B-cells and T-cells are the snipers of the immune system. Both learn
+              to recognize one specific invader and ignore everything else.
+            </p>
+            <div class="vs-table" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; max-width: 800px;">
+              <div class="city-card" style="background: var(--coral-100); border: 1px solid var(--coral-300);">
+                <div class="icons">📤</div>
+                <div class="pair"><span class="biology">B-cells → antibodies</span></div>
+                <p class="desc">When a B-cell finds its target, it pumps out <strong>antibodies</strong>: Y-shaped proteins that latch onto invaders and mark them for destruction. Best against extracellular threats (bacteria, virus particles in blood).</p>
+              </div>
+              <div class="city-card" style="background: var(--sky-100); border: 1px solid var(--sky-300);">
+                <div class="icons">🗡️</div>
+                <div class="pair"><span class="biology">T-cells → kill infected cells</span></div>
+                <p class="desc"><strong>Helper T-cells</strong> coordinate the response. <strong>Killer T-cells</strong> destroy your own cells that have been infected with a virus. Best against intracellular threats and cancer.</p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px;">
+              <strong>📚 How does the body have a cell that recognizes <em>any</em> invader?</strong>
+              <p>The trick is genetic recombination. Each developing B-cell and T-cell randomly shuffles gene segments to create a unique receptor. Your body makes ~1 billion different ones. Cells that match "self" too well are killed during development. The survivors are your repertoire.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="immune-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap -->
+          <div class="scene" data-scene="5">
+            <h2>The immune system in one sentence.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              The immune system is a two-layer defense: a fast generalist (innate)
+              that handles most threats in minutes, plus a slow precision system
+              (adaptive) that builds custom weapons and remembers them.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">⚡</span><span class="lbl">Innate = fast, no memory</span></div>
+              <div class="recap-pill"><span class="ic">🎯</span><span class="lbl">Adaptive = slow, precise, remembers</span></div>
+              <div class="recap-pill"><span class="ic">📤</span><span class="lbl">B-cells make antibodies</span></div>
+              <div class="recap-pill"><span class="ic">🗡️</span><span class="lbl">T-cells kill infected cells</span></div>
+              <div class="recap-pill"><span class="ic">🧠</span><span class="lbl">Memory cells = faster next time</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">💉</div>
+              <div>
+                <h3>Coming up next: Vaccines &amp; Pandemics</h3>
+                <p>Now that you know how immunity works, vaccines are easy. They teach the adaptive system to recognize a threat without ever fighting the real disease.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 9 complete</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="vaccines">Continue to Vaccines →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="immune" -->
+
+        <!-- ============= MODULE: VACCINES & PANDEMICS ============= -->
+        <div class="module-section" data-module="vaccines" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">300M</span>
+                <div class="big-number-label">people killed by smallpox in the 20th century — until vaccines eradicated it in 1980.</div>
+                <h2>Vaccines are <em>practice for your immune system</em>.</h2>
+                <p>
+                  You already know the adaptive immune system gets faster after
+                  the first encounter with an invader. Vaccines exploit that: they
+                  give your immune system the "first encounter" without the disease.
+                </p>
+                <p>
+                  By the time the real virus shows up, you already have memory cells
+                  ready to respond in hours — fast enough that you barely notice.
+                </p>
+              </div>
+              <div class="hook-stage" id="vaccines-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 10 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">How they work →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea -->
+          <div class="scene" data-scene="1">
+            <h2>The big idea, in four steps.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Every vaccine — no matter what kind — does the same fundamental thing.
+              Show your immune system something <em>that looks like</em> a real pathogen,
+              without actually being one.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">1️⃣</div>
+                <div class="pair"><span class="biology">Show a fake invader</span></div>
+                <p class="desc">The vaccine contains a piece of (or look-alike of) the real pathogen — usually one of its surface proteins.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">2️⃣</div>
+                <div class="pair"><span class="biology">Immune system reacts</span></div>
+                <p class="desc">Your body sees something foreign, panics a little (= sore arm, mild fever) and starts building custom antibodies.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">3️⃣</div>
+                <div class="pair"><span class="biology">Memory cells form</span></div>
+                <p class="desc">After the practice fight, memory B-cells and T-cells stay behind. They carry the "wanted poster" for years.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">4️⃣</div>
+                <div class="pair"><span class="biology">Real virus arrives → fast win</span></div>
+                <p class="desc">When the actual pathogen shows up, memory cells trigger a response in hours. The pathogen is gone before you feel sick.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Five different recipes</span>
+              <button class="btn btn-primary" data-action="next">Compare vaccine types →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — vaccine types -->
+          <div class="scene" data-scene="2">
+            <h2>Five different recipes for the same idea.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              "Show the immune system a fake invader" can be done many ways.
+              Different vaccine types have different trade-offs. Click each to see how.
+            </p>
+            <div class="vaccine-types" id="vaccine-types"></div>
+            <div class="vaccine-detail" id="vaccine-detail">
+              <p style="color: var(--ink-500); font-style: italic;">Click a vaccine type above to read more.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · Why we need lots of people vaccinated</span>
+              <button class="btn btn-primary" data-action="next">Herd immunity →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — herd immunity -->
+          <div class="scene" data-scene="3">
+            <h2>Why everyone else getting vaccinated protects you too.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              A pathogen needs susceptible hosts to spread. When enough people are
+              immune (either by vaccination or recovery), the pathogen runs out of
+              targets. The chain breaks. This is <strong>herd immunity</strong>.
+            </p>
+            <div class="vs-table" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; max-width: 800px;">
+              <div class="city-card" style="background: var(--coral-100); border: 1px solid var(--coral-300);">
+                <div class="icons">📈</div>
+                <div class="pair"><span class="biology">R₀ — how contagious?</span></div>
+                <p class="desc">
+                  The basic reproduction number. Average people one sick person infects.
+                  Flu: R₀ ≈ 1.3. COVID: ≈ 2–3. Smallpox: ≈ 5–7. <strong>Measles: ≈ 15–20</strong> —
+                  most contagious of all.
+                </p>
+              </div>
+              <div class="city-card" style="background: var(--sky-100); border: 1px solid var(--sky-300);">
+                <div class="icons">🛡️</div>
+                <div class="pair"><span class="biology">Herd threshold</span></div>
+                <p class="desc">
+                  To stop spread, need <strong>1 − 1/R₀</strong> of the population immune.
+                  Flu: ~23%. COVID: ~67%. Smallpox: ~83%. Measles: ~95% — that's why
+                  outbreaks return when vaccination dips even slightly.
+                </p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px;">
+              <strong>👶 Why herd immunity matters morally.</strong>
+              <p>Some people can't be vaccinated — newborns, the immunocompromised, cancer patients on chemo. They depend on the rest of us being immune so the pathogen can't reach them in the first place. Vaccination is partly a personal choice and partly a debt to your most vulnerable neighbors.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="vaccines-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap -->
+          <div class="scene" data-scene="5">
+            <h2>Vaccines in one sentence.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              A vaccine teaches your adaptive immune system to recognize a pathogen
+              by showing it a safe piece (or look-alike) of the real thing, so memory
+              cells are ready when the actual invader arrives.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">🎓</span><span class="lbl">Practice fight, no real disease</span></div>
+              <div class="recap-pill"><span class="ic">💉</span><span class="lbl">5+ recipes, same big idea</span></div>
+              <div class="recap-pill"><span class="ic">🧠</span><span class="lbl">Memory cells = readiness</span></div>
+              <div class="recap-pill"><span class="ic">📈</span><span class="lbl">R₀ = how contagious</span></div>
+              <div class="recap-pill"><span class="ic">🛡️</span><span class="lbl">Herd immunity protects the vulnerable</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">✂️</div>
+              <div>
+                <h3>Coming up next: CRISPR &amp; Modern Tools</h3>
+                <p>You've seen how cells, DNA, viruses, and immunity all interconnect. Now meet the technology that lets us read AND rewrite the recipe book directly.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 10 complete</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="crispr">Continue to CRISPR →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="vaccines" -->
+
+        <!-- ============= MODULE: CRISPR & MODERN TOOLS ============= -->
+        <div class="module-section" data-module="crispr" hidden>
+
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">2 billion</span>
+                <div class="big-number-label">years ago — when bacteria invented gene editing as anti-virus defense.</div>
+                <h2>CRISPR is <em>bacterial immunity</em> we borrowed.</h2>
+                <p>In 2012, researchers Jennifer Doudna and Emmanuelle Charpentier realized something profound: bacteria have a system for cutting viral DNA at exact target sequences. The system worked outside bacteria too — on any DNA, in any cell.</p>
+                <p>Within 5 years, CRISPR was being used to cure inherited diseases. In 2023, the first CRISPR therapy (for sickle cell) was approved by the FDA.</p>
+              </div>
+              <div class="hook-stage" id="crispr-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 11 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">How it works →</button>
+            </div>
+          </div>
+
+          <div class="scene" data-scene="1">
+            <h2>The three parts of CRISPR.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">CRISPR is a precise genetic scalpel with three components.</p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🎯</div>
+                <div class="pair"><span class="biology">Guide RNA</span></div>
+                <p class="desc">A short RNA strand designed to match the exact DNA sequence you want to edit. It's the GPS.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">✂️</div>
+                <div class="pair"><span class="biology">Cas9 protein</span></div>
+                <p class="desc">A molecular scissors. Cuts both strands of DNA wherever the guide RNA points.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🔧</div>
+                <div class="pair"><span class="biology">The cell's repair</span></div>
+                <p class="desc">Once cut, the cell glues the DNA back together — often imperfectly. That's the edit.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📋</div>
+                <div class="pair"><span class="biology">(Optional) repair template</span></div>
+                <p class="desc">Supply a "use this" template the cell pastes in instead of patching randomly.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Walk through the edit</span>
+              <button class="btn btn-primary" data-action="next">Step through CRISPR →</button>
+            </div>
+          </div>
+
+          <div class="scene" data-scene="2">
+            <h2>Walk through a CRISPR edit.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">From "we want to edit this gene" to a fixed cell. Click each step.</p>
+            <div class="crispr-stages" id="crispr-stages"></div>
+            <div class="crispr-stage-detail" id="crispr-stage-detail">
+              <p style="color: var(--ink-500); font-style: italic;">Click a step above to see the detail.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · Real-world impact</span>
+              <button class="btn btn-primary" data-action="next">Real CRISPR therapies →</button>
+            </div>
+          </div>
+
+          <div class="scene" data-scene="3">
+            <h2>What CRISPR is actually doing right now.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">From lab curiosity to FDA-approved therapy in 11 years. Here's what it's being used for today.</p>
+            <div class="city-grid">
+              <div class="city-card" style="background: var(--leaf-100); border: 1px solid var(--leaf-300);">
+                <div class="icons">🩸</div>
+                <div class="pair"><span class="biology">Sickle cell (approved 2023)</span></div>
+                <p class="desc">CRISPR edits the patient's bone marrow stem cells to reactivate fetal hemoglobin. Functional cure in clinical trials.</p>
+              </div>
+              <div class="city-card" style="background: var(--sky-100); border: 1px solid var(--sky-300);">
+                <div class="icons">👁️</div>
+                <div class="pair"><span class="biology">Inherited blindness (in trials)</span></div>
+                <p class="desc">Direct in-vivo editing of retinal cells to fix Leber congenital amaurosis. Some patients have regained sight.</p>
+              </div>
+              <div class="city-card" style="background: var(--grape-100); border: 1px solid var(--grape-300);">
+                <div class="icons">🦠</div>
+                <div class="pair"><span class="biology">Cancer immunotherapy</span></div>
+                <p class="desc">Patient's T-cells extracted, CRISPR-edited to recognize their tumor, reinfused. Already approved for some leukemias.</p>
+              </div>
+              <div class="city-card" style="background: var(--sun-100); border: 1px solid var(--sun-300);">
+                <div class="icons">🌾</div>
+                <div class="pair"><span class="biology">Crops &amp; ecology</span></div>
+                <p class="desc">Disease-resistant crops, gene drives to suppress malaria-carrying mosquitoes, drought-tolerant varieties.</p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px; background: var(--coral-100); border-color: var(--coral-300);">
+              <strong>⚠️ Germline editing is the open question.</strong>
+              <p>Edits to body cells affect only the patient. Edits to germline cells (sperm/egg/embryo) pass to all future descendants. In 2018 a researcher in China edited embryos that grew into babies; the scientific community condemned it. Ethics, safety, and regulation remain unresolved.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="crispr-quiz-card"></div>
+          </div>
+
+          <div class="scene" data-scene="5">
+            <h2>You finished Bio Basics. 🎓</h2>
+            <p style="margin-top: 12px; max-width: 720px;">Eleven modules, from "what's a cell?" to "we can now edit DNA directly". You have a working mental model of modern molecular biology — the same one researchers use, just at a friendlier level.</p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">🦠</span><span class="lbl">Cells are tiny living cities</span></div>
+              <div class="recap-pill"><span class="ic">🧬</span><span class="lbl">DNA is the recipe book</span></div>
+              <div class="recap-pill"><span class="ic">📝</span><span class="lbl">Transcription → translation</span></div>
+              <div class="recap-pill"><span class="ic">🎛️</span><span class="lbl">Gene regulation</span></div>
+              <div class="recap-pill"><span class="ic">🦎</span><span class="lbl">Mutations drive evolution</span></div>
+              <div class="recap-pill"><span class="ic">🩺</span><span class="lbl">Disease = scrambled recipes</span></div>
+              <div class="recap-pill"><span class="ic">🦠</span><span class="lbl">Viruses are freeloaders</span></div>
+              <div class="recap-pill"><span class="ic">🛡️</span><span class="lbl">Immune system = army</span></div>
+              <div class="recap-pill"><span class="ic">💉</span><span class="lbl">Vaccines = practice fight</span></div>
+              <div class="recap-pill"><span class="ic">✂️</span><span class="lbl">CRISPR = edit the book</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🎓</div>
+              <div>
+                <h3>You're ready for the next level.</h3>
+                <p>With this foundation, you can read a real biology textbook or a research paper abstract and follow most of it. Deeper paths to explore from here: cell signaling, developmental biology, neuroscience, epigenetics, structural biology, microbiome science, synthetic biology.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 11 complete · Bio Basics done</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="home">🎉 Finish</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="crispr" -->
       </div>
     </section>
   </main>
@@ -2728,15 +3651,15 @@
         { id: 'evolve',        name: 'Mutations & Evolution',     icon: '🦎', color: 'var(--leaf-100)',
           blurb: 'Tiny copy errors → giant changes over time. The engine of life.', status: 'unlocked' },
         { id: 'disease',       name: 'Cancer & Genetic Disease',  icon: '🩺', color: 'var(--coral-100)',
-          blurb: 'When the recipes get scrambled. What goes wrong, and what we can do about it.', status: 'soon' },
+          blurb: 'When the recipes get scrambled. What goes wrong, and what we can do about it.', status: 'unlocked' },
         { id: 'viruses',       name: 'Viruses',                   icon: '🦠', color: 'var(--grape-100)',
-          blurb: 'The freeloaders. How they hijack your cells to make more of themselves.', status: 'soon' },
+          blurb: 'The freeloaders. How they hijack your cells to make more of themselves.', status: 'unlocked' },
         { id: 'immune',        name: 'The Immune System',         icon: '🛡️', color: 'var(--sky-100)',
-          blurb: 'Your body\'s built-in security force. Antibodies, T-cells, memory.', status: 'soon' },
+          blurb: 'Your body\'s built-in security force. Antibodies, T-cells, memory.', status: 'unlocked' },
         { id: 'vaccines',      name: 'Vaccines & Pandemics',      icon: '💉', color: 'var(--sun-100)',
-          blurb: 'How vaccines train your immune system. Why pandemics happen.', status: 'soon' },
+          blurb: 'How vaccines train your immune system. Why pandemics happen.', status: 'unlocked' },
         { id: 'crispr',        name: 'CRISPR & Modern Tools',     icon: '✂️', color: 'var(--leaf-100)',
-          blurb: 'Bacteria invented gene editing. Now we use it to cure disease.', status: 'soon' },
+          blurb: 'Bacteria invented gene editing. Now we use it to cure disease.', status: 'unlocked' },
       ];
 
       // ----- DOM helpers -----
@@ -4380,6 +5303,536 @@
         card.innerHTML = `<div class="verdict-label">${label}</div><div class="verdict-detail">${detail}</div>`;
       }
 
+      const DISEASE_QUIZ = [
+        { q: 'What is cancer at its core?',
+          options: [
+            'An infection caused by an external pathogen',
+            'A cell that has accumulated mutations causing it to grow without limits',
+            'A vitamin deficiency that weakens tissues',
+            'A buildup of toxins in the bloodstream'
+          ],
+          correct: 1,
+          why: 'Right — cancer is your own cell going rogue after enough mutations to ignore growth limits.',
+          wrongHint: 'It comes from inside, not from a pathogen. Think about what the recipes control.' },
+        { q: 'Which of these is NOT one of the four broken rules of a cancer cell?',
+          options: [
+            'Grows without permission',
+            'Refuses to die',
+            'Builds its own blood supply',
+            'Becomes resistant to all antibiotics'
+          ],
+          correct: 3,
+          why: 'Right — antibiotic resistance is a bacterial thing, not a cancer thing. The other three are real hallmarks.',
+          wrongHint: 'Three of these are about defying the body\'s growth rules. One is about microbes.' },
+        { q: 'What is the difference between an oncogene and a tumor suppressor when it comes to mutations?',
+          options: [
+            'Oncogenes need both copies broken to cause cancer; tumor suppressors need only one',
+            'Tumor suppressors need both copies broken to cause cancer; oncogenes need only one',
+            'Both types need both copies broken',
+            'Neither type is involved in cancer'
+          ],
+          correct: 1,
+          why: 'Right — oncogenes are gas pedals (one stuck-on copy is enough). Tumor suppressors are brakes (both copies must fail). The "two-hit rule".',
+          wrongHint: 'Think gas pedal vs brakes. One stuck pedal is enough; both brake lines must fail.' },
+        { q: 'Why is p53 called "the guardian of the genome"?',
+          options: [
+            'It physically wraps DNA to protect it',
+            'It detects DNA damage and either pauses the cell to fix it or orders self-destruction',
+            'It is the most common gene in all cells',
+            'It is found only in immune cells'
+          ],
+          correct: 1,
+          why: 'Right — p53 surveys for damage and decides whether to repair or order apoptosis. About half of all cancers have a broken p53.',
+          wrongHint: 'It\'s a watchman. Its job involves a decision after detecting something wrong.' },
+        { q: 'True or false: most cancers come from a single mutation.',
+          options: ['True', 'False'],
+          correct: 1,
+          why: 'False — cancer almost always requires multiple mutations stacked over time (usually 5-10+). That\'s why cancer risk rises with age.',
+          wrongHint: 'One mutation rarely does it. Think about why cancer is more common in older people.' },
+      ];
+
+      const HALLMARKS = [
+        { id: 'growth', icon: '📈', name: 'Sustained growth signaling',
+          detail: 'Normal cells wait for "grow" signals from neighbors. Cancer cells produce their own growth signals or get stuck thinking they\'ve received one. Like a thermostat that thinks it\'s always cold.' },
+        { id: 'evade-growth', icon: '🚫', name: 'Evading growth suppressors',
+          detail: 'Normal cells stop dividing when they get "stop" signals (crowding, hormone shifts). Cancer cells turn off the receivers for those signals. The brakes are disconnected.' },
+        { id: 'evade-death', icon: '⏳', name: 'Resisting cell death',
+          detail: 'Cells with bad DNA are normally ordered to self-destruct (apoptosis). Cancer cells break that command pathway and stay alive even with broken machinery.' },
+        { id: 'immortality', icon: '♾️', name: 'Replicative immortality',
+          detail: 'Normal cells can only divide 40–60 times before their chromosome tips (telomeres) get too short. Cancer cells reactivate an enzyme (telomerase) that rebuilds the tips — so they can divide forever.' },
+        { id: 'blood', icon: '🩸', name: 'Inducing blood vessels',
+          detail: 'Growing tumors need oxygen and nutrients. They release chemical signals that trick the body into sprouting new blood vessels straight into the tumor (angiogenesis).' },
+        { id: 'spread', icon: '🚀', name: 'Invasion &amp; metastasis',
+          detail: 'In late-stage cancer, cells break free from the original tumor, ride the bloodstream, and seed new tumors elsewhere. Most cancer deaths come from metastasis, not the original tumor.' },
+      ];
+
+      function diseaseHookSVG() {
+        return `
+          <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" aria-label="Cancer cells multiplying">
+            <!-- background tissue -->
+            <rect width="400" height="400" fill="#ffe8e8" rx="20"/>
+            <!-- normal cells (grid of small circles) -->
+            <g fill="#dcf7e9" stroke="#22c896" stroke-width="2">
+              <circle cx="60"  cy="60"  r="22"/>
+              <circle cx="120" cy="60"  r="22"/>
+              <circle cx="180" cy="60"  r="22"/>
+              <circle cx="60"  cy="120" r="22"/>
+              <circle cx="60"  cy="180" r="22"/>
+              <circle cx="340" cy="60"  r="22"/>
+              <circle cx="340" cy="120" r="22"/>
+              <circle cx="340" cy="180" r="22"/>
+              <circle cx="60"  cy="340" r="22"/>
+              <circle cx="340" cy="340" r="22"/>
+              <circle cx="180" cy="340" r="22"/>
+            </g>
+            <!-- tumor: cluster of misshapen cells -->
+            <g fill="#ff7878" stroke="#c84a4a" stroke-width="2">
+              <ellipse cx="180" cy="180" rx="50" ry="42"/>
+              <ellipse cx="220" cy="160" rx="34" ry="28"/>
+              <ellipse cx="160" cy="220" rx="30" ry="36"/>
+              <ellipse cx="230" cy="210" rx="26" ry="24"/>
+              <ellipse cx="200" cy="240" rx="22" ry="20"/>
+            </g>
+            <text x="200" y="60" font-size="14" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">Healthy tissue</text>
+            <text x="200" y="80" font-size="11" font-family="ui-rounded, sans-serif" fill="#6d7592" text-anchor="middle">+ tumor in the middle</text>
+          </svg>
+        `;
+      }
+
+      function renderDiseaseHook() {
+        const stage = $('#disease-hook-stage');
+        if (stage) stage.innerHTML = diseaseHookSVG();
+      }
+
+      function renderHallmarks() {
+        const grid = $('#hallmark-grid');
+        const detail = $('#hallmark-detail');
+        if (!grid) return;
+        grid.innerHTML = HALLMARKS.map(h => `
+          <button class="hallmark-card" data-id="${h.id}">
+            <div class="hallmark-icon">${h.icon}</div>
+            <div class="hallmark-name">${h.name}</div>
+          </button>
+        `).join('');
+        grid.querySelectorAll('.hallmark-card').forEach(btn => {
+          btn.addEventListener('click', () => {
+            grid.querySelectorAll('.hallmark-card').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const h = HALLMARKS.find(x => x.id === btn.dataset.id);
+            if (h && detail) {
+              detail.innerHTML = `<strong>${h.icon} ${h.name}</strong><p style="margin-top: 6px;">${h.detail}</p>`;
+            }
+          });
+        });
+      }
+
+      const VIRUSES_QUIZ = [
+        { q: 'Is a virus alive?',
+          options: [
+            'Yes — it has DNA so it counts as life',
+            'No — it has no cells, no metabolism, and can\'t reproduce on its own',
+            'Yes — it can infect cells',
+            'It\'s alive only when inside a host'
+          ],
+          correct: 1,
+          why: 'Right — most biologists put viruses just outside the definition of life. They\'re packaged genetic instructions that need a host to do anything.',
+          wrongHint: 'A protein-wrapped genome with no metabolism and no cell — does that match the usual definition of life?' },
+        { q: 'Why do flu vaccines change every year?',
+          options: [
+            'Vaccines wear out after 12 months',
+            'Flu is an RNA virus and its sloppy copy enzyme creates new variants quickly',
+            'Doctors want repeat business',
+            'Each year is randomly assigned a different vaccine'
+          ],
+          correct: 1,
+          why: 'Right — flu\'s RNA-copying enzyme makes errors fast, so surface proteins drift each year.',
+          wrongHint: 'Flu is an RNA virus. What did the module say about RNA virus mutation rates?' },
+        { q: 'What determines which cells a virus can infect?',
+          options: [
+            'The virus\'s size',
+            'Whether the virus has DNA or RNA',
+            'Whether the surface keys (spike proteins) fit the cell\'s receptors',
+            'How fast the virus moves'
+          ],
+          correct: 2,
+          why: 'Right — viruses need a key that fits the cell\'s lock. Different viruses target different cell types.',
+          wrongHint: 'The metaphor was keys and locks. What determines which doors a key opens?' },
+        { q: 'What is a retrovirus?',
+          options: [
+            'A virus from the 1970s',
+            'A virus that reverse-transcribes its RNA into DNA and inserts it into the host genome',
+            'A virus that infects bacteria',
+            'A virus made of DNA only'
+          ],
+          correct: 1,
+          why: 'Right — retroviruses (HIV) reverse the usual flow: RNA → DNA → permanent inclusion in the host genome.',
+          wrongHint: '"Retro" hints at running things backward. What flows backward compared to the central dogma?' },
+        { q: 'Roughly how many viruses are there on Earth?',
+          options: [
+            'A few billion',
+            'About 100 quadrillion',
+            'More than 10³¹ (more than stars in the universe)',
+            'A few thousand'
+          ],
+          correct: 2,
+          why: 'Right — viruses outnumber stars by a lot. The most numerous biological entity on the planet.',
+          wrongHint: 'It\'s a comparison-to-stars hook for a reason. The number is enormous.' },
+      ];
+
+      const VIRUS_STAGES = [
+        { id: 'attach',   name: '1. Attach',    icon: '🔌',
+          detail: 'The virus floats around until its surface keys randomly meet matching receptors on a host cell. This determines tissue specificity — flu hits lung cells; HIV hits T-cells.' },
+        { id: 'enter',    name: '2. Enter',     icon: '🚪',
+          detail: 'The virus gets inside. Sometimes engulfed by the cell; sometimes the viral envelope fuses with the cell membrane. Either way: the genome is now in the cell.' },
+        { id: 'replicate', name: '3. Replicate', icon: '🧬',
+          detail: 'The viral genome takes over. It uses the cell\'s ribosomes to make viral proteins and either the cell\'s machinery (DNA viruses) or its own enzyme (RNA viruses) to copy the genome hundreds of times.' },
+        { id: 'assemble', name: '4. Assemble',  icon: '🧱',
+          detail: 'Freshly-made viral proteins and copied genomes self-assemble into new virus particles. A remarkable molecular self-assembly — no glue, no instructions needed.' },
+        { id: 'release',  name: '5. Release',   icon: '💥',
+          detail: 'Hundreds of new virus particles burst out. Some lyse the cell (killing it); others bud through the membrane. Each released particle restarts the cycle.' },
+      ];
+
+      function virusesHookSVG() {
+        return `
+          <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            <rect width="400" height="400" fill="#efe6ff" rx="20"/>
+            <g transform="translate(200 200)">
+              <circle r="80" fill="#a78bfa" stroke="#6d4ae0" stroke-width="3"/>
+              <g stroke="#6d4ae0" stroke-width="4" stroke-linecap="round">
+                <line x1="0" y1="-80" x2="0" y2="-110"/>
+                <line x1="80" y1="0" x2="110" y2="0"/>
+                <line x1="0" y1="80" x2="0" y2="110"/>
+                <line x1="-80" y1="0" x2="-110" y2="0"/>
+                <line x1="57" y1="-57" x2="78" y2="-78"/>
+                <line x1="-57" y1="-57" x2="-78" y2="-78"/>
+                <line x1="57" y1="57" x2="78" y2="78"/>
+                <line x1="-57" y1="57" x2="-78" y2="78"/>
+              </g>
+              <g fill="#ffd23f">
+                <circle cx="0" cy="-110" r="6"/>
+                <circle cx="110" cy="0" r="6"/>
+                <circle cx="0" cy="110" r="6"/>
+                <circle cx="-110" cy="0" r="6"/>
+                <circle cx="78" cy="-78" r="6"/>
+                <circle cx="-78" cy="-78" r="6"/>
+                <circle cx="78" cy="78" r="6"/>
+                <circle cx="-78" cy="78" r="6"/>
+              </g>
+              <path d="M -30 -10 Q -10 20 10 -10 Q 30 20 50 -10" fill="none" stroke="#fff8ec" stroke-width="3"/>
+            </g>
+            <text x="200" y="50" font-size="14" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">Virus particle</text>
+            <text x="200" y="68" font-size="11" font-family="ui-rounded, sans-serif" fill="#6d7592" text-anchor="middle">Capsid (purple) + spikes (gold) + genome (white)</text>
+          </svg>
+        `;
+      }
+
+      function renderVirusesHook() {
+        const stage = $('#viruses-hook-stage');
+        if (stage) stage.innerHTML = virusesHookSVG();
+      }
+
+      function renderVirusStages() {
+        const grid = $('#virus-stages');
+        const detail = $('#virus-stage-detail');
+        if (!grid) return;
+        grid.innerHTML = VIRUS_STAGES.map(s => `
+          <button class="stage-card" data-id="${s.id}">
+            <div class="stage-icon">${s.icon}</div>
+            <div class="stage-name">${s.name}</div>
+          </button>
+        `).join('');
+        grid.querySelectorAll('.stage-card').forEach(btn => {
+          btn.addEventListener('click', () => {
+            grid.querySelectorAll('.stage-card').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const s = VIRUS_STAGES.find(x => x.id === btn.dataset.id);
+            if (s && detail) {
+              detail.innerHTML = `<strong>${s.icon} ${s.name}</strong><p style="margin-top: 6px;">${s.detail}</p>`;
+            }
+          });
+        });
+      }
+
+      const IMMUNE_QUIZ = [
+        { q: 'What\'s the key difference between innate and adaptive immunity?',
+          options: [
+            'Innate is faster but has no memory; adaptive is slower but precise and remembers',
+            'Innate is precise; adaptive is generalist',
+            'Adaptive is born with you; innate is acquired',
+            'They are the same thing'
+          ],
+          correct: 0,
+          why: 'Right — innate = fast, generalist, no memory. Adaptive = slow, precise, remembers.',
+          wrongHint: 'Think of innate as the bouncer and adaptive as the detective.' },
+        { q: 'What do B-cells produce?',
+          options: ['Killer cells', 'Antibodies', 'Mucus', 'Red blood cells'],
+          correct: 1,
+          why: 'Right — B-cells multiply and pump out antibodies.',
+          wrongHint: 'Y-shaped proteins that latch onto invaders.' },
+        { q: 'What do killer T-cells do?',
+          options: [
+            'Produce antibodies',
+            'Identify and destroy your own cells that have been infected',
+            'Form scabs',
+            'Carry oxygen'
+          ],
+          correct: 1,
+          why: 'Right — killer T-cells destroy host cells with a virus inside.',
+          wrongHint: 'For intracellular threats. Kill the infected cell to stop the spread.' },
+        { q: 'Why does the immune system "remember" after fighting an infection?',
+          options: [
+            'It writes notes',
+            'Memory B-cells and T-cells from the first fight stick around for years',
+            'It doesn\'t — every infection feels like the first',
+            'Antibodies last forever in the blood'
+          ],
+          correct: 1,
+          why: 'Right — some lymphocytes become memory cells waiting silently for years.',
+          wrongHint: 'The cells themselves stick around.' },
+        { q: 'How does the body have cells that recognize any possible invader?',
+          options: [
+            'It has one cell type that matches everything',
+            'Each B- and T-cell randomly shuffles gene segments to create a unique receptor',
+            'It is taught by the parent before birth',
+            'Cells receive instructions from the brain'
+          ],
+          correct: 1,
+          why: 'Right — random genetic recombination generates ~1 billion different receptors.',
+          wrongHint: 'A billion different receptors generated how?' },
+      ];
+
+      const IMMUNE_INNATE = [
+        { name: 'Skin &amp; mucus', icon: '🪨', desc: 'Physical barrier. Most pathogens never get in.' },
+        { name: 'Macrophages', icon: '🍽️', desc: 'Big eaters. Engulf and digest invaders. Send chemical alarms.' },
+        { name: 'Neutrophils', icon: '🚨', desc: 'Fast first responders. Numerous in blood. Short-lived.' },
+        { name: 'Natural killer cells', icon: '⚔️', desc: 'Detect "missing self" — cells that don\'t look right. Trigger self-destruct.' },
+        { name: 'Fever &amp; inflammation', icon: '🔥', desc: 'Raised temperature slows pathogens; inflammation brings more immune cells.' },
+        { name: 'Complement proteins', icon: '🧪', desc: 'Blood proteins that punch holes in bacterial membranes.' },
+      ];
+      const IMMUNE_ADAPTIVE = [
+        { name: 'B-cells (antibody factories)', icon: '📤', desc: 'When activated, pump out millions of antibody molecules tuned to one specific invader.' },
+        { name: 'Helper T-cells', icon: '📡', desc: 'Coordinate B-cells and killer T-cells. HIV destroys these — that\'s why it\'s so dangerous.' },
+        { name: 'Killer T-cells', icon: '🗡️', desc: 'Find and destroy your own cells showing signs of viral infection.' },
+        { name: 'Memory B-cells', icon: '📚', desc: 'After a fight, stay behind. Carry the antibody recipe for years to decades.' },
+        { name: 'Memory T-cells', icon: '🧠', desc: 'Same idea, T-cell side. Ready to spring into action if the same enemy returns.' },
+        { name: 'Dendritic cells', icon: '🚌', desc: 'Bridge from innate to adaptive. Present invaders to T-cells in the lymph nodes.' },
+      ];
+
+      function immuneHookSVG() {
+        return `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="400" fill="#d6ecff" rx="20"/><g transform="translate(200 200)"><circle r="100" fill="none" stroke="#5fb8ff" stroke-width="3" stroke-dasharray="4 4"/></g><g fill="#5fb8ff" opacity="0.85"><circle cx="150" cy="170" r="12"/><circle cx="240" cy="160" r="14"/><circle cx="190" cy="230" r="13"/><circle cx="225" cy="220" r="11"/><circle cx="170" cy="200" r="10"/></g><g fill="#ff7878"><circle cx="80" cy="90" r="7"/><circle cx="320" cy="110" r="6"/><circle cx="350" cy="280" r="8"/><circle cx="60" cy="320" r="7"/><circle cx="100" cy="350" r="6"/><circle cx="330" cy="340" r="7"/></g><text x="200" y="60" font-size="13" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">Blue: immune cells inside · Red: pathogens outside</text></svg>`;
+      }
+
+      function renderImmuneHook() {
+        const stage = $('#immune-hook-stage');
+        if (stage) stage.innerHTML = immuneHookSVG();
+      }
+
+      function renderImmuneToggle() {
+        const toggle = $('#immune-toggle');
+        const cellsEl = $('#immune-cells');
+        const explainEl = $('#immune-explain');
+        function show(layer) {
+          const cells = layer === 'innate' ? IMMUNE_INNATE : IMMUNE_ADAPTIVE;
+          if (cellsEl) {
+            cellsEl.innerHTML = cells.map(c => `<div class="immune-cell"><div class="immune-cell-icon">${c.icon}</div><div class="immune-cell-name">${c.name}</div><div class="immune-cell-desc">${c.desc}</div></div>`).join('');
+          }
+          if (explainEl) {
+            explainEl.innerHTML = layer === 'innate'
+              ? '<strong>Innate immunity</strong> — fast and general-purpose. Active within minutes. No memory.'
+              : '<strong>Adaptive immunity</strong> — slower (days to weeks) but exquisitely specific. Memory cells let next response be hours.';
+          }
+        }
+        if (toggle) {
+          toggle.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+              toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              show(btn.dataset.layer);
+            });
+          });
+        }
+        show('innate');
+      }
+
+      const VACCINES_QUIZ = [
+        { q: 'What does a vaccine actually do?',
+          options: [
+            'Kills the virus inside your body if you\'re already infected',
+            'Shows your immune system a fake invader so memory cells are ready before the real one arrives',
+            'Boosts your overall energy levels',
+            'Cleans your blood of toxins'
+          ],
+          correct: 1,
+          why: 'Right — vaccines are practice fights. The real value is the memory cells left over after.',
+          wrongHint: 'Think about what you learned in the immune module. What\'s special about a second encounter?' },
+        { q: 'Why do some vaccines need boosters?',
+          options: [
+            'They wear off in the bloodstream after a few weeks',
+            'Memory cell populations slowly decline over years, so a booster re-primes them',
+            'Doctors want extra visits',
+            'Boosters are only for kids'
+          ],
+          correct: 1,
+          why: 'Right — memory wanes over years. A booster re-primes the immune response.',
+          wrongHint: 'It\'s about the memory cells, not the vaccine itself.' },
+        { q: 'What is herd immunity?',
+          options: [
+            'When animals get vaccinated',
+            'When enough of a population is immune that the pathogen can\'t find new hosts to spread',
+            'A vaccine made from cattle',
+            'When everyone gets sick at once'
+          ],
+          correct: 1,
+          why: 'Right — break the chain of transmission. Pathogen runs out of susceptible targets.',
+          wrongHint: '"Herd" = group. Think transmission chains.' },
+        { q: 'Why does measles need ~95% of people vaccinated for herd immunity, while flu only needs ~25%?',
+          options: [
+            'Measles vaccines are less effective',
+            'Measles has a much higher R₀ (basic reproduction number) — it\'s far more contagious',
+            'Flu spreads through water; measles through air',
+            'Measles infects more cells per person'
+          ],
+          correct: 1,
+          why: 'Right — R₀ drives the herd threshold. Measles R₀ ≈ 15–20. Flu R₀ ≈ 1.3.',
+          wrongHint: 'The math: threshold = 1 − 1/R₀. Higher R₀ → higher threshold needed.' },
+        { q: 'Who benefits most from high vaccination rates besides yourself?',
+          options: [
+            'No one — vaccines only protect the recipient',
+            'People who can\'t be vaccinated (newborns, chemo patients, immunocompromised)',
+            'Only doctors and nurses',
+            'Only people in cities'
+          ],
+          correct: 1,
+          why: 'Right — herd immunity protects those who can\'t be vaccinated. That\'s the moral case.',
+          wrongHint: 'The chain of transmission breaks for everyone — including those who can\'t protect themselves directly.' },
+      ];
+
+      const VACCINE_TYPES = [
+        { id: 'live',     name: 'Live-attenuated', icon: '🌱',
+          detail: 'Weakened live version of the pathogen. Strong, long-lasting immunity (often one dose is enough). Can\'t be given to immunocompromised people. Examples: MMR, chickenpox, yellow fever.' },
+        { id: 'inactive', name: 'Inactivated',     icon: '🚫',
+          detail: 'The actual pathogen, killed with heat/chemicals. Safe for everyone, but immune response is weaker — usually needs boosters. Examples: polio (Salk), rabies, flu shot.' },
+        { id: 'subunit',  name: 'Subunit / recombinant', icon: '🧩',
+          detail: 'Just one piece of the pathogen — usually a surface protein. Very safe (can\'t cause disease). Examples: hepatitis B, HPV, pertussis component of DTaP.' },
+        { id: 'mrna',     name: 'mRNA',            icon: '📜',
+          detail: 'You\'re given mRNA coding for one viral protein; your own cells make the protein for ~24h, your immune system sees it and learns. The big COVID-vaccine breakthrough. Fast to design.' },
+        { id: 'vector',   name: 'Viral vector',    icon: '📦',
+          detail: 'A harmless virus (like an adenovirus) is engineered to carry the gene for the target protein. Your cells make the protein, immune system reacts. Examples: AstraZeneca COVID, Ebola.' },
+      ];
+
+      function vaccinesHookSVG() {
+        return `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="400" fill="#fff3c2" rx="20"/><g transform="translate(200 200)"><rect x="-110" y="-12" width="180" height="24" rx="4" fill="#ffd23f" stroke="#b88a00" stroke-width="2"/><rect x="-130" y="-20" width="22" height="40" rx="3" fill="#b88a00"/><polygon points="70,-3 110,0 70,3" fill="#b88a00"/><line x1="115" y1="0" x2="145" y2="0" stroke="#b88a00" stroke-width="2"/></g><text x="200" y="60" font-size="14" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">Vaccine = training material</text><text x="200" y="78" font-size="11" font-family="ui-rounded, sans-serif" fill="#6d7592" text-anchor="middle">Shows the immune system a fake invader</text></svg>`;
+      }
+
+      function renderVaccinesHook() {
+        const stage = $('#vaccines-hook-stage');
+        if (stage) stage.innerHTML = vaccinesHookSVG();
+      }
+
+      function renderVaccineTypes() {
+        const grid = $('#vaccine-types');
+        const detail = $('#vaccine-detail');
+        if (!grid) return;
+        grid.innerHTML = VACCINE_TYPES.map(t => `<button class="stage-card" data-id="${t.id}"><div class="stage-icon">${t.icon}</div><div class="stage-name">${t.name}</div></button>`).join('');
+        grid.querySelectorAll('.stage-card').forEach(btn => {
+          btn.addEventListener('click', () => {
+            grid.querySelectorAll('.stage-card').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const t = VACCINE_TYPES.find(x => x.id === btn.dataset.id);
+            if (t && detail) {
+              detail.innerHTML = `<strong>${t.icon} ${t.name}</strong><p style="margin-top: 6px;">${t.detail}</p>`;
+            }
+          });
+        });
+      }
+
+      const CRISPR_QUIZ = [
+        { q: 'Where did CRISPR originally come from?',
+          options: [
+            'It was invented by scientists in 2012',
+            'It evolved in bacteria as defense against viruses, ~2 billion years ago',
+            'It was discovered in human DNA',
+            'It came from an asteroid'
+          ],
+          correct: 1,
+          why: 'Right — bacteria use CRISPR to chop up invading virus DNA. Humans only learned to use it in 2012.',
+          wrongHint: 'Bacteria had it first. Humans only learned to harness it recently.' },
+        { q: 'What does the guide RNA do in CRISPR?',
+          options: [
+            'Cuts the DNA',
+            'Tells Cas9 exactly where on the genome to cut',
+            'Repairs the DNA after the cut',
+            'Powers the cell'
+          ],
+          correct: 1,
+          why: 'Right — guide RNA is the GPS. Cas9 is the scissors. The guide tells the scissors where.',
+          wrongHint: 'Targeting vs cutting are separate jobs. Which job is "where"?' },
+        { q: 'What happens AFTER CRISPR cuts the DNA?',
+          options: [
+            'The cell dies',
+            'The cell\'s normal repair machinery glues the DNA back together — sometimes imperfectly',
+            'The cut DNA disappears',
+            'The cell becomes cancerous'
+          ],
+          correct: 1,
+          why: 'Right — the cell\'s repair pathways create the edit. Imperfect repair = disrupted gene.',
+          wrongHint: 'The cell tries to fix the break. The "fix" is what changes the gene.' },
+        { q: 'What was the first CRISPR therapy approved by the FDA (2023)?',
+          options: ['Cancer treatment', 'Sickle cell disease and β-thalassemia', 'Inherited blindness', 'Heart disease'],
+          correct: 1,
+          why: 'Right — sickle cell + β-thalassemia. CRISPR reactivates a silenced fetal hemoglobin gene.',
+          wrongHint: 'A blood disease caused by a single specific mutation in hemoglobin.' },
+        { q: 'Why is editing germline cells controversial?',
+          options: [
+            'It\'s technically impossible',
+            'Edits in germline cells pass to all future descendants — a permanent change to the human gene pool',
+            'It costs too much',
+            'Only one country can do it'
+          ],
+          correct: 1,
+          why: 'Right — germline edits are heritable forever. Ethics, safety, oversight unresolved.',
+          wrongHint: 'What\'s different about a sperm/egg edit vs a body cell edit, in terms of who gets affected?' },
+      ];
+
+      const CRISPR_STAGES = [
+        { id: 'design',  name: '1. Design guide RNA',  icon: '🎯',
+          detail: 'Pick the gene you want to edit. Look up its DNA sequence. Design a 20-nucleotide guide RNA matching a 20-bp window inside the gene. Synthesize it.' },
+        { id: 'deliver', name: '2. Deliver into cell', icon: '🚚',
+          detail: 'Get the guide RNA + Cas9 protein into the target cell. Methods: lipid nanoparticles, viral vectors, electroporation, or ex-vivo editing.' },
+        { id: 'find',    name: '3. Find the target',   icon: '🔍',
+          detail: 'Inside the cell, Cas9 grabs the guide RNA and scans the genome for matching DNA. When it finds a 20-bp match, it locks on.' },
+        { id: 'cut',     name: '4. Cut the DNA',       icon: '✂️',
+          detail: 'Cas9 cuts BOTH strands of the DNA helix at the target. The genome is now broken — and that triggers an alarm in the cell.' },
+        { id: 'repair',  name: '5. Cell repairs',      icon: '🔧',
+          detail: 'The cell tries to fix the break. Either by error-prone end-joining (which usually disrupts the gene — useful if you want to knock it out) or by precise template-based repair (if you supplied a template).' },
+      ];
+
+      function crisprHookSVG() {
+        return `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="400" fill="#dcf7e9" rx="20"/><g transform="translate(200 200)"><path d="M -100 -40 Q -50 -80 0 -40 T 100 -40" fill="none" stroke="#a78bfa" stroke-width="5"/><path d="M -100 40 Q -50 80 0 40 T 100 40" fill="none" stroke="#a78bfa" stroke-width="5"/><g stroke="#a78bfa" stroke-width="2"><line x1="-90" y1="-30" x2="-90" y2="30"/><line x1="-60" y1="-50" x2="-60" y2="50"/><line x1="-30" y1="-35" x2="-30" y2="35"/><line x1="0" y1="-30" x2="0" y2="30"/><line x1="30" y1="-35" x2="30" y2="35"/><line x1="60" y1="-50" x2="60" y2="50"/><line x1="90" y1="-30" x2="90" y2="30"/></g><g transform="translate(15 0)"><circle r="22" fill="#ff7878" stroke="#c84a4a" stroke-width="2"/><text y="6" font-size="20" text-anchor="middle">✂</text></g></g><text x="200" y="50" font-size="13" font-family="ui-rounded, sans-serif" font-weight="700" fill="#1a1f36" text-anchor="middle">CRISPR-Cas9</text><text x="200" y="68" font-size="11" font-family="ui-rounded, sans-serif" fill="#6d7592" text-anchor="middle">Molecular scissors aimed at a specific DNA target</text></svg>`;
+      }
+
+      function renderCrisprHook() {
+        const stage = $('#crispr-hook-stage');
+        if (stage) stage.innerHTML = crisprHookSVG();
+      }
+
+      function renderCrisprStages() {
+        const grid = $('#crispr-stages');
+        const detail = $('#crispr-stage-detail');
+        if (!grid) return;
+        grid.innerHTML = CRISPR_STAGES.map(s => `<button class="stage-card" data-id="${s.id}"><div class="stage-icon">${s.icon}</div><div class="stage-name">${s.name}</div></button>`).join('');
+        grid.querySelectorAll('.stage-card').forEach(btn => {
+          btn.addEventListener('click', () => {
+            grid.querySelectorAll('.stage-card').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const s = CRISPR_STAGES.find(x => x.id === btn.dataset.id);
+            if (s && detail) {
+              detail.innerHTML = `<strong>${s.icon} ${s.name}</strong><p style="margin-top: 6px;">${s.detail}</p>`;
+            }
+          });
+        });
+      }
+
       // =====================================================================
       // MODULES — registry of all built modules
       // =====================================================================
@@ -4443,6 +5896,56 @@
           quiz: MUT_QUIZ,
           quizCardSel: '#mut-quiz-card',
           sceneRenderers: { 0: renderMutHook, 2: renderMutationStage, 3: renderSickleCompare, 4: () => startQuiz('evolve') },
+          next: 'disease',
+        },
+        disease: {
+          name: 'Cancer & Genetic Disease',
+          icon: '🩺',
+          iconBg: 'var(--coral-100)',
+          intro: 'Cancer is what happens when the recipes get scrambled. Let\'s look at what goes wrong inside the cell.',
+          quiz: DISEASE_QUIZ,
+          quizCardSel: '#disease-quiz-card',
+          sceneRenderers: { 0: renderDiseaseHook, 2: renderHallmarks, 4: () => startQuiz('disease') },
+          next: 'viruses',
+        },
+        viruses: {
+          name: 'Viruses',
+          icon: '🦠',
+          iconBg: 'var(--grape-100)',
+          intro: 'The freeloaders of biology. A protein-wrapped genome that hijacks your cells to make more copies of itself.',
+          quiz: VIRUSES_QUIZ,
+          quizCardSel: '#viruses-quiz-card',
+          sceneRenderers: { 0: renderVirusesHook, 2: renderVirusStages, 4: () => startQuiz('viruses') },
+          next: 'immune',
+        },
+        immune: {
+          name: 'The Immune System',
+          icon: '🛡️',
+          iconBg: 'var(--sky-100)',
+          intro: 'Your body\'s built-in security force. Innate (fast) and adaptive (precise) layers working together.',
+          quiz: IMMUNE_QUIZ,
+          quizCardSel: '#immune-quiz-card',
+          sceneRenderers: { 0: renderImmuneHook, 2: renderImmuneToggle, 4: () => startQuiz('immune') },
+          next: 'vaccines',
+        },
+        vaccines: {
+          name: 'Vaccines & Pandemics',
+          icon: '💉',
+          iconBg: 'var(--sun-100)',
+          intro: 'Vaccines are practice fights — show the immune system a fake invader so memory cells are ready before the real one arrives.',
+          quiz: VACCINES_QUIZ,
+          quizCardSel: '#vaccines-quiz-card',
+          sceneRenderers: { 0: renderVaccinesHook, 2: renderVaccineTypes, 4: () => startQuiz('vaccines') },
+          next: 'crispr',
+        },
+        crispr: {
+          name: 'CRISPR & Modern Tools',
+          icon: '✂️',
+          iconBg: 'var(--leaf-100)',
+          intro: 'Bacteria invented gene editing 2 billion years ago. In 2012, we borrowed it. By 2023, the first CRISPR therapy was FDA-approved.',
+          quiz: CRISPR_QUIZ,
+          quizCardSel: '#crispr-quiz-card',
+          sceneRenderers: { 0: renderCrisprHook, 2: renderCrisprStages, 4: () => startQuiz('crispr') },
           next: null,
         },
       };

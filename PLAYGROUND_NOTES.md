@@ -29,7 +29,16 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 17. [Mortgage Lab (Home Affordability Suite)](#17-mortgage-labhtml) — `mortgage-lab.html`
 18. [SAT Reading Sprints (Test Prep)](#18-sat-readinghtml) — `sat-reading.html`
 19. [Interview Drill (Behavioral Practice)](#19-interview-drillhtml) — `interview-drill.html`
-20. [Cross-Project Patterns](#cross-project-patterns)
+20. [Fridge Feast (Cook From What You Have)](#20-fridge-feasthtml) — `fridge-feast.html`
+21. [Violin Voyage (Beginner Violin Tutor)](#21-violin-voyagehtml) — `violin-voyage.html`
+22. [Money Smarts (Financial Literacy)](#22-money-smartshtml) — `money-smarts.html`
+23. [Hello! (English Pronunciation, L1-Aware)](#23-hellohtml) — `hello.html`
+24. [Slop Shield (AI YouTube Video Detector)](#24-slop-shield-folder) — `slop-shield/`
+25. [Stock Screener (Day-Trading Reference)](#25-stock-screener-folder) — `stock-screener/`
+26. [Escape Room Simulator (React + Vite)](#26-escape-room-simulator-folder) — `escape-room-simulator/`
+27. [Guitar MP3 Transcription (Python + FastAPI)](#27-guitar-mp3-transcription-folder) — `guitar-mp3-transcription/`
+28. [Violin Sheet Helper (FastAPI + OCR)](#28-violin-sheet-helper-webapp-folder) — `violin-sheet-helper-webapp/`
+29. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -1475,66 +1484,386 @@ Forest green reads "career / growth"; gold accents for STAR letters and CTA butt
 
 ---
 
+## 20. `fridge-feast.html`
+
+**Recipe matcher from on-hand ingredients.** Pick what's in your fridge (emoji-grid picker + custom text input), set a cuisine bias and servings, and get a scored recipe ranking with limiting-ingredient proportional scaling. Optional AI mode uses a user-provided Anthropic Claude API key for novel recipe generation.
+
+- **Lines:** ~3,200
+- **Layout:** Single-page flow — Pick ingredients → Selected chips → Preferences (cuisine + servings) → Generate → Recipe card
+- **Dependencies:** Vanilla. Optional Anthropic Claude API (client-side, user-supplied key).
+
+### Content Volume
+
+- **7 ingredient categories** (proteins, veg, grains, dairy, pantry, herbs+spices, fruits)
+- **~85 curated ingredient items** with aliases (e.g. `garbanzo` ↔ `chickpea`)
+- **~30 built-in recipes** spanning cuisines (Italian, Mexican, Asian, Mediterranean, American, etc.)
+
+### Key JS Entry Points
+
+| Area | Purpose |
+|------|---------|
+| `INGREDIENT_LIBRARY` | Categorized ingredient data + aliases |
+| `RECIPE_LIBRARY` | ~30 recipes with required/optional ingredients, steps, cuisine tag |
+| Unit conversion + normalization | Parse "1 cup", "2 tbsp", "3 large eggs" into normalized quantities |
+| Ingredient matching (fuzzy + alias) | Match user's "tomato" to recipe's "diced tomatoes" |
+| Recipe scoring + ranking | Score by % required ingredients owned, penalize missing critical items |
+| Limiting-ingredient scaling | If recipe wants 2 eggs and user has 3 cups flour, scale down to whatever ingredient runs out first |
+
+### Persistence
+
+`localStorage['apiKey']` — only the Claude API key (when user opts into AI mode). No recipe history or favorites are stored — state is fully in-memory per session.
+
+### CSS Variables (warm kitchen palette)
+
+```css
+--cream-50/100/200/300        --terra-300..700 (terracotta)
+--sage-200..700               --tomato-400..600
+--ink-400..900                --paper / --bg
+```
+
+### Differences vs other projects
+
+- **Universal-utility, no curriculum** — unlike math-ace / bio-basics / nihao / etc., there's no "learn → practice → progress" arc. Fridge Feast is a tool you use once per cooking session.
+- **Optional cloud dependency** — first playground project to offer (opt-in) integration with a hosted LLM. Without the key, the built-in 30-recipe library still works.
+- **Ad / affiliate fit** — the recipe-output card is the natural place for "buy missing ingredients on Instacart" affiliate links.
+
+---
+
+## 21. `violin-voyage.html`
+
+**Beginner violin & sheet-music tutor.** 12 progressive modules from staff-reading fundamentals to two-octave scales. Inline-SVG staff renderer + fingerboard display; per-module quizzes with progress dots; aimed at adult / older-teen learners coming to violin for the first time.
+
+- **Lines:** ~2,487
+- **Layout:** Top bar → Module grid (locked cards) → Module view (6 scenes: lesson + quiz)
+- **Dependencies:** None — all SVG rendered inline
+
+### Curriculum (12 modules)
+
+Staff & clef → line/space note names → rhythm fundamentals (whole / half / quarter / eighth) → sharps/flats/key signatures → time signatures → bow basics → first-position fingering (G/D/A/E strings) → scales (D major, A major, etc.) → reading practice → simple melodies → ornaments intro → first piece.
+
+### Persistence
+
+`localStorage['violin_progress_v1']` — module-completion map.
+
+### CSS Variables (warm wood-and-varnish palette)
+
+```css
+--maple-300..700 (warm violin wood)     --varnish-500..700 (deep red)
+--cream-50..300 (manuscript paper)      --gold-400/500 (accent)
+--sage-500/600, --sky-200/400/500       --ink-100..900
+```
+
+Serif body (Iowan Old Style → Palatino → Georgia) for editorial/classroom feel.
+
+### Differences vs other projects
+
+- **Inline SVG for music notation** — first playground project to render musical staves natively (no VexFlow or external library). Less powerful than VexFlow (DAW uses it), but the curriculum content is simpler so the in-house renderer suffices.
+- **Adult-learner tone** — friendlier than a music conservatory textbook, but more substantive than a kids' app. Targets the "I always wanted to learn violin" demographic.
+
+---
+
+## 22. `money-smarts.html`
+
+**Financial literacy curriculum, 10 modules.** Same multi-module SPA shape as bio-basics / nihao, but topic is personal finance for ages 14+. Module 1 ("What is money?") is fully built with an interactive coin-SVG tour, history timeline, cash-vs-digital toggle, and quiz. Modules 2–10 are visible-but-locked placeholders for the planned arc: banking, credit, investing, taxes, retirement, etc.
+
+- **Lines:** ~5,271
+- **Layout:** Landing (hero + curriculum grid + why-money panel) → Module view (6 scenes per module)
+- **Dependencies:** None — inline SVG only
+
+### Curriculum (10 modules, 1 built)
+
+| # | Module | Status |
+|---|--------|--------|
+| 1 | What is money? | **Built** — 6 scenes including interactive coin tour + cash-vs-digital toggle |
+| 2 | Banks & accounts | Locked |
+| 3 | Budgeting & spending | Locked |
+| 4 | Credit & loans | Locked |
+| 5 | Investing basics | Locked |
+| 6 | Stocks & bonds | Locked |
+| 7 | Retirement accounts | Locked |
+| 8 | Taxes | Locked |
+| 9 | Insurance | Locked |
+| 10 | Building wealth | Locked |
+
+### Scene shape (Module 1)
+
+| # | Scene | Default content |
+|---|-------|-----------------|
+| 0 | Hook | Big number callout + animated piggy bank |
+| 1 | History | Barter → coins → paper → digital timeline cards |
+| 2 | Tour | Interactive coin SVG with 5 properties (portability, durability, divisibility, scarcity, acceptability) |
+| 3 | Compare | Cash ↔ digital toggle scene |
+| 4 | Quiz | 5 questions + confetti on ≥80% |
+| 5 | Recap | 5 summary pills + next-module tease |
+
+### Persistence
+
+`localStorage['moneysmarts_state_v1']` — `{ completed: { module1: true, ... } }`. Module 2+ unlock as the curriculum is built out.
+
+### CSS Variables (mint + coin-gold palette)
+
+```css
+--mint-50..700 (primary money/growth)   --coin-300..700 (currency)
+--plum-* (wisdom accent)                --sky-* (trust / banks)
+--berry-* (debt warning)                --ink-* / --paper / --cream / --bg
+```
+
+### Differences vs other learning-site projects
+
+- **Locked-card pattern is prominent** — the landing makes the unfinished modules visible by design, hinting at the planned arc. (bio-basics does this too; nihao hides locked content in a switcher.)
+- **Anti-gamified within modules** — same philosophical lean as habla-clara. No streaks or stars; you learn it, you get the takeaway pills.
+
+---
+
+## 23. `hello.html`
+
+**American English pronunciation tutor for native Spanish & Mandarin speakers.** Single 6-scene module (with 9 more planned) teaching the 11 American-English monophthong vowels. The user picks their L1 on first load and every accent tip, contrast example, and "this is new" callout adapts accordingly.
+
+- **Lines:** ~2,848
+- **Layout:** Top bar → L1 picker modal (first load) → module section with 6 scenes
+- **Dependencies:** `webkitSpeechRecognition` (transcript), `speechSynthesis` (TTS). Microphone requires HTTPS or localhost.
+
+### Why vowels first
+
+Spanish has 5 vowels; Mandarin has ~6; American English has ~12 monophthongs + 5 diphthongs. The single biggest source of "foreign accent" for both L1 groups is collapsing English vowels onto the smaller native inventory (sheep/ship, bed/bad, cup/cap for Spanish; same plus bird/bod for Mandarin). Hello! tackles the vowel system directly before consonants.
+
+### Scene map
+
+| # | Scene | What it does |
+|---|-------|--------------|
+| 0 | Hook | "Do these sound the same?" — 3 minimal-pair cards with click-to-hear |
+| 1 | Big idea | Vowel mouth-chart (IPA quadrant) with 11 clickable vowel pads |
+| 2 | Trainer | Listen + speech-recognition trainer (per-vowel target word, mic graded) |
+| 3 | Pairs | 8-cell minimal pairs grid + L1-specific trap callouts + word chips |
+| 4 | Quiz | 5 questions: hear audio → identify which vowel |
+| 5 | Recap | 5-pill summary + diphthongs tease (Module 2) |
+
+### Persistence
+
+- `localStorage['hello_l1']` — `'es'` or `'zh'` (first-language choice)
+- `localStorage['hello_state_v1']` — `{ completed: { vowels: true } }` (module progress)
+
+### CSS Variables (sapphire + coral + vowel quadrant)
+
+```css
+--sapphire-* (brand blue)        --coral-* (accent)
+--v-fh, --v-fm, --v-fl           (front-high/mid/low vowels)
+--v-c                            (central vowels)
+--v-bh, --v-bl                   (back-high / back-low)
++ pale variants for each
+```
+
+Vowel-quadrant colors give each region its own consistent color across the chart, trainer, and quiz so users build visual associations.
+
+### Differences vs habla-clara / nihao
+
+- **L1-aware copy** — habla-clara is Spanish-specific by design; hello! adapts per user. First playground project to swap content based on a user preference at this depth.
+- **Mouth-chart UI** — IPA quadrant layout (front/back × high/low) is unique to this site. habla-clara organizes by sound category; nihao by tone.
+- **Module-first like nihao**, no landing — the page opens directly into the active module.
+
+---
+
+## 24. `slop-shield/` folder
+
+**Chrome extension flagging AI-generated YouTube videos.** Layered detection (channel heuristics, voice, transcript, visual face) with per-signal breakdown rather than a binary verdict — users see the underlying scores and decide for themselves. v0.1 ships Layer 1 only (channel heuristics); other layers are scaffolded for future versions.
+
+- **Files:** `manifest.json` (32), `background.js` (43), `content.js` (226), `heuristics.js` (203), `youtube-api.js` (59), `popup.{html,css,js}` (3 files), `options.{html,css,js}` (3 files), `research.md` (extensive landscape survey)
+- **Dependencies:** YouTube Data API v3 (requires user-supplied API key) — no in-browser ML yet
+
+### Layer 1 Signals (heuristics.js)
+
+| Signal | What it measures | Weight |
+|--------|------------------|--------|
+| `channel_age` | Days since channel creation | 0.5 |
+| `upload_cadence` | Videos per day (lifetime avg) | 2.0 |
+| `view_sub_ratio` | View count ÷ subscriber count | 1.0 |
+| `duration_consistency` | Coefficient of variation across last 20 video lengths | 1.0 |
+| `title_entropy` | Shannon entropy of title vocabulary | 1.0 |
+| `description_boilerplate` | Match against known AI-channel template patterns | 0.7 |
+
+Composite score is a weighted average. Tier thresholds: `>= 0.65` high, `>= 0.35` medium, else low.
+
+### Persistence
+
+`chrome.storage` (not localStorage) — stores the API key, cache metadata, and user-adjusted tier thresholds (planned).
+
+### Roadmap (from README)
+
+- Layer 2: MediaPipe face heuristics (blink rate, head-pose entropy, lip-sync drift); AASIST-L voice detector via onnxruntime-web
+- Layer 3: Fast-DetectGPT on auto-captions
+- Layer 4: Thumbnail similarity via CLIP-ViT-B/32
+
+### Differences vs youtube-smart-skip
+
+- **Different goal entirely** — youtube-smart-skip is about avoiding sponsor segments in any video; slop-shield is about identifying AI-slop *channels* before you click.
+- **Multiple layers planned vs 2 signals shipped** — youtube-smart-skip is simpler scope; slop-shield is ambitious but partial.
+
+---
+
+## 25. `stock-screener/` folder
+
+**Day-trading reference tool.** Aggregates Yahoo Finance gainers/losers, Russell 2000 earnings, low-float runners, and options flow into a single multi-tab dashboard. Manual verification required — this isn't a trading bot, just a pre-screen for human judgement.
+
+- **Files:** `index.html` (38), `app.js` (256), `style.css` (195), `fetch_data.py` (361), `requirements.txt`, `COMMANDS.md`
+- **Dependencies:** Python backend (yfinance + pandas + requests) for data fetch; static HTTP server for the frontend. Run `python fetch_data.py` (1-2 min) → writes `data.json` → reload page
+
+### Tabs
+
+| Tab | What it shows | Sample columns |
+|-----|--------------|---------------|
+| Gainers | Top daily % gainers | Symbol, price, change %, volume, RVOL, market cap |
+| Losers | Top daily % losers | Same shape as gainers |
+| Russell Earnings | Russell 2000 stocks with imminent earnings | Symbol, date, EPS estimate, prior beat/miss |
+| Low-Float | Stocks with float < threshold | Symbol, float, short interest, % short |
+| Options | Unusual options flow | Symbol, P/C ratio, IV skew, unusual strike count |
+
+RVOL (relative volume) added in commit 2e5e50c, Options tab added with it.
+
+### Persistence
+
+None on the client. Data lives in `data.json` (regenerated by `fetch_data.py`). The frontend is fully read-only — it just renders the latest JSON.
+
+### CSS
+
+GitHub-dark theme: `#0d1117` background, `#c9d1d9` text, `#58a6ff` accent. Monospace stack for tabular feel.
+
+### Differences vs other projects
+
+- **First project with a real backend** — Python fetch, not just static HTML. The HTML viewer is dumb; the data layer is the value.
+- **Stale-by-design** — no auto-refresh. User runs the fetch when they need fresh numbers. Suitable for pre-market prep, not real-time trading.
+
+---
+
+## 26. `escape-room-simulator/` folder
+
+**React + Vite scaffold for a web-based escape room puzzle game.** Multi-room navigation, clickable objects, inventory, hints. Early scaffold stage — game engine + sample content exist but the room library and visual polish are TBD.
+
+- **Files:** TypeScript / React (`src/components/AppShell.tsx`, `src/lib/gameEngine.ts`, `src/lib/types.ts`, `src/data/sampleContent.ts`), Vite config, `package.json`
+- **Dependencies:** React 18, Vite, TypeScript — first playground project with a real build step
+
+### Status
+
+Scaffold stage. Basic game loop wired (room → object click → puzzle attempt → inventory update → room navigation). Real content authoring + UI polish are next.
+
+### Differences vs every other playground project
+
+- **First TypeScript / React project** in the repo. All prior sites are vanilla HTML.
+- **Real build step required** — `npm install` + `npm run dev`. Can't just open the HTML file.
+- **Sandbox / scaffolding pattern** — meant to be extended with content rather than shipped as-is.
+
+---
+
+## 27. `guitar-mp3-transcription/` folder
+
+**Upload an MP3 → download guitar tablature PDF + MusicXML.** Python FastAPI backend with a thin HTML frontend. Tester-friendly launchers for non-developers (`start.py`, `start.command` for macOS, `start.bat` for Windows) — auto-creates a venv, installs deps, opens the browser.
+
+- **Files:** `backend/app/` (FastAPI app: `main.py`, `transcription.py`, `guitar.py`, `musicxml_export.py`, `pdf_render.py`, `schemas.py`), `frontend/index.html` (302 lines), `start.py`, `package_for_friend.sh`, multiple READMEs / quickstart docs
+- **Dependencies:** Python 3.10+, FastAPI, audio/transcription libs (real OMR/audio pipeline TBD)
+
+### Flow
+
+1. Frontend (HTML form) → upload MP3/WAV to FastAPI
+2. Backend pipeline: save file → mock OCR / note detection → fingering engine (beginner heuristics) → MusicXML output → PDF render
+3. User downloads PDF tab + MusicXML artifact
+
+### Status
+
+Vertical-slice prototype. Mock transcription returns sample notes; real audio→note detection is the next major component.
+
+### Differences vs other playground projects
+
+- **First Python-backend project with a desktop launcher** — designed so a non-developer friend can double-click `start.command` and use it.
+- **Multi-platform install scripts** — `start.py` works cross-platform; `start.command` and `start.bat` are convenience wrappers.
+
+---
+
+## 28. `violin-sheet-helper-webapp/` folder
+
+**Upload sheet music image/PDF → get beginner violin fingering guidance.** Same FastAPI + thin-HTML pattern as guitar-mp3-transcription. Vertical-slice prototype with a mock OCR pipeline; real OMR (MuseScore CLI, Audiveris) is pluggable later.
+
+- **Files:** `src/api/main.py`, `src/services/{music_parser_service,fingering_engine,ocr_service}.py`, `src/web/index.html` (130), `tests/test_app.py`, `docs/PROJECT_DESIGN.md`
+- **Dependencies:** Python 3.8+, FastAPI, uvicorn, pytest
+
+### Flow
+
+1. Frontend → upload image/PDF
+2. Backend: mock OCR → note extraction → fingering engine (first-position beginner fingering: string + finger + reasoning)
+3. Response: fingering table + raw JSON
+
+### Status
+
+Mock OCR returns sample notes. Real OMR integration is the next major component. The fingering engine itself works and explains its reasoning (good for beginner pedagogy).
+
+### Differences vs guitar-mp3-transcription
+
+- **Image input vs audio input** — different upstream OCR problem, but downstream pattern is shared (note list → instrument-specific fingering → user-facing output)
+- **Documented architecture** — `docs/PROJECT_DESIGN.md` and `docs/PROJECT_MEMORY.md` exist as a more formal design record (guitar-mp3-transcription has READMEs but no formal design doc)
+
+---
 
 
-## Cross-Project Patterns
 
 | Pattern | Where |
 |---------|-------|
 | **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics, nihao, pawn-path, speak-sharp, sat-reading, interview-drill |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
 | **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), mortgage-lab (line charts), speak-sharp (live pitch curve) |
-| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare), nihao (tone tracks, live pitch curves) |
-| **Unicode glyphs as art** | pawn-path (chess pieces ♚♛♜♝♞♟ — no images at all) |
+| **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare), nihao (tone tracks, live pitch curves), violin-voyage (staff + fingerboard), money-smarts (coin tour + piggy bank), hello (vowel quadrant chart) |
+| **Unicode glyphs as art** | pawn-path (chess pieces ♚♛♜♝♞♟ — no images at all), fridge-feast (emoji ingredient grid) |
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
-| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map), pawn-path (stars + best times per theme), speak-sharp (per-prompt history), mortgage-lab (input state per tab), sat-reading (per-passage best time + score), interview-drill (per-question history + STAR notes) |
-| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow), nihao (single-module 6-scene flow, no landing) |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map), pawn-path (stars + best times per theme), speak-sharp (per-prompt history), mortgage-lab (input state per tab), sat-reading (per-passage best time + score), interview-drill (per-question history + STAR notes), money-smarts (modules-completed), hello (L1 + modules-completed), violin-voyage (module progress), fridge-feast (API key only) |
+| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow), nihao (single-module 6-scene flow, no landing), money-smarts (landing → module), hello (single-module 6-scene) |
 | **Microphone input + pitch analysis** | nihao (autocorrelation; first project to capture mic input for shape-based grading) |
-| **Web Speech API (TTS + recognition)** | habla-clara (TTS + recognition), nihao (TTS-only fallback when MP3 audio missing), speak-sharp (recognition for transcript), interview-drill (TTS asks question + recognition for answer) |
+| **Web Speech API (TTS + recognition)** | habla-clara (TTS + recognition), nihao (TTS-only fallback when MP3 audio missing), speak-sharp (recognition for transcript), interview-drill (TTS asks question + recognition for answer), hello (both APIs for vowel trainer) |
 | **Pitch detection (autocorrelate)** | nihao (tone trainer), speak-sharp (vocal-range metric) |
-| **No build step / no framework** | Every project |
+| **No build step / no framework** | Every vanilla HTML project (count: 19) |
+| **Build step required** | escape-room-simulator (React + Vite + TypeScript) |
+| **Python backend required** | stock-screener (data fetch script), guitar-mp3-transcription (FastAPI), violin-sheet-helper-webapp (FastAPI) |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
-| **Chrome extension (MV3) / content script** | youtube-smart-skip only |
-| **`chrome.storage.sync` for settings** | youtube-smart-skip only |
-| **Tabbed multi-calculator UI** | mortgage-lab (4 calculators in one file) |
-| **Curated content (no procedural gen)** | pawn-path (chess puzzles), sat-reading (passages), interview-drill (behavioral questions) |
+| **Chrome extension (MV3) / content script** | youtube-smart-skip, slop-shield |
+| **`chrome.storage` for settings** | youtube-smart-skip (`.sync`), slop-shield (`.local`) |
+| **Tabbed multi-calculator/multi-view UI** | mortgage-lab (4 calculators), stock-screener (5 data tabs) |
+| **Curated content (no procedural gen)** | pawn-path (chess puzzles), sat-reading (passages), interview-drill (behavioral questions), fridge-feast (ingredient + recipe library), money-smarts (curriculum), violin-voyage (curriculum) |
+| **L1-aware / user-preference adapts content** | hello (Spanish vs Mandarin), habla-clara (Spanish-only, by design) |
+| **Optional LLM integration** | fridge-feast (Anthropic Claude API, user-supplied key) |
 
 ### File Size Summary
 
 | File | Lines | Type |
 |------|-------|------|
-| count-champ.html | 2,580 | Trainer/sim |
+| money-smarts.html | 5,271 | Financial literacy curriculum (1 of 10 modules built) |
+| nihao.html | 4,158 | Mandarin learning site (3 of 11 modules) |
+| bio-basics.html | 4,120 | Molecular biology learning (6 of 11 modules) |
+| fridge-feast.html | 3,200 | Recipe matcher from ingredients |
+| hello.html | 2,848 | English pronunciation tutor (L1-aware) |
+| math-ace.html | 2,766 | K–5 math tutor (44 topics) |
+| count-champ.html | 2,580 | Blackjack trainer + Monte Carlo sim |
+| violin-voyage.html | 2,487 | Beginner violin & sheet-music tutor (12 modules) |
 | glow-studio-mobile.html | 2,399 | Photo editor |
-| habla-clara.html | 2,385 | Pronunciation tutor |
-| glow-studio.html | 2,227 | Photo editor |
-| spades.html | 2,189 | Card game |
-| math-ace.html | 2,766 | K–5 math tutor |
-| bio-basics.html | 4,120 | Molecular biology learning site |
-| nihao.html | 4,158 | Mandarin learning site (tones, pinyin, radicals — 3 of 11 modules) |
+| habla-clara.html | 2,385 | Pronunciation tutor (Spanish L1) |
+| glow-studio.html | 2,227 | Photo editor (desktop) |
+| spades.html | 2,189 | Card game (vs 3 AI bots) |
+| mortgage-lab.html | 1,680 | Home affordability calculator suite (4 tabs) |
+| glow-studio-video.html | 1,713 | Video face-smoothing editor |
+| slot-machine-memes.html | 1,754 | Slot game with meme audio |
+| glow-studio-easy.html | 1,662 | Photo editor (mobile easy) |
 | pawn-path.html | 1,580 | Chess tactics trainer (6 themes, ~25 puzzles) |
 | speak-sharp.html | 1,540 | Public speaking coach (10 prompts, mic-graded) |
-| mortgage-lab.html | 1,680 | Home affordability calculator suite (4 tabs) |
 | sat-reading.html | 1,485 | SAT reading practice (5 passages, 22 questions) |
+| slot-machine.html | 1,481 | Slot game (base) |
 | interview-drill.html | 1,460 | Behavioral interview practice (20 questions, STAR-aware) |
-| slot-machine-memes.html | 1,754 | Slot game |
-| glow-studio-easy.html | 1,662 | Photo editor |
-| glow-studio-video.html | 1,713 | Video editor |
-| slot-machine.html | 1,481 | Slot game |
 | daw/app.js | 1,456 | DAW engine |
 | daw/styles.css | 533 | DAW styling |
 | daw/index.html | 150 | DAW shell |
-| youtube-smart-skip/content.js | 359 | Extension detection engine |
-| youtube-smart-skip/popup.css | 203 | Extension popup styling |
-| youtube-smart-skip/popup.js | 87 | Extension popup controller |
-| youtube-smart-skip/popup.html | 83 | Extension popup shell |
-| youtube-smart-skip/content.css | 64 | Extension toast styling |
-| youtube-smart-skip/README.md | 55 | Extension docs |
-| youtube-smart-skip/manifest.json | 21 | Extension manifest (MV3) |
-| **Total documented** | **31,917** | |
-
-> Note: file size summary documents the projects covered in the sections above. Other projects in the repo (`fridge-feast.html`, `violin-voyage.html`, `money-smarts.html`, `hello.html`, `slop-shield/`, `stock-screener/`) exist but aren\'t fully indexed here yet — open them directly to see their own header comments.
+| youtube-smart-skip/ (total) | 872 | Chrome extension for sponsor skipping |
+| slop-shield/ (total) | ~1,000 | Chrome extension for AI-channel detection |
+| stock-screener/ (total) | ~850 | Day-trading reference (HTML + Python) |
+| guitar-mp3-transcription/ (total) | ~1,500 | FastAPI MP3 → tab transcription |
+| violin-sheet-helper-webapp/ (total) | ~500 | FastAPI sheet music → fingering |
+| escape-room-simulator/ (total) | ~300 | React + Vite escape room scaffold |
+| **Approx total** | **~57,000** | (excludes `.backup_*` files from contributor tooling) |
 
 ### Quick `grep` recipes
 

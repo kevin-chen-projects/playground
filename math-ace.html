@@ -384,6 +384,105 @@
       letter-spacing: -0.02em;
     }
 
+    /* v2: landing stats chips */
+    .landing-stats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 0 0 22px;
+    }
+    .stat-chip {
+      background: var(--paper);
+      border: 1.5px solid var(--violet-100);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+      color: var(--ink-700);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-chip b { color: var(--violet-500); font-weight: 800; }
+    .stat-chip .stat-icon { font-size: 16px; }
+
+    /* v2: print button on topic detail */
+    .print-btn {
+      margin-left: auto;
+      background: var(--paper);
+      border: 1.5px solid var(--violet-200);
+      color: var(--violet-500);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .print-btn:hover {
+      background: var(--violet-100);
+      border-color: var(--violet-300);
+    }
+
+    /* v2: print-mode worksheet — hidden in normal viewing, visible only on @media print */
+    .worksheet-print {
+      display: none;
+    }
+    @media print {
+      body * { visibility: hidden; }
+      .worksheet-print, .worksheet-print * { visibility: visible; }
+      .worksheet-print {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 40px 50px;
+        background: white !important;
+        color: black !important;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      .worksheet-print h1 {
+        font-size: 28px;
+        margin: 0 0 4px;
+        font-family: Georgia, serif;
+      }
+      .worksheet-print .ws-sub {
+        font-size: 14px;
+        color: #555;
+        margin: 0 0 18px;
+      }
+      .worksheet-print .ws-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px 30px;
+      }
+      .worksheet-print .ws-item {
+        page-break-inside: avoid;
+        border-bottom: 1px solid #ddd;
+        padding: 10px 4px;
+      }
+      .worksheet-print .ws-num {
+        font-weight: 700;
+        color: #444;
+        margin-right: 8px;
+      }
+      .worksheet-print .ws-question {
+        font-size: 16px;
+      }
+      .worksheet-print .ws-answer-line {
+        margin-top: 6px;
+        font-size: 13px;
+        color: #666;
+      }
+      .worksheet-print .ws-foot {
+        margin-top: 28px;
+        text-align: center;
+        font-size: 11px;
+        color: #888;
+      }
+    }
+
     .tab-bar {
       display: flex;
       background: var(--paper);
@@ -976,6 +1075,11 @@
         <p class="landing-subtitle">
           A friendly tutor for grades K–5. Short lessons, worked examples, and timed sequential practice so skills stick.
         </p>
+        <div class="landing-stats" id="landingStats">
+          <div class="stat-chip"><span class="stat-icon">🔥</span><b id="streakDays">0</b>&nbsp;day streak</div>
+          <div class="stat-chip"><span class="stat-icon">⭐</span><b id="totalStars">0</b>&nbsp;stars earned</div>
+          <div class="stat-chip"><span class="stat-icon">📐</span><b id="topicsTried">0</b>/44&nbsp;topics</div>
+        </div>
         <button class="cta" id="startBtn">Choose a grade →</button>
 
         <div class="landing-features">
@@ -1022,6 +1126,7 @@
       <div class="topic-head">
         <div class="topic-icon" id="detailIcon">📐</div>
         <h1 id="detailTitle">Topic</h1>
+        <button id="printSheetBtn" class="print-btn" title="Generate a printable 15-problem worksheet for this topic">📄 Print worksheet</button>
       </div>
       <div class="tab-bar">
         <button class="tab active" data-tab="learn">📖 Learn</button>
@@ -1041,6 +1146,9 @@
       </div>
     </section>
   </div>
+
+  <!-- v2: hidden worksheet container, becomes visible only on @media print -->
+  <div class="worksheet-print" id="worksheetPrint"></div>
 
   <div class="confetti-layer" id="confetti"></div>
 
@@ -3462,6 +3570,113 @@
     }
 
     // ============================================================
+    // v2: Daily streak + stats
+    // ============================================================
+    function todayKey() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dd}`;
+    }
+    function loadDates() {
+      try {
+        const raw = localStorage.getItem('mathace_dates');
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    }
+    function markDayPracticed() {
+      try {
+        const dates = new Set(loadDates());
+        dates.add(todayKey());
+        localStorage.setItem('mathace_dates', JSON.stringify([...dates]));
+      } catch {}
+    }
+    function getStreak() {
+      const datesSet = new Set(loadDates());
+      if (datesSet.size === 0) return 0;
+      let streak = 0;
+      let d = new Date();
+      // If user hasn't practiced today yet, start counting from yesterday
+      if (!datesSet.has(todayKey())) {
+        d.setDate(d.getDate() - 1);
+      }
+      while (true) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const k = `${y}-${m}-${dd}`;
+        if (datesSet.has(k)) {
+          streak++;
+          d.setDate(d.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+    function getStats() {
+      const stars = state.stars || {};
+      let total = 0, tried = 0, mastered = 0;
+      Object.keys(stars).forEach(k => {
+        const s = stars[k] || 0;
+        total += s;
+        if (s > 0) tried++;
+        if (s >= 3) mastered++;
+      });
+      return { totalStars: total, topicsTried: tried, topicsMastered: mastered };
+    }
+    function renderLandingStats() {
+      const streakEl = document.getElementById('streakDays');
+      const totalEl = document.getElementById('totalStars');
+      const triedEl = document.getElementById('topicsTried');
+      if (!streakEl) return;
+      const streak = getStreak();
+      const stats = getStats();
+      streakEl.textContent = streak;
+      totalEl.textContent = stats.totalStars;
+      triedEl.textContent = stats.topicsTried;
+    }
+
+    // ============================================================
+    // v2: Print worksheet — generates 15 problems for current topic
+    // ============================================================
+    function printWorksheet() {
+      const topic = state.topic;
+      if (!topic || typeof topic.gen !== 'function') return;
+      const probs = [];
+      const seen = new Set();
+      let attempts = 0;
+      while (probs.length < 15 && attempts < 100) {
+        attempts++;
+        let p;
+        try { p = topic.gen(); } catch { continue; }
+        if (!p || !p.display) continue;
+        const key = p.display;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        probs.push(p);
+      }
+      // If duplicates couldn't be avoided, accept what we have
+      if (probs.length === 0) return;
+      const todayStr = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+      const html = `
+        <h1>${topic.name}</h1>
+        <div class="ws-sub">${todayStr} · Math Ace worksheet · 15 problems</div>
+        <div class="ws-grid">
+          ${probs.map((p, i) => `
+            <div class="ws-item">
+              <div class="ws-question"><span class="ws-num">${i + 1}.</span>${p.display}</div>
+              <div class="ws-answer-line">Answer: ____________________</div>
+            </div>`).join('')}
+        </div>
+        <div class="ws-foot">Name: __________________________ &nbsp;&nbsp; Date: __________ &nbsp;&nbsp; Score: ____/15</div>`;
+      const container = document.getElementById('worksheetPrint');
+      container.innerHTML = html;
+      window.print();
+    }
+
+    // ============================================================
     // VIEW SWITCHING
     // ============================================================
     function showView(name) {
@@ -3469,6 +3684,7 @@
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       $('view-' + name).classList.add('active');
       renderBreadcrumb();
+      if (name === 'landing') renderLandingStats();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -3938,6 +4154,7 @@
         saveStars();
       }
       if (accuracy >= 80) saveBestTime(p.topic.id, seconds);
+      markDayPracticed();
 
       const emoji = accuracy === 100 ? '🏆' : accuracy >= 80 ? '🌟' : accuracy >= 60 ? '👍' : '💪';
       const title = accuracy === 100 ? 'Perfect!' : accuracy >= 80 ? 'Great job!' : accuracy >= 60 ? 'Nice work!' : 'Keep practicing!';
@@ -3995,6 +4212,12 @@
     // ============================================================
     $('startBtn').addEventListener('click', () => { renderGradeSelect(); showView('grade'); });
     $('brandHome').addEventListener('click', () => showView('landing'));
+
+    // v2: print worksheet button on topic detail
+    $('printSheetBtn').addEventListener('click', printWorksheet);
+
+    // v2: render landing stats on initial boot
+    renderLandingStats();
 
     // breadcrumb navigation
     document.addEventListener('click', (e) => {

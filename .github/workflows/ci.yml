@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  html-syntax:
+    name: HTML syntax (all .html files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate every HTML file parses
+        run: python ci/check_html.py
+
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ruff
+        run: pip install -r requirements-dev.txt
+      - name: Run ruff
+        run: ruff check .
+
+  tests:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dev deps
+        run: pip install -r requirements-dev.txt
+      - name: Install violin-sheet-helper-webapp deps
+        run: |
+          if [ -f violin-sheet-helper-webapp/requirements.txt ]; then
+            pip install -r violin-sheet-helper-webapp/requirements.txt
+          fi
+      - name: Run pytest
+        working-directory: violin-sheet-helper-webapp
+        run: pytest -q
+
+  security:
+    name: Dependency audit (pip-audit, informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pip-audit
+        run: pip install -r requirements-dev.txt
+      - name: Audit each requirements.txt
+        shell: bash
+        run: |
+          set +e
+          found=0
+          while IFS= read -r f; do
+            found=1
+            echo ""
+            echo "=== Auditing $f ==="
+            pip-audit -r "$f" || echo "(pip-audit found issues in $f)"
+          done < <(find . -name 'requirements.txt' -not -path '*backup*' -not -path './.git/*')
+          if [ "$found" -eq 0 ]; then
+            echo "No requirements.txt files found to audit."
+          fi

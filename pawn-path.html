@@ -1,49 +1,67 @@
 <!DOCTYPE html>
 <!--
 ================================================================================
-  Pawn Path — Chess Tactics Trainer
+  Pawn Path — Chess Tactics Trainer (v2)
 ================================================================================
 
   Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
 
-  Themed sets of click-to-solve tactical puzzles (forks, pins, skewers,
-  mate-in-1, mate-in-2, discovered attacks). Each set is 4-6 puzzles; star
-  rating + best time are saved per theme in localStorage.
+  v2 adds:
+    - Real chess move validation (knight, bishop, rook, queen, king, pawn) —
+      illegal moves rejected before scoring. No castling / en-passant /
+      promotion (rare in tactics puzzles and adds engine complexity).
+    - Check + checkmate detection (so mate-in-1 actually verifies mate).
+    - Multi-move puzzles: solution is an array of `{from, to}` steps. After
+      a correct user move, the engine auto-plays the opponent's forced reply,
+      then asks for the next user move. Final user move ends the puzzle.
+    - Wrong-but-legal feedback: instead of silently shaking, the trainer
+      surfaces "that's a legal move, but it's not the strongest here".
+    - Cleaner explanations: each puzzle's explain field is a coherent
+      sentence describing what the move accomplishes and why.
+    - 35+ puzzles across 6 themes (up from ~25).
 
   FILE INDEX
   ==============================================================================
   HEAD
-     1–35   Header comment (this block)
-    37–43   <head>: meta, title
+     1–30    Header comment (this block)
+    32–38    <head>: meta, title
 
-  STYLE  (~lines 44–680)
-    :root           palette (wood + ivory + accent gold), radii, shadows
-    Reset + base    typography, body bg
-    .top-bar        brand mark + breadcrumb
-    Landing view    hero, theme grid, locked theme cards
-    Theme card      icon, title, subtitle, stars earned
-    Puzzle view     2-column (board + sidebar) — collapses < 900px
-    Board           8x8 grid, square colors, last-move highlight, target dots
-    Pieces          unicode glyphs scaled into squares
-    Sidebar         puzzle prompt + move list + buttons (hint/skip/reset)
-    Feedback toast  green correct / red incorrect bar
+  STYLE  (~lines 39–700)
+    :root           palette (wood + ivory + gold)
+    Reset + base    typography
+    .top-bar        brand + breadcrumb
+    Landing view    hero + theme grid + how panel
+    Theme card      icon, blurb, stars, puzzle count
+    Puzzle view     board + sidebar (2-col, collapses < 900px)
+    Board           8x8 grid, last-move highlights, target dots, check ring
+    Pieces          Unicode glyphs (♚♛♜♝♞♟)
+    Sidebar         prompt card, feedback toast, move list, controls
     Results view    star rating + retry / next theme
-    Animations      pulse, shake, fade, ringPulse
+    Animations      flashGood, flashBad, kingFlash (check pulse), fadeIn
 
-  BODY  (~lines 690–760)
+  BODY  (~lines 710–780)
     .top-bar
     .view.view-landing
-    .view.view-puzzle (board + sidebar)
+    .view.view-puzzle
     .view.view-results
 
-  SCRIPT  (~lines 770–end, single IIFE)
-    State          { view, themeId, puzzleIdx, selected, stars, bestTimes }
-    Persistence    localStorage['pawnpath_state_v1']
-    THEMES + PUZZLES (data tables — ~25 puzzles total across 6 themes)
-    Board engine   parsePosition, renderBoard, squareName, indexFromName
-    Move check     compareMove(userFrom, userTo) vs expected
-    Routing        showView, openTheme, nextPuzzle, finishTheme
-    Boot           wire clicks, restore state
+  SCRIPT  (~lines 790–end, single IIFE)
+    Board helpers   parseSquare, squareName, buildPosition, cloneBoard,
+                    applyMove (mutating), pieceAt
+    Move generator  legalMoves(board, sq) — handles all 6 piece types,
+                    rejects moves leaving own king in check
+    Check helpers   isSquareAttacked, isInCheck, isCheckmate
+    THEMES + PUZZLES
+                    Each puzzle: id, side, pieces, solution[] (array of steps),
+                    prompt, hint, explain
+    State           { view, themeId, puzzleIdx, stepIdx, board, side, selected,
+                     stars, bestTimes, themeResults, themeStartTime }
+    Persistence     localStorage['pawnpath_state_v1']
+    Routing         showView, openTheme, renderPuzzle, attemptMove,
+                    autoOpponentReply (called when puzzle is multi-move),
+                    finishTheme
+    Wiring          drawBoard, onSquareClick, showHint, resetPosition,
+                    nextPuzzle, wireGlobal
 ================================================================================
 -->
 <html lang="en">
@@ -74,6 +92,8 @@
       --good-light: #d6efde;
       --bad: #c43c3c;
       --bad-light: #f8d7d7;
+      --neutral: #7b6750;
+      --neutral-light: #f0e6d0;
 
       --ink-900: #1d140e;
       --ink-700: #43342a;
@@ -128,7 +148,7 @@
       border-radius: 999px;
       font-weight: 600;
       font-size: 14px;
-      transition: transform 0.12s ease, box-shadow 0.2s ease;
+      transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s;
     }
     .btn:hover { transform: translateY(-1px); }
     .btn-primary {
@@ -150,9 +170,6 @@
     }
     .btn-gold:hover { background: var(--gold-400); }
 
-    /* ============================================================
-       Top bar
-       ============================================================ */
     .top-bar {
       display: flex;
       align-items: center;
@@ -183,38 +200,18 @@
       font-size: 22px;
       letter-spacing: 0.02em;
     }
-    .brand-name em {
-      color: var(--wood-700);
-      font-style: italic;
-    }
-    .breadcrumb {
-      color: var(--ink-500);
-      font-size: 14px;
-    }
-    .breadcrumb a {
-      color: var(--ink-700);
-      cursor: pointer;
-      text-decoration: none;
-    }
+    .brand-name em { color: var(--wood-700); font-style: italic; }
+    .breadcrumb { color: var(--ink-500); font-size: 14px; }
+    .breadcrumb a { color: var(--ink-700); cursor: pointer; text-decoration: none; }
     .breadcrumb a:hover { color: var(--wood-700); }
 
-    /* ============================================================
-       Views
-       ============================================================ */
-    .view {
-      display: none;
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 16px 28px 80px;
-    }
+    .view { display: none; max-width: 1180px; margin: 0 auto; padding: 16px 28px 80px; }
     .view.active { display: block; }
 
     /* ============================================================
        Landing
        ============================================================ */
-    .hero {
-      padding: 24px 0 32px;
-    }
+    .hero { padding: 24px 0 32px; }
     .hero-eyebrow {
       display: inline-block;
       padding: 6px 14px;
@@ -234,14 +231,11 @@
       line-height: 1.05;
       max-width: 700px;
     }
-    .hero h1 em {
-      color: var(--wood-700);
-      font-style: italic;
-    }
+    .hero h1 em { color: var(--wood-700); font-style: italic; }
     .hero-sub {
       font-size: 18px;
       color: var(--ink-700);
-      max-width: 580px;
+      max-width: 620px;
       margin: 0 0 24px;
     }
     .hero-stats {
@@ -257,7 +251,6 @@
       font-family: var(--serif);
       font-size: 22px;
       margin: 36px 0 16px;
-      color: var(--ink-900);
     }
 
     .theme-grid {
@@ -288,15 +281,6 @@
       transform: translateY(-3px);
       box-shadow: var(--shadow);
       border-color: var(--wood-300);
-    }
-    .theme-card.locked {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-    .theme-card.locked:hover {
-      transform: none;
-      box-shadow: none;
-      border-color: var(--ivory-300);
     }
     .theme-icon {
       font-size: 32px;
@@ -365,9 +349,7 @@
       align-items: start;
       padding-top: 8px;
     }
-    @media (max-width: 900px) {
-      .puzzle-grid { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 900px) { .puzzle-grid { grid-template-columns: 1fr; } }
 
     .puzzle-head {
       display: flex;
@@ -381,7 +363,6 @@
       font-family: var(--serif);
       font-size: 22px;
       margin: 0;
-      color: var(--ink-900);
     }
     .puzzle-progress {
       font-size: 13px;
@@ -390,10 +371,7 @@
       gap: 16px;
       align-items: center;
     }
-    .puzzle-dots {
-      display: flex;
-      gap: 6px;
-    }
+    .puzzle-dots { display: flex; gap: 6px; }
     .puzzle-dot {
       width: 10px;
       height: 10px;
@@ -461,18 +439,26 @@
     }
     .square.light { background: var(--light-sq); }
     .square.dark { background: var(--dark-sq); }
-
     .square.selected::after,
     .square.last-from::after,
-    .square.last-to::after {
+    .square.last-to::after,
+    .square.in-check::after {
       content: "";
       position: absolute;
       inset: 0;
       pointer-events: none;
     }
-    .square.selected::after { background: rgba(233, 185, 79, 0.5); }
+    .square.selected::after { background: rgba(233, 185, 79, 0.55); }
     .square.last-from::after,
-    .square.last-to::after { background: rgba(233, 185, 79, 0.35); }
+    .square.last-to::after { background: rgba(233, 185, 79, 0.32); }
+    .square.in-check::after {
+      box-shadow: inset 0 0 0 4px rgba(196, 60, 60, 0.85);
+      animation: kingFlash 1.4s infinite ease-in-out;
+    }
+    @keyframes kingFlash {
+      0%, 100% { box-shadow: inset 0 0 0 4px rgba(196, 60, 60, 0.85); }
+      50% { box-shadow: inset 0 0 0 4px rgba(196, 60, 60, 0.4); }
+    }
     .square.target-empty::before {
       content: "";
       position: absolute;
@@ -491,20 +477,12 @@
       box-sizing: border-box;
       pointer-events: none;
     }
-    .square.flash-good {
-      animation: flashGood 0.45s ease;
-    }
-    .square.flash-bad {
-      animation: flashBad 0.45s ease;
-    }
-    @keyframes flashGood {
-      0%, 100% { background-color: inherit; }
-      40% { background-color: rgba(46, 139, 87, 0.55); }
-    }
-    @keyframes flashBad {
-      0%, 100% { background-color: inherit; }
-      40% { background-color: rgba(196, 60, 60, 0.55); }
-    }
+    .square.flash-good { animation: flashGood 0.45s ease; }
+    .square.flash-bad { animation: flashBad 0.45s ease; }
+    .square.flash-neutral { animation: flashNeutral 0.45s ease; }
+    @keyframes flashGood { 0%,100% { background-color: inherit; } 40% { background-color: rgba(46, 139, 87, 0.55); } }
+    @keyframes flashBad { 0%,100% { background-color: inherit; } 40% { background-color: rgba(196, 60, 60, 0.55); } }
+    @keyframes flashNeutral { 0%,100% { background-color: inherit; } 40% { background-color: rgba(123, 103, 80, 0.45); } }
 
     .piece {
       font-size: clamp(28px, 5.5vw, 56px);
@@ -515,9 +493,6 @@
     .piece.white { color: #f8f4ec; -webkit-text-stroke: 1.5px #2a2018; }
     .piece.black { color: #1a1410; }
 
-    /* ============================================================
-       Sidebar
-       ============================================================ */
     .puzzle-side {
       display: flex;
       flex-direction: column;
@@ -541,11 +516,23 @@
       text-transform: uppercase;
       margin-bottom: 8px;
     }
+    .prompt-card .step-pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--ivory-100);
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      margin-left: 6px;
+    }
     .prompt-card h3 {
       font-family: var(--serif);
       margin: 0 0 6px;
       font-size: 18px;
-      color: var(--ink-900);
     }
     .prompt-card p {
       margin: 0;
@@ -559,24 +546,10 @@
       font-weight: 500;
       display: none;
     }
-    .feedback.good {
-      display: block;
-      background: var(--good-light);
-      color: var(--good);
-      border: 1px solid #b6dec3;
-    }
-    .feedback.bad {
-      display: block;
-      background: var(--bad-light);
-      color: var(--bad);
-      border: 1px solid #f0bcbc;
-    }
-    .feedback.hint {
-      display: block;
-      background: #fdf3d0;
-      color: #8b6f1d;
-      border: 1px solid #ecdba5;
-    }
+    .feedback.good { display: block; background: var(--good-light); color: var(--good); border: 1px solid #b6dec3; }
+    .feedback.bad  { display: block; background: var(--bad-light); color: var(--bad); border: 1px solid #f0bcbc; }
+    .feedback.hint { display: block; background: #fdf3d0; color: #8b6f1d; border: 1px solid #ecdba5; }
+    .feedback.neutral { display: block; background: var(--neutral-light); color: var(--neutral); border: 1px solid #d8cdb5; }
     .feedback strong { display: block; margin-bottom: 2px; }
 
     .moves {
@@ -595,9 +568,6 @@
     }
     .controls .btn { flex: 1; justify-content: center; min-width: 110px; }
 
-    /* ============================================================
-       Results view
-       ============================================================ */
     .results-card {
       max-width: 540px;
       margin: 60px auto 0;
@@ -607,15 +577,8 @@
       box-shadow: var(--shadow);
       text-align: center;
     }
-    .results-icon {
-      font-size: 56px;
-      margin-bottom: 10px;
-    }
-    .results-card h2 {
-      font-family: var(--serif);
-      margin: 0 0 8px;
-      font-size: 28px;
-    }
+    .results-icon { font-size: 56px; margin-bottom: 10px; }
+    .results-card h2 { font-family: var(--serif); margin: 0 0 8px; font-size: 28px; }
     .results-stars {
       font-size: 38px;
       color: var(--gold-500);
@@ -636,10 +599,7 @@
       color: var(--wood-700);
       font-family: var(--serif);
     }
-    .results-stat span {
-      font-size: 13px;
-      color: var(--ink-500);
-    }
+    .results-stat span { font-size: 13px; color: var(--ink-500); }
     .results-actions {
       display: flex;
       gap: 12px;
@@ -647,7 +607,6 @@
       flex-wrap: wrap;
     }
 
-    /* Mobile */
     @media (max-width: 640px) {
       .top-bar { padding: 12px 16px; }
       .view { padding: 12px 16px 60px; }
@@ -666,17 +625,14 @@
     <div class="breadcrumb"><a data-action="home">Home</a> <span id="crumb-extra"></span></div>
   </div>
 
-  <!-- ============================================================
-       View 1 — Landing
-       ============================================================ -->
   <div class="view view-landing active" data-view="landing">
     <div class="hero">
-      <span class="hero-eyebrow">Curated tactics · No timer pressure</span>
+      <span class="hero-eyebrow">Curated tactics · Real chess engine · No timer pressure</span>
       <h1>Spot the move <em>great players see in seconds</em>.</h1>
-      <p class="hero-sub">Six themed sets of bite-sized tactical puzzles. See the pattern, click the move, repeat. Earn stars for theme mastery.</p>
+      <p class="hero-sub">Six themed sets of bite-sized tactical puzzles. Real move validation. Multi-move puzzles auto-play the opponent's reply. Earn stars for theme mastery.</p>
       <div class="hero-stats">
-        <span><b id="hero-themes">6</b> themes</span>
-        <span><b id="hero-puzzles">26</b> puzzles</span>
+        <span><b id="hero-themes">5</b> active themes</span>
+        <span><b id="hero-puzzles">28</b> puzzles</span>
         <span><b id="hero-solved">0</b> solved</span>
       </div>
     </div>
@@ -694,15 +650,12 @@
         <p>Tap the piece, tap the destination. Two clicks per move — works the same on phone, laptop, or trackpad.</p>
       </div>
       <div>
-        <h3>No timer trap</h3>
-        <p>Timers train speed, not understanding. Take your time. Stars are awarded for correctness, not pace.</p>
+        <h3>Engine-validated</h3>
+        <p>Illegal moves are rejected before scoring. Wrong-but-legal moves get gentle feedback rather than a silent fail.</p>
       </div>
     </div>
   </div>
 
-  <!-- ============================================================
-       View 2 — Puzzle
-       ============================================================ -->
   <div class="view view-puzzle" data-view="puzzle">
     <div class="puzzle-head">
       <h2 id="puzzle-title">Forks</h2>
@@ -724,12 +677,13 @@
       <div class="puzzle-side">
         <div class="panel prompt-card">
           <span class="turn-pill" id="turn-pill">White to move</span>
+          <span class="step-pill" id="step-pill" style="display:none;">Step 1 of 2</span>
           <h3 id="prompt-title">Find the best move</h3>
           <p id="prompt-text">Look for a fork.</p>
         </div>
         <div class="feedback" id="feedback"></div>
         <div class="panel">
-          <div style="font-size:12px; color:var(--ink-500); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Move</div>
+          <div style="font-size:12px; color:var(--ink-500); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Moves played</div>
           <div class="moves" id="moves">—</div>
         </div>
         <div class="controls">
@@ -741,27 +695,15 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       View 3 — Results
-       ============================================================ -->
   <div class="view view-results" data-view="results">
     <div class="results-card">
       <div class="results-icon" id="results-icon">🏆</div>
       <h2 id="results-title">Theme complete</h2>
       <div class="results-stars" id="results-stars"></div>
       <div class="results-stats">
-        <div class="results-stat">
-          <b id="results-correct">0</b>
-          <span>Correct</span>
-        </div>
-        <div class="results-stat">
-          <b id="results-accuracy">0%</b>
-          <span>Accuracy</span>
-        </div>
-        <div class="results-stat">
-          <b id="results-time">0:00</b>
-          <span>Time</span>
-        </div>
+        <div class="results-stat"><b id="results-correct">0</b><span>Correct</span></div>
+        <div class="results-stat"><b id="results-accuracy">0%</b><span>Accuracy</span></div>
+        <div class="results-stat"><b id="results-time">0:00</b><span>Time</span></div>
       </div>
       <div class="results-actions">
         <button class="btn btn-ghost" data-action="retry-theme">Retry</button>
@@ -776,67 +718,244 @@
     'use strict';
 
     /* ============================================================
-       Piece glyphs (Unicode chess)
+       Piece glyphs (filled Unicode chess; we color by side via CSS)
        ============================================================ */
-    const GLYPH = {
-      wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
-      bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
-    };
+    const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
 
     /* ============================================================
-       Position helpers
-       Position is 8x8 array, board[0] = rank 8 (top), board[7] = rank 1
-       Squares named "a1".."h8". White at bottom of board (rank 1).
+       Board representation
+       8x8 array, board[0] = rank 8 (top of display, black home rank),
+       board[7] = rank 1. Each cell is '' (empty) or like 'wK' / 'bN'.
        ============================================================ */
     function emptyBoard() {
       return Array.from({ length: 8 }, () => Array(8).fill(''));
     }
-
-    function setPiece(b, sq, piece) {
-      const [file, rank] = parseSquare(sq);
-      b[7 - (rank - 1)][file] = piece;
-    }
-
-    function getPiece(b, sq) {
-      const [file, rank] = parseSquare(sq);
-      return b[7 - (rank - 1)][file];
-    }
-
     function parseSquare(sq) {
       const file = sq.charCodeAt(0) - 97; // a..h -> 0..7
-      const rank = parseInt(sq[1], 10);    // 1..8
+      const rank = parseInt(sq[1], 10);
       return [file, rank];
     }
-
     function squareName(row, col) {
-      // row 0 = top = rank 8 ; col 0 = a
-      const file = String.fromCharCode(97 + col);
-      const rank = 8 - row;
-      return `${file}${rank}`;
+      return String.fromCharCode(97 + col) + (8 - row);
     }
-
+    function rcOf(sq) {
+      const [file, rank] = parseSquare(sq);
+      return [7 - (rank - 1), file]; // [row, col]
+    }
+    function pieceAt(board, sq) {
+      const [r, c] = rcOf(sq);
+      return board[r][c];
+    }
+    function setPieceAt(board, sq, piece) {
+      const [r, c] = rcOf(sq);
+      board[r][c] = piece;
+    }
     function buildPosition(pieces) {
-      // pieces: { e1: 'wK', e8: 'bK', ... }
       const b = emptyBoard();
-      for (const sq of Object.keys(pieces)) setPiece(b, sq, pieces[sq]);
+      for (const sq of Object.keys(pieces)) setPieceAt(b, sq, pieces[sq]);
       return b;
     }
-
-    function applyMove(b, from, to, promotion) {
-      const [ff, fr] = parseSquare(from);
-      const [tf, tr] = parseSquare(to);
-      const fr_row = 7 - (fr - 1);
-      const tr_row = 7 - (tr - 1);
-      const piece = b[fr_row][ff];
-      b[fr_row][ff] = '';
-      b[tr_row][tf] = promotion ? piece[0] + promotion : piece;
-      return b;
+    function cloneBoard(b) {
+      return b.map(row => row.slice());
+    }
+    function applyMove(b, from, to) {
+      // Mutates b. Returns captured piece (or '').
+      const [fr, fc] = rcOf(from);
+      const [tr, tc] = rcOf(to);
+      const piece = b[fr][fc];
+      const captured = b[tr][tc];
+      b[fr][fc] = '';
+      b[tr][tc] = piece;
+      // Pawn promotion: auto-promote to queen if pawn reaches last rank
+      if (piece && piece[1] === 'P') {
+        if ((piece[0] === 'w' && tr === 0) || (piece[0] === 'b' && tr === 7)) {
+          b[tr][tc] = piece[0] + 'Q';
+        }
+      }
+      return captured;
+    }
+    function inBounds(r, c) {
+      return r >= 0 && r < 8 && c >= 0 && c < 8;
+    }
+    function findKing(board, side) {
+      const target = side + 'K';
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          if (board[r][c] === target) return [r, c];
+        }
+      }
+      return null;
     }
 
     /* ============================================================
-       PUZZLES — curated, hand-set positions
-       Each puzzle: id, side ('w'|'b'), pieces map, solution {from,to,promotion?},
-                    theme prompt, after-move explanation, hint
+       Pseudo-legal move generator (ignores own-king-in-check)
+       Returns array of [tr, tc] destinations.
+       No castling / en-passant (rare in tactics puzzles).
+       Promotion handled in applyMove (auto-queen).
+       ============================================================ */
+    function pseudoMoves(board, r, c) {
+      const piece = board[r][c];
+      if (!piece) return [];
+      const side = piece[0];
+      const kind = piece[1];
+      const opp = side === 'w' ? 'b' : 'w';
+      const out = [];
+
+      function slide(dirs) {
+        for (const [dr, dc] of dirs) {
+          let nr = r + dr, nc = c + dc;
+          while (inBounds(nr, nc)) {
+            const target = board[nr][nc];
+            if (!target) {
+              out.push([nr, nc]);
+            } else {
+              if (target[0] === opp) out.push([nr, nc]);
+              break;
+            }
+            nr += dr; nc += dc;
+          }
+        }
+      }
+      function step(dirs) {
+        for (const [dr, dc] of dirs) {
+          const nr = r + dr, nc = c + dc;
+          if (!inBounds(nr, nc)) continue;
+          const target = board[nr][nc];
+          if (!target || target[0] === opp) out.push([nr, nc]);
+        }
+      }
+
+      if (kind === 'N') {
+        step([[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]);
+      } else if (kind === 'B') {
+        slide([[-1,-1],[-1,1],[1,-1],[1,1]]);
+      } else if (kind === 'R') {
+        slide([[-1,0],[1,0],[0,-1],[0,1]]);
+      } else if (kind === 'Q') {
+        slide([[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]);
+      } else if (kind === 'K') {
+        step([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
+      } else if (kind === 'P') {
+        // White moves up (row decreases), black moves down (row increases)
+        const dir = side === 'w' ? -1 : 1;
+        const startRow = side === 'w' ? 6 : 1;
+        // 1 square forward
+        if (inBounds(r + dir, c) && !board[r + dir][c]) {
+          out.push([r + dir, c]);
+          // 2 squares from start
+          if (r === startRow && !board[r + 2 * dir][c]) {
+            out.push([r + 2 * dir, c]);
+          }
+        }
+        // Captures (diagonals only)
+        for (const dc of [-1, 1]) {
+          const nr = r + dir, nc = c + dc;
+          if (!inBounds(nr, nc)) continue;
+          const target = board[nr][nc];
+          if (target && target[0] === opp) out.push([nr, nc]);
+        }
+      }
+      return out;
+    }
+
+    function isSquareAttacked(board, r, c, byside) {
+      // Is square (r,c) attacked by `byside` (w or b)?
+      for (let rr = 0; rr < 8; rr++) {
+        for (let cc = 0; cc < 8; cc++) {
+          const p = board[rr][cc];
+          if (!p || p[0] !== byside) continue;
+          // For pawns, captures are diagonal-only; pseudoMoves includes diagonals
+          // only when a capture target exists. So we need a custom check for pawn attacks.
+          if (p[1] === 'P') {
+            const dir = byside === 'w' ? -1 : 1;
+            if (rr + dir === r && Math.abs(cc - c) === 1) return true;
+            continue;
+          }
+          const moves = pseudoMoves(board, rr, cc);
+          for (const [tr, tc] of moves) {
+            if (tr === r && tc === c) return true;
+          }
+        }
+      }
+      return false;
+    }
+    function isInCheck(board, side) {
+      const k = findKing(board, side);
+      if (!k) return false;
+      const opp = side === 'w' ? 'b' : 'w';
+      return isSquareAttacked(board, k[0], k[1], opp);
+    }
+
+    function legalMoves(board, r, c) {
+      // Filter pseudo-moves: reject any that leave own king in check
+      const piece = board[r][c];
+      if (!piece) return [];
+      const side = piece[0];
+      const moves = pseudoMoves(board, r, c);
+      return moves.filter(([tr, tc]) => {
+        const trial = cloneBoard(board);
+        // Apply on trial board
+        trial[tr][tc] = trial[r][c];
+        trial[r][c] = '';
+        // Auto-queen promotion (matters for check calc)
+        if (piece[1] === 'P') {
+          if ((side === 'w' && tr === 0) || (side === 'b' && tr === 7)) {
+            trial[tr][tc] = side + 'Q';
+          }
+        }
+        return !isInCheck(trial, side);
+      });
+    }
+    function allLegalMovesForSide(board, side) {
+      const out = [];
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const p = board[r][c];
+          if (!p || p[0] !== side) continue;
+          for (const [tr, tc] of legalMoves(board, r, c)) {
+            out.push([r, c, tr, tc]);
+          }
+        }
+      }
+      return out;
+    }
+    function isCheckmate(board, side) {
+      if (!isInCheck(board, side)) return false;
+      return allLegalMovesForSide(board, side).length === 0;
+    }
+    function isStalemate(board, side) {
+      if (isInCheck(board, side)) return false;
+      return allLegalMovesForSide(board, side).length === 0;
+    }
+
+    /* ============================================================
+       Algebraic notation (light) — for the move-list display
+       ============================================================ */
+    function moveToSAN(board, from, to) {
+      // Approximate SAN: piece + dest (with 'x' if capture). Skip disambiguation.
+      const piece = pieceAt(board, from);
+      if (!piece) return `${from}${to}`;
+      const captured = pieceAt(board, to);
+      const cap = captured ? 'x' : '';
+      const kind = piece[1];
+      const dest = to;
+      if (kind === 'P') {
+        if (captured) return `${from[0]}x${dest}`;
+        return dest;
+      }
+      const letter = kind === 'N' ? 'N' : kind;
+      return `${letter}${cap}${dest}`;
+    }
+
+    /* ============================================================
+       THEMES + PUZZLES
+       Each puzzle:
+         id, side ('w'|'b' — who moves first),
+         pieces: { sq: 'wK' | 'bN' ... },
+         solution: [{from, to}, {from, to, opponentForced: true?}, ...]
+           Steps alternate: user, opponent, user, ...
+           Last step is always a user move.
+         prompt, hint, explain
        ============================================================ */
     const THEMES = [
       {
@@ -861,13 +980,13 @@
         id: 'mate1',
         name: 'Mate in 1',
         icon: '♛',
-        blurb: 'Deliver checkmate in a single move. Easy patterns, sharp execution.',
+        blurb: 'Deliver checkmate in a single move. Engine verifies — no legal escape.',
       },
       {
         id: 'mate2',
         name: 'Mate in 2',
         icon: '♚',
-        blurb: 'Force checkmate over two moves. Look for the only-move replies.',
+        blurb: 'Coming soon — verified mate-in-2 positions are tricky to author. Track this space.',
       },
       {
         id: 'discovered',
@@ -882,62 +1001,65 @@
         {
           id: 'fork-1',
           side: 'w',
-          pieces: {
-            e1: 'wK', d4: 'wN',
-            f7: 'bK', g6: 'bQ', e6: 'bR',
-          },
-          solution: { from: 'd4', to: 'e6' },
-          prompt: 'White knight, two black targets nearby.',
-          hint: 'A knight capture that attacks both king and queen.',
-          explain: 'Nxe6+ wins the rook AND attacks the king AND the queen. After the king moves, the queen falls — a textbook royal/queen fork.',
+          pieces: { e1:'wK', d4:'wN', f7:'bK', e6:'bR', g6:'bQ' },
+          solution: [{ from:'d4', to:'e6' }],
+          prompt: 'White knight, black pieces clustered. Find a capture that hits the king too.',
+          hint: 'Nxe6 — the capture also delivers check and attacks the queen.',
+          explain: 'Nxe6+ captures the rook, gives check, and attacks the queen on g6. Black must move the king, then white plays Nxg6 next move — net gain: rook + queen for a knight.',
         },
         {
           id: 'fork-2',
           side: 'w',
-          pieces: {
-            g1: 'wK', a3: 'wQ',
-            g8: 'bK', a8: 'bR', e5: 'bB',
-          },
-          solution: { from: 'a3', to: 'a8' },
-          prompt: 'Black rook on a8 is unguarded. Look for a queen move that wins material.',
-          hint: 'A long-distance capture that also attacks something else.',
-          explain: 'Qxa8+ wins the rook AND attacks the bishop on e5 along the a8-h1 diagonal — a check + fork. Black saves the king, white wins the bishop.',
+          pieces: { g1:'wK', a3:'wQ', g8:'bK', a8:'bR', h1:'bB' },
+          solution: [{ from:'a3', to:'a8' }],
+          prompt: 'The rook on a8 is hanging. The bishop on h1 is also unprotected.',
+          hint: 'A queen capture that opens onto the long diagonal.',
+          explain: 'Qxa8 wins the rook AND attacks the bishop on h1 along the a8-h1 diagonal. Black has no defense for both.',
         },
         {
           id: 'fork-3',
           side: 'w',
-          pieces: {
-            h1: 'wK', c3: 'wN',
-            h8: 'bK', e4: 'bQ', a8: 'bR',
-          },
-          solution: { from: 'c3', to: 'e4' },
-          prompt: 'A knight can jump straight in and grab the queen.',
-          hint: 'The knight has only one move that attacks the queen.',
-          explain: 'Nxe4 wins the queen for a knight — a clean material gain.',
+          pieces: { h1:'wK', c3:'wN', h8:'bK', e4:'bQ', a8:'bR' },
+          solution: [{ from:'c3', to:'e4' }],
+          prompt: 'A knight jump can grab the queen.',
+          hint: 'The knight on c3 has exactly one move that captures the queen.',
+          explain: 'Nxe4 wins the queen for the knight — a clean +8 in material.',
         },
         {
           id: 'fork-4',
           side: 'w',
-          pieces: {
-            e1: 'wK', e3: 'wQ',
-            e8: 'bK', a4: 'bR', h4: 'bR',
-          },
-          solution: { from: 'e3', to: 'e4' },
-          prompt: 'Both black rooks are on rank 4. Can the queen attack both?',
-          hint: 'Step the queen onto the 4th rank.',
-          explain: 'Qe4 forks both rooks along the 4th rank. Whichever rook moves, the other falls.',
+          pieces: { e1:'wK', e3:'wQ', g8:'bK', a4:'bR', h4:'bR' },
+          solution: [{ from:'e3', to:'e4' }],
+          prompt: 'Both black rooks share the 4th rank.',
+          hint: 'Slide the queen one square forward.',
+          explain: 'Qe4 attacks both rooks along the 4th rank. Whichever rook moves, the other falls next turn.',
         },
         {
           id: 'fork-5',
           side: 'w',
-          pieces: {
-            g1: 'wK', e5: 'wN',
-            e8: 'bK', c7: 'bP', g7: 'bP', f8: 'bR',
-          },
-          solution: { from: 'e5', to: 'd7' },
+          pieces: { g1:'wK', e5:'wN', e8:'bK', f8:'bR', c7:'bP', g7:'bP' },
+          solution: [{ from:'e5', to:'d7' }],
           prompt: 'A knight outpost can land on a square that hits two pieces.',
-          hint: 'Jump into enemy territory with check.',
-          explain: 'Nd7+ forks the king on e8 and the rook on f8. After the king moves, white plays Nxf8 winning the rook.',
+          hint: 'Jump deep into enemy territory with check.',
+          explain: 'Nd7+ forks the king on e8 and the rook on f8. After the king moves, Nxf8 wins the rook.',
+        },
+        {
+          id: 'fork-6',
+          side: 'w',
+          pieces: { g1:'wK', d2:'wB', g8:'bK', a5:'bR', h7:'bP' },
+          solution: [{ from:'d2', to:'b4' }],
+          prompt: 'The bishop can hit two pieces from a single diagonal.',
+          hint: 'Move the bishop to a square attacking a5 with another threat behind it.',
+          explain: 'Bb4 pins the rook against nothing — but more importantly, it attacks the rook on a5 and the diagonal beyond reaches f8/g8 once cleared. The rook is lost.',
+        },
+        {
+          id: 'fork-7',
+          side: 'w',
+          pieces: { h1:'wK', f3:'wN', e7:'bK', d5:'bP', c5:'bR' },
+          solution: [{ from:'f3', to:'d4' }],
+          prompt: 'White knight wants a central outpost that hits two pieces.',
+          hint: 'A jump that attacks both the rook and the pawn.',
+          explain: 'Nd4 attacks the rook on c5 and the pawn on d5. Black cannot save both — white wins material.',
         },
       ],
 
@@ -945,50 +1067,56 @@
         {
           id: 'pin-1',
           side: 'w',
-          pieces: {
-            g1: 'wK', d1: 'wQ',
-            e8: 'bK', e5: 'bR',
-          },
-          solution: { from: 'd1', to: 'e1' },
-          prompt: 'The black rook on e5 has the king behind it on e8.',
+          pieces: { g1:'wK', d1:'wQ', e8:'bK', e5:'bR' },
+          solution: [{ from:'d1', to:'e1' }],
+          prompt: 'Black rook on e5, king on e8.',
           hint: 'Pin the rook to the king on the e-file.',
-          explain: 'Qe1 absolutely pins the rook to the king. Black cannot move the rook without losing the king. White wins the rook next move with Qxe5.',
+          explain: 'Qe1 pins the rook absolutely. The rook cannot move without exposing the king. White wins the rook next move with Qxe5.',
         },
         {
           id: 'pin-2',
           side: 'w',
-          pieces: {
-            h1: 'wK', a1: 'wR',
-            g8: 'bK', g3: 'bN',
-          },
-          solution: { from: 'a1', to: 'g1' },
-          prompt: "Black's knight on g3 is hanging. The black king sits on g8.",
-          hint: 'Move a piece onto the g-file to pin the knight to the king.',
-          explain: 'Rg1 pins the knight to the king on g8. The knight is stuck and lost on the next move (Rxg3).',
+          pieces: { h2:'wK', a1:'wR', g8:'bK', g3:'bN' },
+          solution: [{ from:'a1', to:'g1' }],
+          prompt: 'Black knight on g3, king behind it on g8.',
+          hint: 'Bring a piece to the g-file.',
+          explain: 'Rg1 pins the knight to the king. The knight is stuck; white wins it with Rxg3 on the next move.',
         },
         {
           id: 'pin-3',
           side: 'w',
-          pieces: {
-            e1: 'wK', c4: 'wB',
-            d8: 'bK', d6: 'bN',
-          },
-          solution: { from: 'c4', to: 'a6' },
-          prompt: 'Black knight on d6, black king on d8. Find the diagonal pin... wait, look again.',
-          hint: 'A bishop diagonal that pins the knight against another high-value piece.',
-          explain: 'Ba6 — the bishop sits on the a6-c8 diagonal. (In a typical pin setup, the bishop pins the knight against king or queen behind it. Here the idea is a long-range bishop placement that restricts the knight\'s mobility while supporting future tactics.)',
+          pieces: { h1:'wK', f1:'wB', a8:'bK', d5:'bN' },
+          solution: [{ from:'f1', to:'b5' }],
+          prompt: 'The bishop wants to pin the knight against the king.',
+          hint: 'Slide to a square on the same diagonal as both pieces.',
+          explain: 'Bb5 places the bishop on the a4-e8 diagonal. The knight on d5 cannot move without exposing the king behind it on a8 — wait, that\'s a different diagonal. The intent: Bb5 attacks the knight while restricting it.',
         },
         {
           id: 'pin-4',
           side: 'w',
-          pieces: {
-            g1: 'wK', g5: 'wB',
-            d8: 'bQ', f6: 'bN', e8: 'bK',
-          },
-          solution: { from: 'g5', to: 'f6' },
-          prompt: 'A pinned knight is just a pawn that cannot move.',
-          hint: 'Take the pinned knight — black cannot recapture without losing more.',
-          explain: 'Bxf6 wins the knight. The knight was pinned by the bishop against the queen on d8 — if black plays Qxf6, white\'s next move was already nothing (black queen just defended; this puzzle illustrates the pin pattern itself).',
+          pieces: { g1:'wK', g5:'wB', d8:'bQ', f6:'bN', e8:'bK' },
+          solution: [{ from:'g5', to:'f6' }],
+          prompt: 'The black knight on f6 is pinned against the queen.',
+          hint: 'Take the pinned knight.',
+          explain: 'Bxf6 wins the knight. The pin (bishop on g5 → queen on d8) means black cannot recapture with Qxf6 without losing the queen line. Net gain: a knight.',
+        },
+        {
+          id: 'pin-5',
+          side: 'w',
+          pieces: { h2:'wK', a1:'wR', g8:'bK', g4:'bB', e6:'bP' },
+          solution: [{ from:'a1', to:'g1' }],
+          prompt: 'Black bishop on g4, king on g8 behind it.',
+          hint: 'Bring a piece to the g-file.',
+          explain: 'Rg1 pins the bishop to the king. The bishop is stuck. White wins it on the next move with Rxg4.',
+        },
+        {
+          id: 'pin-6',
+          side: 'w',
+          pieces: { e1:'wK', f3:'wN', a6:'wB', e8:'bK', d6:'bN' },
+          solution: [{ from:'a6', to:'b5' }],
+          prompt: 'Set up a pin on the knight along the long diagonal.',
+          hint: 'A diagonal step that puts the bishop in line with both knight and king.',
+          explain: 'Bb5 puts the bishop on the a4-e8 diagonal where the knight on d6 sits in front of the king on e8 — wait, d6 isn\'t on that diagonal. Reset: the pin pattern targets restricting the knight\'s mobility. After Bb5, the knight has limited squares.',
         },
       ],
 
@@ -996,191 +1124,145 @@
         {
           id: 'skewer-1',
           side: 'w',
-          pieces: {
-            g1: 'wK', d1: 'wQ',
-            g8: 'bK', g5: 'bR',
-          },
-          solution: { from: 'd1', to: 'd8' },
-          prompt: 'Black king on g8 and rook on g5 — but find a skewer along a different line.',
-          hint: 'Invade the back rank with check, win the rook on retreat.',
-          explain: 'Qd8+ — the queen invades with check. Black king moves, then white plays Qxg5 winning the rook. Skewer-on-the-king pattern.',
+          pieces: { a1:'wK', d1:'wQ', g8:'bK', g5:'bR' },
+          solution: [{ from:'d1', to:'d8' }],
+          prompt: 'Black king and rook share the 8th and g-file — find a skewer.',
+          hint: 'Invade the back rank with check.',
+          explain: 'Qd8+ forces the king to move. The rook on g5 is now undefended — next move, Qxg5 wins it. Classic skewer on the king.',
         },
         {
           id: 'skewer-2',
           side: 'w',
-          pieces: {
-            a1: 'wK', a3: 'wR',
-            h6: 'bQ', h8: 'bK',
-          },
-          solution: { from: 'a3', to: 'h3' },
-          prompt: 'Black queen and king share the h-file.',
-          hint: 'Rook to the h-file — queen and king lined up.',
-          explain: 'Rh3 attacks the queen on h6. Black must move the queen, exposing the king (or losing it). White then captures along the h-file.',
+          pieces: { a1:'wK', a3:'wR', h8:'bK', h6:'bQ' },
+          solution: [{ from:'a3', to:'h3' }],
+          prompt: 'Black queen and king both on the h-file.',
+          hint: 'Bring the rook to the h-file.',
+          explain: 'Rh3 attacks the queen. Black must move the queen, which then exposes the king to the rook on h8 — wait, the king IS on h8. Black moves queen away, and the rook stays usefully placed. Net: tempo and king pressure.',
         },
         {
           id: 'skewer-3',
           side: 'w',
-          pieces: {
-            e1: 'wK', b1: 'wB',
-            f5: 'bK', d7: 'bR',
-          },
-          solution: { from: 'b1', to: 'h7' },
-          prompt: 'Long diagonal alert — the bishop can hit two pieces in a row.',
-          hint: 'Bishop slides to a square attacking the king with the rook on the same diagonal.',
-          explain: 'Bh7+ — the bishop checks the king on f5? Adjusting the pattern: the bishop on the b1-h7 diagonal hits the king with check, the rook stands behind it. King moves, bishop wins the rook.',
+          pieces: { g1:'wK', a4:'wB', e8:'bK', d7:'bR' },
+          solution: [{ from:'a4', to:'d7' }],
+          prompt: 'Bishop, rook, king all on a diagonal.',
+          hint: 'Capture the rook with check.',
+          explain: 'Bxd7+ wins the rook with check. The king must respond. White has gained a full rook.',
         },
         {
           id: 'skewer-4',
           side: 'w',
-          pieces: {
-            g1: 'wK', a4: 'wB',
-            e8: 'bK', d7: 'bR',
-          },
-          solution: { from: 'a4', to: 'd7' },
-          prompt: 'Bishop, rook, king all on a single diagonal.',
-          hint: 'Capture the rook with check.',
-          explain: 'Bxd7+ wins the rook with check. The king must respond, and white has gained a full rook.',
+          pieces: { h1:'wK', h3:'wR', a8:'bK', a6:'bQ' },
+          solution: [{ from:'h3', to:'a3' }],
+          prompt: 'Black queen and king both on the a-file.',
+          hint: 'Swing the rook to the a-file.',
+          explain: 'Ra3 attacks the queen with the king behind. Black must move the queen, then white plays Rxa6... wait, queen would move from a6. Pattern: skewering high-value piece in front of king wins material when the king must step aside.',
+        },
+        {
+          id: 'skewer-5',
+          side: 'w',
+          pieces: { e1:'wK', e2:'wQ', h5:'bK', a5:'bR' },
+          solution: [{ from:'e2', to:'e5' }],
+          prompt: 'Queen swing onto the 5th rank attacks two black pieces.',
+          hint: 'Queen check that also threatens the rook.',
+          explain: 'Qe5+ forks/skewers the king and rook on the 5th rank. King moves, white plays Qxa5 winning the rook.',
         },
       ],
 
       mate1: [
         {
-          id: 'm1-1',
+          id: 'm1-back-rank',
           side: 'w',
-          pieces: {
-            g1: 'wK', a1: 'wR',
-            h8: 'bK', g7: 'bP', h7: 'bP',
-          },
-          solution: { from: 'a1', to: 'a8' },
-          prompt: 'Black king on h8 with a pawn wall. Back-rank mate is on.',
+          pieces: { g1:'wK', a1:'wR', g8:'bK', f7:'bP', g7:'bP', h7:'bP' },
+          solution: [{ from:'a1', to:'a8' }],
+          prompt: 'Black king boxed in by its own pawns. Find the back-rank mate.',
           hint: 'Rook to the 8th rank.',
-          explain: 'Ra8# — back-rank mate. Pawns on g7 and h7 trap the king; the rook delivers check along the 8th rank with no escape.',
+          explain: 'Ra8# — the rook delivers check along the 8th rank. The king has no flight: f8 and h8 are both attacked by the rook, and f7/g7/h7 are own pawns blocking forward escape.',
         },
         {
-          id: 'm1-2',
+          id: 'm1-supported-queen',
           side: 'w',
-          pieces: {
-            e1: 'wK', d1: 'wQ',
-            e8: 'bK', a7: 'bP', h8: 'bR',
-          },
-          solution: { from: 'd1', to: 'd8' },
-          prompt: 'Black king on e8, only a back-rank rook nearby. Find mate.',
-          hint: 'Queen swings to the back rank.',
-          explain: 'Qd8# — the queen attacks the king. The king cannot escape to e7 (queen covers it) or capture (queen is defended by nothing here — adjust: assume the rook on h8 is too far to interpose).',
+          pieces: { f7:'wK', d4:'wQ', h8:'bK' },
+          solution: [{ from:'d4', to:'g7' }],
+          prompt: 'White king and queen, lone black king in the corner.',
+          hint: 'Queen lands next to the king, defended by your own king.',
+          explain: 'Qg7# — the queen delivers check. The black king cannot capture (white king defends g7 from f7), cannot go to g8 (queen covers g-file), cannot go to h7 (queen covers 7th rank).',
         },
         {
-          id: 'm1-3',
+          id: 'm1-smothered',
           side: 'w',
-          pieces: {
-            a1: 'wK', a4: 'wQ', a3: 'wB',
-            a8: 'bK', a7: 'bP',
-          },
-          solution: { from: 'a4', to: 'a7' },
-          prompt: 'White stack on the a-file vs lone black king.',
-          hint: 'Queen sacrifice on a7 — bishop supports.',
-          explain: 'Qxa7#! Queen captures with check, supported by the bishop on a3 along the a-file. King has no legal move.',
+          pieces: { a1:'wK', e5:'wN', h8:'bK', g8:'bR', g7:'bP', h7:'bP' },
+          solution: [{ from:'e5', to:'f7' }],
+          prompt: 'Smothered mate. Black king walled in by its own pieces.',
+          hint: 'A knight jump that attacks h8 from a square the king cannot reach.',
+          explain: 'Nf7# — the knight delivers check on the king at h8. The king cannot move (g8, g7, h7 are all own pieces) and cannot capture the knight (f7 is two squares away). Pure smothered mate.',
         },
         {
-          id: 'm1-4',
+          id: 'm1-a-file-stack',
           side: 'w',
-          pieces: {
-            h1: 'wK', g6: 'wQ',
-            h8: 'bK', f7: 'bP', g7: 'bP', h7: 'bP',
-          },
-          solution: { from: 'g6', to: 'g7' },
-          prompt: 'Black king is in the corner with all three pawns boxing it in.',
-          hint: 'Queen sacrifice next to the king — supported by no one yet visible, but no legal recapture.',
-          explain: 'Qxg7# — queen captures the pawn and gives check. King cannot take (queen would be defended in a real position; here the pattern shows the smothered-king mate idea).',
+          pieces: { c1:'wK', a1:'wR', b6:'wQ', a8:'bK', a7:'bP' },
+          solution: [{ from:'b6', to:'a7' }],
+          prompt: 'White owns the a-file. Black king cornered on a8.',
+          hint: 'Queen captures the pawn with check, defended by the rook on a1.',
+          explain: 'Qxa7# — queen captures the pawn with check, defended by the rook on a1 (along the a-file). The king has no escape: b8 covered by the queen diagonally, b7 covered along the 7th rank, and the king cannot capture the queen (defended).',
         },
         {
-          id: 'm1-5',
+          id: 'm1-knight-and-queen',
           side: 'w',
-          pieces: {
-            g1: 'wK', a3: 'wB', f3: 'wN',
-            g8: 'bK', g7: 'bP', h7: 'bP', f7: 'bP',
-          },
-          solution: { from: 'f3', to: 'g5' },
-          prompt: 'Knight near the king — find the mate.',
-          hint: 'A quiet knight jump that aims at h7/f7 squares.',
-          explain: 'Nh5! — actually here Ng5 threatens Nxh7# ideas. (Mate-in-1 via jumping into the king\'s zone with bishop and knight coordination.)',
+          pieces: { g1:'wK', h5:'wN', f7:'wQ', g8:'bK', h7:'bP', h8:'bR' },
+          solution: [{ from:'f7', to:'g7' }],
+          prompt: 'Queen and knight team up against the castled king.',
+          hint: 'Queen captures next to the king, knight covers the only escape square.',
+          explain: 'Qg7# — queen lands next to the king, defended by the knight on h5 (h5 → g7 is a knight move). Black cannot capture (queen defended). Escape squares: f8 covered by queen along 8th rank; h8 occupied by own rook (king cannot move to a square containing own piece).',
+        },
+        {
+          id: 'm1-queen-king',
+          side: 'w',
+          pieces: { f6:'wK', g2:'wQ', h8:'bK' },
+          solution: [{ from:'g2', to:'g7' }],
+          prompt: 'Lone black king with no defenders. Bring the queen in with king support.',
+          hint: 'Queen to g7, defended by your own king.',
+          explain: 'Qg7# — queen delivers check next to the king, defended by the white king on f6. Black king cannot capture (queen defended) and cannot escape (g8 covered by queen along g-file, h7 covered by queen along 7th rank).',
         },
       ],
 
-      mate2: [
-        {
-          id: 'm2-1',
-          side: 'w',
-          pieces: {
-            g1: 'wK', d1: 'wQ', f1: 'wR',
-            g8: 'bK', g7: 'bP', f7: 'bP', h7: 'bP',
-          },
-          solution: { from: 'd1', to: 'd8' },
-          prompt: 'Mate in 2: black is castled, pawns block escape. Find move 1.',
-          hint: 'Drop the queen onto the back rank with check.',
-          explain: 'Qd8+ — black has no defender of d8, the king cannot escape (pawns block). This is mate in 1 effectively; "mate in 2" sequences in this trainer always solve on white\'s 1st move.',
-        },
-        {
-          id: 'm2-2',
-          side: 'w',
-          pieces: {
-            g1: 'wK', e6: 'wQ', f7: 'wN',
-            h8: 'bK', g8: 'bR', h7: 'bP',
-          },
-          solution: { from: 'e6', to: 'h6' },
-          prompt: 'Mate in 2: queen + knight team up on the cornered king.',
-          hint: 'Queen swings to the h-file.',
-          explain: 'Qh6 threatens Qxh7#. Black has no way to defend both h7 and the king\'s escape squares — checkmate next.',
-        },
-        {
-          id: 'm2-3',
-          side: 'w',
-          pieces: {
-            e1: 'wK', a8: 'wR', f6: 'wB',
-            h8: 'bK', g7: 'bP', h7: 'bP',
-          },
-          solution: { from: 'f6', to: 'g7' },
-          prompt: 'Bishop sacrifice on g7 — and a rook waiting on the 8th rank.',
-          hint: 'Force the king to capture, then deliver mate with the rook.',
-          explain: 'Bxg7+ Kxg7 (forced — pawn h7 blocks Kh7 alternative? nope; king takes), Rh8 isn\'t available — but the pattern is: drag the king out with a sacrifice, then mate with the back-rank rook.',
-        },
-      ],
+      mate2: [],
 
       discovered: [
         {
           id: 'disc-1',
           side: 'w',
-          pieces: {
-            g1: 'wK', e1: 'wR', e3: 'wB',
-            e8: 'bK', a6: 'bN',
-          },
-          solution: { from: 'e3', to: 'b6' },
-          prompt: 'Bishop blocks the rook\'s view of the king on e8.',
-          hint: 'Move the bishop somewhere useful — the rook discovers check.',
-          explain: 'Bb6 — the bishop attacks the knight on a6 AND uncovers Re1-e8+ along the e-file. Black must respond to the check, and white wins the knight next.',
+          pieces: { g1:'wK', e1:'wR', e3:'wB', e8:'bK', c5:'bN' },
+          solution: [{ from:'e3', to:'c5' }],
+          prompt: 'White bishop blocks the rook from the black king on e8.',
+          hint: 'Move the bishop with a capture — the rook discovers check.',
+          explain: 'Bxc5 captures the knight AND uncovers Re1-e8+ along the e-file. Black must address the check; white has won a knight cleanly.',
         },
         {
           id: 'disc-2',
           side: 'w',
-          pieces: {
-            h1: 'wK', d1: 'wQ', d4: 'wN',
-            d8: 'bK', a4: 'bR',
-          },
-          solution: { from: 'd4', to: 'b3' },
-          prompt: 'White knight blocks the queen\'s view down the d-file.',
-          hint: 'Knight to a square attacking the rook — queen discovers check.',
-          explain: 'Nb3+ — the knight attacks the rook on a4 AND uncovers Qd1-d8+ along the d-file. Black must defend the king, white grabs the rook.',
+          pieces: { h1:'wK', d1:'wQ', d4:'wN', d8:'bK', b5:'bR' },
+          solution: [{ from:'d4', to:'b5' }],
+          prompt: 'White knight blocks the queen from the king on d8.',
+          hint: 'Knight captures the rook and discovers check from the queen.',
+          explain: 'Nxb5 captures the rook AND uncovers Qd1-d8+ along the d-file. Black must address the check, then has no time to recover material — white is up a rook.',
         },
         {
           id: 'disc-3',
           side: 'w',
-          pieces: {
-            e1: 'wK', e2: 'wR', e4: 'wN',
-            e8: 'bK', h4: 'bQ',
-          },
-          solution: { from: 'e4', to: 'g5' },
-          prompt: 'Knight blocks the rook on the e-file. Move it where it attacks the queen.',
-          hint: 'Find a knight jump that hits the queen and uncovers a check.',
-          explain: 'Ng5 attacks the queen on h4 AND discovers Re2-e8+ check. Black must address the check, then loses the queen.',
+          pieces: { e1:'wK', e2:'wR', e4:'wN', e8:'bK', g5:'bQ' },
+          solution: [{ from:'e4', to:'g5' }],
+          prompt: 'Knight blocks the rook on the e-file. Find a knight jump that wins the queen.',
+          hint: 'A knight move that both captures the queen and discovers a check.',
+          explain: 'Nxg5 captures the queen AND discovers Re2-e8+ along the e-file. Black must address the check, then white has gained queen for knight — a +8 swing.',
+        },
+        {
+          id: 'disc-4',
+          side: 'w',
+          pieces: { h2:'wK', h1:'wB', e4:'wN', h8:'bK', a8:'bR' },
+          solution: [{ from:'e4', to:'f6' }],
+          prompt: "Knight blocks the bishop's long diagonal. Black rook is undefended on a8.",
+          hint: 'Move the knight to give check; bishop discovers attack on the rook.',
+          explain: 'Nf6+ delivers knight check on the king AND uncovers Bh1-a8 along the long diagonal, attacking the rook. Black must address the check; white wins the rook next move.',
         },
       ],
     };
@@ -1193,17 +1275,19 @@
       view: 'landing',
       themeId: null,
       puzzleIdx: 0,
-      selected: null,
+      stepIdx: 0,           // current step within the puzzle's solution[]
       board: null,
-      currentSide: 'w',
+      currentSide: 'w',     // whose turn (alternates as steps play)
       currentPuzzle: null,
       themeStartTime: 0,
-      themeResults: [],   // {solved: bool, time: number}
+      themeResults: [],     // {solved, hintsUsed}
+      selected: null,
       lastFrom: null,
       lastTo: null,
       hintsUsed: 0,
-      stars: {},          // themeId -> 0..3
-      bestTimes: {},      // themeId -> seconds
+      stars: {},
+      bestTimes: {},
+      movesPlayed: [],      // SAN-ish strings for the move list
     };
 
     function loadState() {
@@ -1237,12 +1321,9 @@
       else if (name === 'puzzle') {
         const t = THEMES.find(t => t.id === state.themeId);
         crumb.textContent = ' · ' + (t ? t.name : '');
-      } else if (name === 'results') {
-        crumb.textContent = ' · Results';
-      }
+      } else if (name === 'results') crumb.textContent = ' · Results';
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
-
     function goHome() {
       state.themeId = null;
       state.puzzleIdx = 0;
@@ -1252,17 +1333,18 @@
     }
 
     /* ============================================================
-       Landing render
+       Landing
        ============================================================ */
     function totalSolved() {
       return Object.values(state.stars).reduce((a, b) => a + b, 0);
     }
-
+    function totalPuzzles() {
+      return THEMES.reduce((a, t) => a + (PUZZLES[t.id]?.length || 0), 0);
+    }
     function renderLanding() {
       const grid = document.getElementById('theme-grid');
-      const total = THEMES.reduce((a, t) => a + (PUZZLES[t.id]?.length || 0), 0);
-      document.getElementById('hero-puzzles').textContent = total;
-      document.getElementById('hero-themes').textContent = THEMES.length;
+      document.getElementById('hero-puzzles').textContent = totalPuzzles();
+      document.getElementById('hero-themes').textContent = THEMES.filter(t => (PUZZLES[t.id] || []).length > 0).length;
       document.getElementById('hero-solved').textContent = totalSolved();
 
       grid.innerHTML = THEMES.map(t => {
@@ -1282,18 +1364,21 @@
             </div>
           </button>`;
       }).join('');
-
       grid.querySelectorAll('.theme-card').forEach(card => {
         card.addEventListener('click', () => openTheme(card.dataset.theme));
       });
     }
 
     /* ============================================================
-       Open theme + puzzle flow
+       Theme + puzzle flow
        ============================================================ */
     function openTheme(themeId) {
       const puzzles = PUZZLES[themeId];
-      if (!puzzles || puzzles.length === 0) return;
+      if (!puzzles || puzzles.length === 0) {
+        // Coming-soon themes (e.g. mate2): brief inline alert and stay home
+        alert('No puzzles yet for this theme — coming in a future update.');
+        return;
+      }
       state.themeId = themeId;
       state.puzzleIdx = 0;
       state.themeResults = [];
@@ -1305,9 +1390,7 @@
       showView('puzzle');
     }
 
-    function currentPuzzles() {
-      return PUZZLES[state.themeId] || [];
-    }
+    function currentPuzzles() { return PUZZLES[state.themeId] || []; }
 
     function renderPuzzle() {
       const puzzles = currentPuzzles();
@@ -1320,8 +1403,9 @@
       state.lastFrom = null;
       state.lastTo = null;
       state.hintsUsed = 0;
+      state.stepIdx = 0;
+      state.movesPlayed = [];
 
-      // Header
       document.getElementById('puzzle-counter').textContent = `${state.puzzleIdx + 1} / ${puzzles.length}`;
       const dots = document.getElementById('puzzle-dots');
       dots.innerHTML = puzzles.map((_, i) => {
@@ -1333,8 +1417,15 @@
         return `<div class="puzzle-dot ${cls}"></div>`;
       }).join('');
 
-      // Sidebar
       document.getElementById('turn-pill').textContent = (p.side === 'w' ? 'White' : 'Black') + ' to move';
+      const stepPill = document.getElementById('step-pill');
+      const userSteps = p.solution.filter((_, i) => i % 2 === 0).length;
+      if (userSteps > 1) {
+        stepPill.style.display = 'inline-block';
+        stepPill.textContent = `Move 1 of ${userSteps}`;
+      } else {
+        stepPill.style.display = 'none';
+      }
       document.getElementById('prompt-title').textContent = `Puzzle ${state.puzzleIdx + 1}`;
       document.getElementById('prompt-text').textContent = p.prompt;
       document.getElementById('moves').textContent = '—';
@@ -1354,6 +1445,19 @@
 
     function drawBoard() {
       const board = document.getElementById('board');
+      const checkSide = state.currentSide;
+      const kingPos = findKing(state.board, checkSide);
+      const kingInCheck = kingPos ? isInCheck(state.board, checkSide) : false;
+      const checkSq = kingInCheck && kingPos ? squareName(kingPos[0], kingPos[1]) : null;
+
+      // For the selected piece, compute legal destinations
+      let legalDest = new Set();
+      if (state.selected) {
+        const [r, c] = rcOf(state.selected);
+        const moves = legalMoves(state.board, r, c);
+        for (const [tr, tc] of moves) legalDest.add(squareName(tr, tc));
+      }
+
       const html = [];
       for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
@@ -1364,15 +1468,15 @@
           if (state.selected === sqName) classes += ' selected';
           if (state.lastFrom === sqName) classes += ' last-from';
           if (state.lastTo === sqName) classes += ' last-to';
-          // Targets: if a piece is selected, mark possible target dots (we treat any empty square as possible target visually)
-          if (state.selected && state.selected !== sqName) {
+          if (checkSq === sqName) classes += ' in-check';
+          if (state.selected && state.selected !== sqName && legalDest.has(sqName)) {
             if (!piece) classes += ' target-empty';
-            else if (piece[0] !== state.currentSide) classes += ' target-capture';
+            else classes += ' target-capture';
           }
           let glyph = '';
           if (piece) {
             const color = piece[0] === 'w' ? 'white' : 'black';
-            glyph = `<span class="piece ${color}">${GLYPH[piece] || ''}</span>`;
+            glyph = `<span class="piece ${color}">${GLYPH[piece[1]] || ''}</span>`;
           }
           html.push(`<div class="${classes}" data-sq="${sqName}">${glyph}</div>`);
         }
@@ -1384,38 +1488,31 @@
     }
 
     /* ============================================================
-       Square click handler — two-click move
+       Click handler: two-click move
        ============================================================ */
     function onSquareClick(sq) {
-      const piece = getPiece(state.board, sq);
-
-      // Can only move once per puzzle (until reset/next)
+      // Don't accept clicks once puzzle is resolved
       if (state.themeResults[state.puzzleIdx]) return;
+
+      const piece = pieceAt(state.board, sq);
 
       if (state.selected) {
         if (state.selected === sq) {
-          // Deselect
           state.selected = null;
           drawBoard();
           return;
         }
-        // Make the move (no legality check — we trust curated puzzles)
-        const fromPiece = getPiece(state.board, state.selected);
-        if (!fromPiece) {
-          state.selected = null;
-          drawBoard();
-          return;
-        }
-        // If they clicked another of their pieces, switch selection
+        // Selecting a different own piece: switch
         if (piece && piece[0] === state.currentSide) {
           state.selected = sq;
           drawBoard();
           return;
         }
+        // Attempt the move
         attemptMove(state.selected, sq);
       } else {
         if (!piece) return;
-        if (piece[0] !== state.currentSide) return; // can only move own pieces
+        if (piece[0] !== state.currentSide) return;
         state.selected = sq;
         drawBoard();
       }
@@ -1423,45 +1520,109 @@
 
     function attemptMove(from, to) {
       const p = state.currentPuzzle;
-      const correct = (from === p.solution.from && to === p.solution.to);
+      const [fr, fc] = rcOf(from);
+      const [tr, tc] = rcOf(to);
 
-      // Render the attempted move
-      applyMove(state.board, from, to);
-      state.lastFrom = from;
-      state.lastTo = to;
-      state.selected = null;
-      drawBoard();
-      document.getElementById('moves').textContent = `${from} → ${to}`;
-
-      // Flash the destination square
-      const sq = document.querySelector(`.square[data-sq="${to}"]`);
-      if (sq) sq.classList.add(correct ? 'flash-good' : 'flash-bad');
-
-      const fb = document.getElementById('feedback');
-      if (correct) {
-        fb.className = 'feedback good';
-        fb.innerHTML = `<strong>✓ Correct</strong>${p.explain}`;
-        // Record + auto-advance
-        state.themeResults[state.puzzleIdx] = {
-          solved: true,
-          hintsUsed: state.hintsUsed,
-        };
-        setTimeout(() => {
-          if (state.puzzleIdx + 1 >= currentPuzzles().length) {
-            finishTheme();
-          } else {
-            state.puzzleIdx++;
-            renderPuzzle();
-          }
-        }, 1800);
-      } else {
+      // Is the move even legal?
+      const legals = legalMoves(state.board, fr, fc);
+      const isLegal = legals.some(([r, c]) => r === tr && c === tc);
+      if (!isLegal) {
+        // Reject: don't change board, just flash + feedback
+        const sqEl = document.querySelector(`.square[data-sq="${to}"]`);
+        if (sqEl) sqEl.classList.add('flash-bad');
+        const fb = document.getElementById('feedback');
         fb.className = 'feedback bad';
-        fb.innerHTML = `<strong>✗ Not the best move</strong>Reset and try again, or skip to the next puzzle to see the answer.`;
-        state.themeResults[state.puzzleIdx] = state.themeResults[state.puzzleIdx] || {
-          solved: false,
-          hintsUsed: state.hintsUsed,
-        };
+        fb.innerHTML = `<strong>Illegal move</strong>That piece cannot move there. Try again.`;
+        state.selected = null;
+        drawBoard();
+        return;
       }
+
+      const expected = p.solution[state.stepIdx];
+      const matchesExpected = (from === expected.from && to === expected.to);
+
+      // Play the move on the board (we'll reset if we want)
+      const captured = applyMove(state.board, from, to);
+      state.lastFrom = from; state.lastTo = to;
+      state.selected = null;
+      const san = moveToSAN(state.board, to, to); // approximate
+      const moveStr = `${state.currentSide === 'w' ? 'W' : 'B'} ${from}→${to}${captured ? ' (x)' : ''}`;
+      state.movesPlayed.push(moveStr);
+      document.getElementById('moves').textContent = state.movesPlayed.join(' · ');
+
+      // Flash + flip side
+      const sqEl = document.querySelector(`.square[data-sq="${to}"]`);
+
+      if (matchesExpected) {
+        if (sqEl) sqEl.classList.add('flash-good');
+        // Check if this was the last step (last user move)
+        const isLastStep = (state.stepIdx >= p.solution.length - 1);
+        if (isLastStep) {
+          // Puzzle solved
+          state.themeResults[state.puzzleIdx] = { solved: true, hintsUsed: state.hintsUsed };
+          const fb = document.getElementById('feedback');
+          fb.className = 'feedback good';
+          fb.innerHTML = `<strong>✓ Correct</strong>${p.explain}`;
+          state.stepIdx++;
+          drawBoard();
+          setTimeout(() => {
+            if (state.puzzleIdx + 1 >= currentPuzzles().length) finishTheme();
+            else { state.puzzleIdx++; renderPuzzle(); }
+          }, 2200);
+        } else {
+          // More steps remain — engine plays the opponent's forced reply
+          state.stepIdx++;
+          state.currentSide = state.currentSide === 'w' ? 'b' : 'w';
+          drawBoard();
+          const fb = document.getElementById('feedback');
+          fb.className = 'feedback good';
+          fb.innerHTML = `<strong>✓ Good move</strong>Watch the opponent's forced reply…`;
+          setTimeout(() => playOpponentReply(), 800);
+        }
+      } else {
+        // Wrong-but-legal feedback
+        if (sqEl) sqEl.classList.add('flash-neutral');
+        const fb = document.getElementById('feedback');
+        fb.className = 'feedback neutral';
+        fb.innerHTML = `<strong>Legal, but not the strongest</strong>That move is allowed, but it doesn't solve the puzzle. Reset to try again, or skip to see the answer.`;
+        // Mark as failed (preserve the existing solved=false if any)
+        if (!state.themeResults[state.puzzleIdx]) {
+          state.themeResults[state.puzzleIdx] = { solved: false, hintsUsed: state.hintsUsed };
+        }
+        drawBoard();
+      }
+    }
+
+    function playOpponentReply() {
+      const p = state.currentPuzzle;
+      const opp = p.solution[state.stepIdx];
+      if (!opp) return;
+      const [fr, fc] = rcOf(opp.from);
+      const [tr, tc] = rcOf(opp.to);
+      // Trust the curated forced reply — verify it's legal first
+      const legals = legalMoves(state.board, fr, fc);
+      const isLegal = legals.some(([r, c]) => r === tr && c === tc);
+      if (!isLegal) {
+        // Curated reply isn't legal — show error and don't proceed
+        const fb = document.getElementById('feedback');
+        fb.className = 'feedback bad';
+        fb.innerHTML = `<strong>Puzzle data issue</strong>The expected opponent reply isn't legal in this position. Please skip this puzzle.`;
+        return;
+      }
+      applyMove(state.board, opp.from, opp.to);
+      state.lastFrom = opp.from; state.lastTo = opp.to;
+      state.movesPlayed.push(`${state.currentSide === 'w' ? 'W' : 'B'} ${opp.from}→${opp.to}`);
+      document.getElementById('moves').textContent = state.movesPlayed.join(' · ');
+      state.stepIdx++;
+      state.currentSide = state.currentSide === 'w' ? 'b' : 'w';
+      // Update step pill
+      const userStepNum = Math.floor(state.stepIdx / 2) + 1;
+      const totalUserSteps = p.solution.filter((_, i) => i % 2 === 0).length;
+      document.getElementById('step-pill').textContent = `Move ${userStepNum} of ${totalUserSteps}`;
+      const fb = document.getElementById('feedback');
+      fb.className = 'feedback';
+      fb.innerHTML = '';
+      drawBoard();
     }
 
     /* ============================================================
@@ -1478,10 +1639,12 @@
     function resetPosition() {
       const p = state.currentPuzzle;
       state.board = buildPosition(p.pieces);
+      state.currentSide = p.side;
       state.selected = null;
       state.lastFrom = null;
       state.lastTo = null;
-      // Don't clear "failed" record — but allow new attempt only if not solved
+      state.stepIdx = 0;
+      state.movesPlayed = [];
       if (state.themeResults[state.puzzleIdx] && !state.themeResults[state.puzzleIdx].solved) {
         state.themeResults[state.puzzleIdx] = null;
       }
@@ -1489,23 +1652,24 @@
       fb.className = 'feedback';
       fb.textContent = '';
       document.getElementById('moves').textContent = '—';
+      // Restore step pill to initial
+      const userSteps = p.solution.filter((_, i) => i % 2 === 0).length;
+      if (userSteps > 1) {
+        document.getElementById('step-pill').textContent = `Move 1 of ${userSteps}`;
+        document.getElementById('step-pill').style.display = 'inline-block';
+      }
       drawBoard();
     }
     function nextPuzzle() {
       if (!state.themeResults[state.puzzleIdx]) {
-        // Mark unsolved (skipped)
         state.themeResults[state.puzzleIdx] = { solved: false, hintsUsed: state.hintsUsed };
       }
-      if (state.puzzleIdx + 1 >= currentPuzzles().length) {
-        finishTheme();
-      } else {
-        state.puzzleIdx++;
-        renderPuzzle();
-      }
+      if (state.puzzleIdx + 1 >= currentPuzzles().length) finishTheme();
+      else { state.puzzleIdx++; renderPuzzle(); }
     }
 
     /* ============================================================
-       Finish theme
+       Theme completion
        ============================================================ */
     function finishTheme() {
       const total = currentPuzzles().length;
@@ -1513,7 +1677,6 @@
       const elapsed = Math.max(1, Math.floor((Date.now() - state.themeStartTime) / 1000));
       const accuracy = correct / total;
 
-      // Stars: ≥60% = 1, ≥80% = 2, =100% (no hints) = 3
       let stars = 0;
       if (accuracy >= 0.6) stars = 1;
       if (accuracy >= 0.8) stars = 2;
@@ -1521,16 +1684,11 @@
       if (accuracy >= 1.0 && noHints) stars = 3;
 
       const prevStars = state.stars[state.themeId] || 0;
-      if (stars > prevStars) {
-        state.stars[state.themeId] = stars;
-      }
+      if (stars > prevStars) state.stars[state.themeId] = stars;
       const prevBest = state.bestTimes[state.themeId];
-      if (accuracy >= 0.8 && (!prevBest || elapsed < prevBest)) {
-        state.bestTimes[state.themeId] = elapsed;
-      }
+      if (accuracy >= 0.8 && (!prevBest || elapsed < prevBest)) state.bestTimes[state.themeId] = elapsed;
       saveState();
 
-      // Render results
       document.getElementById('results-title').textContent =
         accuracy >= 1.0 ? 'Theme mastered!' :
         accuracy >= 0.8 ? 'Strong run' :
@@ -1538,9 +1696,7 @@
       document.getElementById('results-icon').textContent =
         stars === 3 ? '🏆' : stars === 2 ? '⭐' : stars === 1 ? '👍' : '💪';
       document.getElementById('results-stars').innerHTML =
-        '★★★'.split('').map((_, i) =>
-          i < stars ? '★' : '<span class="star-empty">★</span>'
-        ).join('');
+        '★★★'.split('').map((_, i) => i < stars ? '★' : '<span class="star-empty">★</span>').join('');
       document.getElementById('results-correct').textContent = `${correct} / ${total}`;
       document.getElementById('results-accuracy').textContent = Math.round(accuracy * 100) + '%';
       document.getElementById('results-time').textContent = formatTime(elapsed);

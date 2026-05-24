@@ -1,0 +1,149 @@
+        <!-- ============= MODULE: IMMUNE SYSTEM ============= -->
+        <div class="module-section" data-module="immune" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">10¹¹</span>
+                <div class="big-number-label">lymphocytes patrolling your body right now — 100 billion soldiers.</div>
+                <h2>Your body has <em>a built-in security force</em>.</h2>
+                <p>
+                  Every second, you breathe in thousands of microbes. Some could kill
+                  you. But you don't notice — because hidden inside you, an enormous
+                  distributed army is doing nothing but identifying threats.
+                </p>
+                <p>
+                  This is the immune system. It has two layers that work together:
+                  a fast generalist (innate) and a slow specialist (adaptive).
+                </p>
+              </div>
+              <div class="hook-stage" id="immune-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 9 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">Meet the two layers →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea -->
+          <div class="scene" data-scene="1">
+            <h2>Two layers of defense.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Most invaders never get past the first layer. The second layer only
+              shows up if the first one can't finish the job — but when it does, it
+              brings precision weapons.
+            </p>
+            <div class="city-grid">
+              <div class="city-card" style="background: var(--leaf-100); border: 1px solid var(--leaf-300);">
+                <div class="icons">⚡</div>
+                <div class="pair"><span class="biology">Innate (fast generalist)</span></div>
+                <p class="desc">Born with it. Responds to anything "not me" in minutes. Skin, mucus, fever, macrophages. No memory.</p>
+              </div>
+              <div class="city-card" style="background: var(--grape-100); border: 1px solid var(--grape-300);">
+                <div class="icons">🎯</div>
+                <div class="pair"><span class="biology">Adaptive (slow specialist)</span></div>
+                <p class="desc">Takes 7–14 days to ramp up. Makes custom weapons. Has memory. This is what vaccines target.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🤝</div>
+                <div class="pair"><span class="biology">They cooperate</span></div>
+                <p class="desc">Innate cells show samples of invaders to adaptive cells, which design precision weapons.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🧠</div>
+                <div class="pair"><span class="biology">Memory is the magic</span></div>
+                <p class="desc">After the first fight, memory cells stay for years. Next time: hours, not days.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Toggle the layers</span>
+              <button class="btn btn-primary" data-action="next">Innate vs adaptive →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — toggle innate vs adaptive -->
+          <div class="scene" data-scene="2">
+            <h2>What cells does each layer have?</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              The two layers use different cells with different jobs. Toggle between
+              them to see who plays for which team.
+            </p>
+            <div class="immune-toggle" id="immune-toggle">
+              <button class="active" data-layer="innate">⚡ Innate (fast)</button>
+              <button data-layer="adaptive">🎯 Adaptive (precise)</button>
+            </div>
+            <div class="immune-cells" id="immune-cells"></div>
+            <div class="immune-explain" id="immune-explain"></div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · The precision weapons</span>
+              <button class="btn btn-primary" data-action="next">B-cells &amp; T-cells →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — adaptive immunity -->
+          <div class="scene" data-scene="3">
+            <h2>The two stars of adaptive immunity.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              B-cells and T-cells are the snipers of the immune system. Both learn
+              to recognize one specific invader and ignore everything else.
+            </p>
+            <div class="vs-table" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; max-width: 800px;">
+              <div class="city-card" style="background: var(--coral-100); border: 1px solid var(--coral-300);">
+                <div class="icons">📤</div>
+                <div class="pair"><span class="biology">B-cells → antibodies</span></div>
+                <p class="desc">When a B-cell finds its target, it pumps out <strong>antibodies</strong>: Y-shaped proteins that latch onto invaders and mark them for destruction. Best against extracellular threats (bacteria, virus particles in blood).</p>
+              </div>
+              <div class="city-card" style="background: var(--sky-100); border: 1px solid var(--sky-300);">
+                <div class="icons">🗡️</div>
+                <div class="pair"><span class="biology">T-cells → kill infected cells</span></div>
+                <p class="desc"><strong>Helper T-cells</strong> coordinate the response. <strong>Killer T-cells</strong> destroy your own cells that have been infected with a virus. Best against intracellular threats and cancer.</p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px;">
+              <strong>📚 How does the body have a cell that recognizes <em>any</em> invader?</strong>
+              <p>The trick is genetic recombination. Each developing B-cell and T-cell randomly shuffles gene segments to create a unique receptor. Your body makes ~1 billion different ones. Cells that match "self" too well are killed during development. The survivors are your repertoire.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="immune-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap -->
+          <div class="scene" data-scene="5">
+            <h2>The immune system in one sentence.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              The immune system is a two-layer defense: a fast generalist (innate)
+              that handles most threats in minutes, plus a slow precision system
+              (adaptive) that builds custom weapons and remembers them.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">⚡</span><span class="lbl">Innate = fast, no memory</span></div>
+              <div class="recap-pill"><span class="ic">🎯</span><span class="lbl">Adaptive = slow, precise, remembers</span></div>
+              <div class="recap-pill"><span class="ic">📤</span><span class="lbl">B-cells make antibodies</span></div>
+              <div class="recap-pill"><span class="ic">🗡️</span><span class="lbl">T-cells kill infected cells</span></div>
+              <div class="recap-pill"><span class="ic">🧠</span><span class="lbl">Memory cells = faster next time</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">💉</div>
+              <div>
+                <h3>Coming up next: Vaccines &amp; Pandemics</h3>
+                <p>Now that you know how immunity works, vaccines are easy. They teach the adaptive system to recognize a threat without ever fighting the real disease.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 9 complete</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="vaccines">Continue to Vaccines →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="immune" -->

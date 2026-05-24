@@ -1,0 +1,173 @@
+        <!-- ============= MODULE: VIRUSES ============= -->
+        <div class="module-section" data-module="viruses" hidden>
+
+          <!-- Scene 1: Hook -->
+          <div class="scene active" data-scene="0">
+            <div class="hook">
+              <div class="hook-text">
+                <span class="big-number">10³¹</span>
+                <div class="big-number-label">viruses on Earth — more than every star in the universe.</div>
+                <h2>Viruses are <em>biology's freeloaders</em>.</h2>
+                <p>
+                  A virus isn't really alive. It has DNA or RNA wrapped in a protein
+                  shell, and that's it — no cells, no metabolism, no way to reproduce
+                  on its own.
+                </p>
+                <p>
+                  But give it a living cell to hijack, and it becomes a copy machine.
+                  It turns the cell's machinery against itself, makes hundreds of new
+                  virus particles, and bursts out to find more cells.
+                </p>
+              </div>
+              <div class="hook-stage" id="viruses-hook-stage"></div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 8 of 11 · Scene 1 of 6</span>
+              <button class="btn btn-primary" data-action="next">How they work →</button>
+            </div>
+          </div>
+
+          <!-- Scene 2: Big idea -->
+          <div class="scene" data-scene="1">
+            <h2>The basic anatomy of a virus.</h2>
+            <p style="margin-top: 14px; max-width: 720px;">
+              Strip a virus down to its essentials. There are only a few parts —
+              and not every virus has all of them.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">🧬</div>
+                <div class="pair"><span class="biology">Genetic payload</span></div>
+                <p class="desc">DNA or RNA — usually just a few thousand to a few hundred thousand bases. Tiny.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📦</div>
+                <div class="pair"><span class="biology">Capsid (protein shell)</span></div>
+                <p class="desc">A geometric protein cage that protects the genome until it finds a host.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🛢️</div>
+                <div class="pair"><span class="biology">Envelope (sometimes)</span></div>
+                <p class="desc">A fatty outer layer stolen from a previous host cell. Influenza and HIV have one; many others don't.</p>
+              </div>
+              <div class="city-card">
+                <div class="icons">🔑</div>
+                <div class="pair"><span class="biology">Surface keys</span></div>
+                <p class="desc">Spike proteins that fit specific lock receptors on host cells — what determines which cells the virus can infect.</p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 2 of 6 · Watch the takeover</span>
+              <button class="btn btn-primary" data-action="next">See the replication cycle →</button>
+            </div>
+          </div>
+
+          <!-- Scene 3: Interactive — replication cycle -->
+          <div class="scene" data-scene="2">
+            <h2>The replication cycle, step by step.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              A virus that gets into a cell goes through five distinct stages.
+              Click each one to see what's happening.
+            </p>
+            <div class="virus-stages" id="virus-stages"></div>
+            <div class="virus-stage-detail" id="virus-stage-detail">
+              <p style="color: var(--ink-500); font-style: italic;">Click a stage above to see how it works.</p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 3 of 6 · How viruses vary</span>
+              <button class="btn btn-primary" data-action="next">Three kinds of viruses →</button>
+            </div>
+          </div>
+
+          <!-- Scene 4: Deep dive — virus categories -->
+          <div class="scene" data-scene="3">
+            <h2>Not all viruses are alike.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              The category mostly comes down to what's inside the capsid and how
+              that genetic payload gets copied. These three are the main families
+              for human disease.
+            </p>
+            <div class="city-grid">
+              <div class="city-card">
+                <div class="icons">📘</div>
+                <div class="pair"><span class="biology">DNA viruses</span></div>
+                <p class="desc">
+                  Carry DNA. Use the host's normal copy machinery. Slow to mutate
+                  (good copying). Examples: herpes, chickenpox, HPV, smallpox.
+                </p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📕</div>
+                <div class="pair"><span class="biology">RNA viruses</span></div>
+                <p class="desc">
+                  Carry RNA. Use a sloppy enzyme (RNA-dependent RNA polymerase) that
+                  copies fast but makes errors. <em>Fast mutators.</em> Examples: flu,
+                  cold, measles, COVID, hepatitis A/C, polio.
+                </p>
+              </div>
+              <div class="city-card">
+                <div class="icons">📒</div>
+                <div class="pair"><span class="biology">Retroviruses</span></div>
+                <p class="desc">
+                  Carry RNA but reverse-transcribe it into DNA, then insert into
+                  your genome <em>permanently</em>. Examples: HIV. About 8% of
+                  human DNA came from ancient retroviruses long ago.
+                </p>
+              </div>
+            </div>
+            <div class="callout" style="margin-top: 22px; max-width: 720px;">
+              <strong>🌊 Why flu changes every year.</strong>
+              <p>
+                Flu is an RNA virus. Each replication round, the sloppy enzyme
+                makes a few errors. Most are deleterious — but rare ones change
+                the surface keys enough that last year's antibodies don't recognize
+                this year's virus. That's why you need a new flu shot annually.
+              </p>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Scene 4 of 6 · Quick check</span>
+              <button class="btn btn-primary" data-action="next">Quiz me →</button>
+            </div>
+          </div>
+
+          <!-- Scene 5: Quiz -->
+          <div class="scene" data-scene="4">
+            <div class="quiz-card" id="viruses-quiz-card"></div>
+          </div>
+
+          <!-- Scene 6: Recap -->
+          <div class="scene" data-scene="5">
+            <h2>Viruses in one sentence.</h2>
+            <p style="margin-top: 12px; max-width: 720px;">
+              A virus is a genetic payload wrapped in protein that hijacks a living
+              cell's machinery to copy itself, then breaks out to find more cells.
+              That's the whole thing.
+            </p>
+            <div class="recap-grid">
+              <div class="recap-pill"><span class="ic">🧬</span><span class="lbl">Genome + capsid (± envelope)</span></div>
+              <div class="recap-pill"><span class="ic">🔑</span><span class="lbl">Surface keys pick the target cell</span></div>
+              <div class="recap-pill"><span class="ic">🏭</span><span class="lbl">Hijacks host machinery</span></div>
+              <div class="recap-pill"><span class="ic">📘</span><span class="lbl">DNA virus = slow mutator</span></div>
+              <div class="recap-pill"><span class="ic">📕</span><span class="lbl">RNA virus = fast mutator</span></div>
+            </div>
+            <div class="next-tease">
+              <div class="icon">🛡️</div>
+              <div>
+                <h3>Coming up next: The Immune System</h3>
+                <p>
+                  Viruses are constantly trying to infect you. So why aren't you sick
+                  all the time? Because your body has a small army of cells whose
+                  whole job is to find and destroy them. Let's meet that army.
+                </p>
+              </div>
+            </div>
+            <div class="scene-foot">
+              <span class="left">Module 8 complete</span>
+              <span style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" data-action="home">All modules</button>
+                <button class="btn btn-primary" data-action="goto" data-mod="immune">Continue to Immune System →</button>
+              </span>
+            </div>
+          </div>
+
+        </div><!-- /module-section data-module="viruses" -->

@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Interview Drill — Behavioral Interview Practice (STAR method)
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+  Microphone access requires HTTPS or localhost (file:// also works locally).
+
+  WHAT IT IS
+  ==============================================================================
+  Practice the most common behavioral interview questions out loud, with
+  STAR-method scaffolding. The browser TTS asks the question; the mic captures
+  your answer. Speak Sharp-style metrics surface afterward, plus a STAR-section
+  detector that looks for trigger phrases ("the situation was…", "what I did…",
+  "the result was…") to flag missing structure.
+
+  20 questions across 6 categories (Leadership · Conflict · Failure · Initiative
+  · Ambiguity · Career fit). Each has interviewer notes (what they\'re really
+  listening for) and a STAR scaffold you can expand for prep.
+
+  WHAT IT IS *NOT*
+  ==============================================================================
+  Not an AI-judging-your-answer system. The scoring is heuristic — length,
+  fillers, pace, STAR coverage. The value is repetition + the prep scaffold,
+  not autonomous evaluation.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+     1–37    Header comment (this block)
+    39–45    <head>: meta, title
+
+  STYLE  (~lines 46–680)
+    :root            palette (forest green + cream + accent gold), radii
+    Reset + base
+    .top-bar         brand mark + breadcrumb
+    Buttons          .btn variants
+    Landing view     hero, category nav, question list with "last attempt" hint
+    Drill view       question card + STAR prep + mic + live transcript
+    STAR card        4 collapsible blocks (S/T/A/R) with prompt + your notes
+    Mic              big button, recording animation, timer
+    Report view      score row + STAR coverage + transcript w/ filler highlights
+    Animations       pulse, fadeIn, micPulse, slideDown
+
+  BODY  (~lines 690–800)
+    .top-bar
+    .view.view-landing
+    .view.view-drill
+    .view.view-report
+
+  SCRIPT  (~lines 810–end, single IIFE)
+    State          { view, questionId, recording, recognition, transcript,
+                     metrics, log, prepNotes }
+    Persistence    localStorage['intdrill_log_v1'] (history),
+                   localStorage['intdrill_notes_v1'] (per-question notes)
+    QUESTIONS      20 entries with category, stem, listenFor[], starHints
+    FILLERS        word list (shared with Speak Sharp pattern)
+    STAR_TRIGGERS  trigger phrases per S/T/A/R section
+    Render         renderLanding / renderDrill / renderReport
+    Boot           restore log + notes, wire events
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview Drill — Behavioral Interview Practice</title>
+  <style>
+    :root {
+      --forest-900: #112720;
+      --forest-700: #1d4a3c;
+      --forest-500: #2e7158;
+      --forest-400: #4d9173;
+      --forest-300: #84b8a1;
+      --forest-100: #d4ebde;
+      --forest-50:  #ecf6f1;
+
+      --gold-500: #c9952a;
+      --gold-400: #ddb154;
+      --gold-300: #ecc984;
+      --gold-100: #f9ecc7;
+
+      --slate-900: #0d1612;
+      --slate-700: #2c3833;
+      --slate-500: #5a6864;
+      --slate-300: #a3b0aa;
+      --slate-200: #c5cfca;
+      --slate-100: #e2eae5;
+
+      --good: #2c8e6a;
+      --good-light: #d2efe1;
+      --warn: #c4791f;
+      --warn-light: #f7e2bc;
+      --bad: #c84a4a;
+      --bad-light: #f7d8d8;
+
+      --paper: #ffffff;
+      --bg: #f5f9f6;
+
+      --radius-sm: 10px;
+      --radius: 14px;
+      --radius-lg: 22px;
+      --shadow-sm: 0 1px 3px rgba(15, 60, 40, 0.05);
+      --shadow: 0 8px 24px rgba(15, 60, 40, 0.10);
+
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--slate-900);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    body {
+      background:
+        radial-gradient(circle at 12% 0%, var(--forest-100) 0%, transparent 38%),
+        radial-gradient(circle at 90% 100%, var(--gold-100) 0%, transparent 36%),
+        var(--bg);
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.12s ease, box-shadow 0.2s, background 0.2s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--forest-700);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary:hover { background: var(--forest-900); }
+    .btn-gold {
+      background: var(--gold-500);
+      color: var(--slate-900);
+    }
+    .btn-gold:hover { background: var(--gold-400); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--slate-700);
+      border: 1.5px solid var(--slate-100);
+    }
+    .btn-ghost:hover { border-color: var(--forest-500); color: var(--forest-700); }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--forest-700), var(--forest-500));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 22px;
+    }
+    .brand-name em { color: var(--gold-500); font-style: italic; }
+    .breadcrumb { color: var(--slate-500); font-size: 14px; }
+    .breadcrumb a { color: var(--slate-700); cursor: pointer; text-decoration: none; }
+    .breadcrumb a:hover { color: var(--forest-700); }
+
+    .view {
+      display: none;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 28px 80px;
+    }
+    .view.active { display: block; }
+
+    /* Landing */
+    .hero {
+      padding: 16px 0 28px;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--forest-100);
+      color: var(--forest-700);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(34px, 5.5vw, 52px);
+      margin: 0 0 12px;
+      line-height: 1.05;
+      max-width: 700px;
+    }
+    .hero h1 em { color: var(--forest-700); font-style: italic; }
+    .hero-sub {
+      font-size: 17px;
+      color: var(--slate-500);
+      max-width: 600px;
+      margin: 0 0 16px;
+    }
+    .browser-warn {
+      display: none;
+      background: var(--warn-light);
+      color: #7a4a0d;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      max-width: 560px;
+    }
+
+    .cat-nav {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 24px 0 18px;
+      background: var(--paper);
+      padding: 4px;
+      border-radius: 999px;
+      width: fit-content;
+      border: 1px solid var(--slate-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .cat-nav button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--slate-700);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .cat-nav button:hover { color: var(--forest-700); }
+    .cat-nav button.active {
+      background: var(--forest-700);
+      color: white;
+    }
+    @media (max-width: 700px) { .cat-nav { width: 100%; } .cat-nav button { flex: 1; padding: 8px 4px; font-size: 12px; } }
+
+    .q-list {
+      display: grid;
+      gap: 10px;
+    }
+    .q-row {
+      background: var(--paper);
+      border: 1.5px solid var(--slate-100);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: border-color 0.18s, transform 0.18s, box-shadow 0.2s;
+      text-align: left;
+      width: 100%;
+    }
+    .q-row:hover {
+      border-color: var(--forest-300);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+    .q-row .num {
+      font-family: var(--serif);
+      font-size: 20px;
+      color: var(--forest-700);
+      font-weight: 700;
+      min-width: 28px;
+    }
+    .q-row .body { flex: 1; }
+    .q-row .body .cat-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: var(--forest-100);
+      color: var(--forest-700);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .q-row .body .stem { color: var(--slate-900); font-size: 16px; line-height: 1.4; }
+    .q-row .last {
+      font-size: 12px;
+      color: var(--slate-500);
+      text-align: right;
+      min-width: 100px;
+    }
+    .q-row .last b { color: var(--forest-700); font-weight: 700; }
+
+    .how-panel {
+      margin-top: 36px;
+      background: var(--forest-900);
+      color: var(--forest-100);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 22px;
+    }
+    .how-panel .lbl {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--gold-500);
+      color: var(--slate-900);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .how-panel h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 6px;
+      color: white;
+    }
+    .how-panel p { margin: 0; font-size: 14px; opacity: 0.85; }
+
+    /* ============================================================
+       Drill view
+       ============================================================ */
+    .drill-question {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 18px;
+      border: 1px solid var(--slate-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .drill-question .cat-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--forest-100);
+      color: var(--forest-700);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .drill-question h2 {
+      font-family: var(--serif);
+      font-size: 24px;
+      line-height: 1.3;
+      margin: 0 0 12px;
+    }
+    .drill-question .listen-for {
+      font-size: 13px;
+      background: var(--forest-50);
+      padding: 10px 14px;
+      border-radius: 10px;
+      color: var(--forest-700);
+      border-left: 3px solid var(--forest-500);
+    }
+    .drill-question .listen-for strong { display: block; margin-bottom: 2px; }
+
+    .star-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .star-toggle .label {
+      font-size: 13px;
+      color: var(--slate-500);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .star-card {
+      background: var(--paper);
+      border: 1px solid var(--slate-100);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    .star-card.collapsed .star-bodies { display: none; }
+    .star-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      cursor: pointer;
+      background: var(--forest-50);
+      border-bottom: 1px solid var(--slate-100);
+    }
+    .star-head h3 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 18px;
+    }
+    .star-head .toggle-arrow {
+      transition: transform 0.2s;
+    }
+    .star-card.collapsed .toggle-arrow { transform: rotate(-90deg); }
+    .star-bodies {
+      padding: 8px 22px 16px;
+    }
+    .star-block {
+      padding: 12px 0;
+      border-top: 1px solid var(--slate-100);
+    }
+    .star-block:first-child { border-top: 0; padding-top: 6px; }
+    .star-block .head-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .star-block .letter {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: var(--forest-700);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .star-block .head-text {
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+    .star-block .prompt {
+      font-size: 13px;
+      color: var(--slate-500);
+      margin-bottom: 8px;
+    }
+    .star-block textarea {
+      width: 100%;
+      min-height: 60px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--slate-100);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--paper);
+    }
+    .star-block textarea:focus { outline: none; border-color: var(--forest-500); }
+
+    /* Mic */
+    .mic-area {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--slate-100);
+    }
+    .mic-button {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: var(--forest-700);
+      color: white;
+      font-size: 36px;
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 6px 14px rgba(29, 74, 60, 0.3);
+      border: none;
+    }
+    .mic-button:hover { transform: scale(1.05); }
+    .mic-button.recording {
+      background: var(--bad);
+      animation: micPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(200, 74, 74, 0.55); }
+      50% { box-shadow: 0 0 0 18px rgba(200, 74, 74, 0); }
+    }
+    .mic-status {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--slate-500);
+    }
+    .timer {
+      font-family: var(--serif);
+      font-size: 30px;
+      color: var(--forest-700);
+      margin: 12px 0 4px;
+    }
+    .pre-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 14px 0;
+    }
+    .live-transcript {
+      margin-top: 16px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--slate-700);
+      text-align: left;
+      min-height: 40px;
+      border: 1px dashed var(--slate-100);
+    }
+    .live-transcript:empty::before {
+      content: "Your answer will appear here as you speak…";
+      color: var(--slate-300);
+      font-style: italic;
+    }
+    .filler { background: rgba(201, 149, 42, 0.28); border-radius: 4px; padding: 0 4px; }
+
+    .actions-row {
+      margin-top: 18px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================================
+       Report view
+       ============================================================ */
+    .report-grid {
+      display: grid;
+      gap: 18px;
+      margin: 24px 0;
+    }
+    .score-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .score-card {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 18px;
+      border: 1px solid var(--slate-100);
+      box-shadow: var(--shadow-sm);
+    }
+    .score-card .label {
+      font-size: 11px;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .score-card .value {
+      font-family: var(--serif);
+      font-size: 30px;
+      font-weight: 700;
+      margin: 6px 0 4px;
+    }
+    .score-card .value .small { font-size: 16px; color: var(--slate-500); }
+    .score-card .verdict {
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+    .score-card .verdict.good { background: var(--good-light); color: var(--good); }
+    .score-card .verdict.warn { background: var(--warn-light); color: var(--warn); }
+    .score-card .verdict.bad  { background: var(--bad-light); color: var(--bad); }
+
+    .star-coverage {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid var(--slate-100);
+    }
+    .star-coverage h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 10px;
+    }
+    .star-bars {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .star-bar {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .star-bar .letter {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--forest-700);
+      color: white;
+      display: inline-grid;
+      place-items: center;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .star-bar .name {
+      font-size: 12px;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .star-bar .verdict {
+      margin-top: 6px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .star-bar.found .verdict { color: var(--good); }
+    .star-bar.missing .verdict { color: var(--bad); }
+    .star-bar.missing .letter { background: var(--bad-light); color: var(--bad); }
+    @media (max-width: 540px) { .star-bars { grid-template-columns: repeat(2, 1fr); } }
+
+    .coach-feedback {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid var(--slate-100);
+    }
+    .coach-feedback h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 10px;
+    }
+    .coach-feedback ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .coach-feedback li {
+      padding: 10px 0 10px 28px;
+      position: relative;
+      border-top: 1px solid var(--slate-100);
+      font-size: 14px;
+      color: var(--slate-700);
+    }
+    .coach-feedback li:first-child { border-top: 0; }
+    .coach-feedback li::before {
+      content: "→";
+      position: absolute;
+      left: 4px;
+      top: 10px;
+      color: var(--gold-500);
+      font-weight: 800;
+    }
+
+    .transcript-card {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid var(--slate-100);
+    }
+    .transcript-card h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 6px;
+    }
+    .transcript-card .transcript-meta {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-bottom: 10px;
+    }
+    .transcript-text {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--slate-700);
+    }
+    .transcript-empty {
+      color: var(--slate-300);
+      font-style: italic;
+    }
+
+    @media (max-width: 640px) {
+      .top-bar { padding: 12px 16px; }
+      .view { padding: 12px 16px 60px; }
+      .drill-question { padding: 18px; }
+      .drill-question h2 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="brand" data-action="home">
+      <div class="brand-mark">★</div>
+      <div class="brand-name">Interview <em>Drill</em></div>
+    </div>
+    <div class="breadcrumb"><a data-action="home">Home</a> <span id="crumb-extra"></span></div>
+  </div>
+
+  <!-- ============================================================
+       Landing
+       ============================================================ -->
+  <div class="view view-landing active" data-view="landing">
+    <div class="hero">
+      <span class="hero-eyebrow">STAR method · Mic feedback · Local-only</span>
+      <h1>Practice the questions <em>they actually ask</em>.</h1>
+      <p class="hero-sub">Twenty common behavioral interview questions. The browser asks; you answer out loud. We score length, fillers, pace, and STAR-section coverage. Your prep notes save automatically.</p>
+      <div class="browser-warn" id="browser-warn"></div>
+    </div>
+
+    <div class="cat-nav" id="cat-nav"></div>
+    <div class="q-list" id="q-list"></div>
+
+    <div class="how-panel">
+      <div>
+        <span class="lbl">S T A R</span>
+        <h3>Situation, Task, Action, Result</h3>
+        <p>Every behavioral question is testing if you can describe one. Drill the structure until it's automatic.</p>
+      </div>
+      <div>
+        <span class="lbl">Out loud</span>
+        <h3>Speak your answer, don't type it</h3>
+        <p>The gap between "I know what to say" and "I can say it smoothly" only closes by talking. Records aren't graded — repetition is the point.</p>
+      </div>
+      <div>
+        <span class="lbl">Save notes</span>
+        <h3>Build a story bank</h3>
+        <p>Most questions can be answered with the same 4–6 stories. Write yours into the STAR scaffolds; they save automatically per question.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Drill view
+       ============================================================ -->
+  <div class="view view-drill" data-view="drill">
+    <div class="drill-question">
+      <span class="cat-pill" id="drill-cat">—</span>
+      <h2 id="drill-stem">—</h2>
+      <div class="listen-for">
+        <strong>What interviewers listen for</strong>
+        <span id="drill-listen">—</span>
+      </div>
+    </div>
+
+    <div class="star-toggle">
+      <span class="label">STAR Prep</span>
+      <button class="btn btn-ghost" data-action="toggle-star" id="toggle-star-btn">Hide notes</button>
+    </div>
+    <div class="star-card" id="star-card">
+      <div class="star-bodies">
+        <div class="star-block">
+          <div class="head-row"><div class="letter">S</div><div class="head-text">Situation</div></div>
+          <div class="prompt" id="star-s-prompt">Sketch the context — when, where, who, what was at stake.</div>
+          <textarea id="star-s" placeholder="A specific scene. One or two sentences. Recent enough to be vivid."></textarea>
+        </div>
+        <div class="star-block">
+          <div class="head-row"><div class="letter">T</div><div class="head-text">Task</div></div>
+          <div class="prompt" id="star-t-prompt">What was your specific responsibility or the question you needed to resolve?</div>
+          <textarea id="star-t" placeholder="My job was to… / The question on the table was…"></textarea>
+        </div>
+        <div class="star-block">
+          <div class="head-row"><div class="letter">A</div><div class="head-text">Action</div></div>
+          <div class="prompt" id="star-a-prompt">What you specifically did. Use "I", not "we" — interviewers want to know your contribution.</div>
+          <textarea id="star-a" placeholder="I did X, then Y. The reason I made that choice was…"></textarea>
+        </div>
+        <div class="star-block">
+          <div class="head-row"><div class="letter">R</div><div class="head-text">Result</div></div>
+          <div class="prompt" id="star-r-prompt">Concrete outcome + what you learned. Include numbers if you have them.</div>
+          <textarea id="star-r" placeholder="The result was X. Looking back, I'd do Y differently."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="mic-area">
+      <button class="mic-button" id="mic-btn" aria-label="Record">●</button>
+      <div class="timer" id="drill-timer">0:00</div>
+      <div class="mic-status" id="drill-status">Tap the mic when you're ready. Aim for 90–120 seconds per answer.</div>
+
+      <div class="pre-actions">
+        <button class="btn btn-ghost" data-action="speak-question">▶ Hear question</button>
+        <button class="btn btn-ghost" data-action="restart">Reset</button>
+      </div>
+
+      <div class="live-transcript" id="drill-transcript"></div>
+
+      <div class="actions-row">
+        <button class="btn btn-primary" data-action="finish" id="finish-btn" disabled>Get report →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Report view
+       ============================================================ -->
+  <div class="view view-report" data-view="report">
+    <h2 style="font-family:var(--serif); font-size:26px; margin:8px 0 4px;" id="report-stem">—</h2>
+    <p style="color:var(--slate-500); margin:0 0 18px;" id="report-cat">—</p>
+
+    <div class="report-grid">
+      <div class="score-row" id="report-scores"></div>
+
+      <div class="star-coverage">
+        <h3>STAR coverage</h3>
+        <p style="font-size:13px; color:var(--slate-500); margin:0;">Did your answer touch all four sections? We look for trigger phrases (e.g. "the situation was", "what I did", "the result was").</p>
+        <div class="star-bars" id="star-bars"></div>
+      </div>
+
+      <div class="coach-feedback">
+        <h3>Coach notes</h3>
+        <ul id="coach-notes"></ul>
+      </div>
+
+      <div class="transcript-card">
+        <h3>Transcript</h3>
+        <div class="transcript-meta" id="transcript-meta">—</div>
+        <div class="transcript-text" id="transcript-text"></div>
+      </div>
+    </div>
+
+    <div class="actions-row" style="justify-content:flex-start;">
+      <button class="btn btn-ghost" data-action="home">All questions</button>
+      <button class="btn btn-gold" data-action="retry">Try again →</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       QUESTIONS — 20 common behavioral interview questions
+       ============================================================ */
+    const QUESTIONS = [
+      {
+        id: 'lead-team',
+        cat: 'Leadership',
+        stem: 'Tell me about a time you led a team through a difficult challenge.',
+        listenFor: 'Did you actually lead, or just contribute? They want to hear "I decided", "I owned", "I aligned the team on…".',
+      },
+      {
+        id: 'lead-influence',
+        cat: 'Leadership',
+        stem: 'Describe a time you had to influence people who didn\'t report to you.',
+        listenFor: 'How did you build credibility without authority? Listen for naming specific stakeholders + the trade-off you offered them.',
+      },
+      {
+        id: 'lead-disagree',
+        cat: 'Leadership',
+        stem: 'Tell me about a time you disagreed with your manager.',
+        listenFor: 'Did you advocate respectfully, then commit? Or were you contrarian for sport? They want substance + maturity.',
+      },
+      {
+        id: 'conflict-coworker',
+        cat: 'Conflict',
+        stem: 'Describe a time you had a conflict with a coworker. How did you resolve it?',
+        listenFor: 'Empathy for the other side. They want you to fairly characterize their position, not just describe yours.',
+      },
+      {
+        id: 'conflict-feedback',
+        cat: 'Conflict',
+        stem: 'Tell me about a time you received critical feedback. How did you respond?',
+        listenFor: 'Concrete actions you took afterward. "I reflected on it" is weaker than "I changed how I scoped projects after that".',
+      },
+      {
+        id: 'conflict-stakeholder',
+        cat: 'Conflict',
+        stem: 'Walk me through a time you had to push back on a stakeholder request.',
+        listenFor: 'Did you propose an alternative, or just say no? Senior interviewers want to hear "I said no AND I offered…".',
+      },
+      {
+        id: 'fail-project',
+        cat: 'Failure',
+        stem: 'Tell me about a project that didn\'t go well. What happened?',
+        listenFor: 'Do you take real ownership? Vague "we shipped late" stories signal coasting; clear "I underestimated X" stories signal growth.',
+      },
+      {
+        id: 'fail-mistake',
+        cat: 'Failure',
+        stem: 'Describe a significant mistake you\'ve made. How did you handle it?',
+        listenFor: 'Recovery and prevention. Not just what went wrong — what mechanism did you put in place so it doesn\'t happen again?',
+      },
+      {
+        id: 'fail-feedback-given',
+        cat: 'Failure',
+        stem: 'Tell me about a time you had to give someone difficult feedback.',
+        listenFor: 'Specifics about the conversation. Vague "I gave them feedback" answers are red flags. They want the actual words you used.',
+      },
+      {
+        id: 'init-improve',
+        cat: 'Initiative',
+        stem: 'Tell me about a time you identified a problem nobody else saw and fixed it.',
+        listenFor: 'How did you spot it? Did you get buy-in? They want a story with both insight AND execution.',
+      },
+      {
+        id: 'init-volunteer',
+        cat: 'Initiative',
+        stem: 'Describe a time you took on responsibility outside your formal role.',
+        listenFor: 'Why did you take it on? "Because no one else was" is fine; "because I cared about the outcome" is better.',
+      },
+      {
+        id: 'init-impact',
+        cat: 'Initiative',
+        stem: 'Tell me about a project you\'re most proud of. What was your specific contribution?',
+        listenFor: 'Watch for "we" creep. They want to know what *you* did, not what your team did.',
+      },
+      {
+        id: 'amb-decision',
+        cat: 'Ambiguity',
+        stem: 'Describe a time you had to make a decision without all the information you wanted.',
+        listenFor: 'How did you frame the trade-off? The strongest answers acknowledge what you didn\'t know AND why you decided to act anyway.',
+      },
+      {
+        id: 'amb-prioritize',
+        cat: 'Ambiguity',
+        stem: 'Tell me about a time you had too many priorities and not enough time.',
+        listenFor: 'How did you decide what to drop? They want a clear principle, not "I just worked harder".',
+      },
+      {
+        id: 'amb-changing',
+        cat: 'Ambiguity',
+        stem: 'Walk me through a time the goalposts moved mid-project.',
+        listenFor: 'Did you panic, or did you re-plan? Look for "I called a check-in to realign on…".',
+      },
+      {
+        id: 'amb-newdomain',
+        cat: 'Ambiguity',
+        stem: 'Describe a time you had to ramp up quickly on something unfamiliar.',
+        listenFor: 'Concrete learning strategy. "I read a lot" is weak; "I shipped a small thing in week 1 and asked for review" is strong.',
+      },
+      {
+        id: 'fit-strengths',
+        cat: 'Career fit',
+        stem: 'What are your three biggest strengths, and where does each one come from?',
+        listenFor: 'Self-knowledge with evidence. Generic ("I\'m hardworking") loses to specific ("I\'m good at simplifying — examples include X, Y").',
+      },
+      {
+        id: 'fit-weakness',
+        cat: 'Career fit',
+        stem: 'What\'s a weakness you\'re actively working on?',
+        listenFor: 'Real weakness + real work. Not a humble brag ("I work too hard"), not a generic flaw ("public speaking") with no plan.',
+      },
+      {
+        id: 'fit-five-years',
+        cat: 'Career fit',
+        stem: 'Where do you see yourself in five years? How does this role fit?',
+        listenFor: 'Direction without inflexibility. "I want to move toward X, this role helps because Y" — they want narrative coherence.',
+      },
+      {
+        id: 'fit-why',
+        cat: 'Career fit',
+        stem: 'Why this role and this company specifically?',
+        listenFor: 'Did you do your homework? Generic "I\'m excited about your mission" is poison. Reference specific products, posts, decisions.',
+      },
+    ];
+
+    const CATEGORIES = ['All', 'Leadership', 'Conflict', 'Failure', 'Initiative', 'Ambiguity', 'Career fit'];
+
+    /* ============================================================
+       STAR trigger phrases — used to detect coverage in transcript
+       ============================================================ */
+    const STAR_TRIGGERS = {
+      S: ['the situation', 'context', 'background', 'we were working on', 'at the time', 'this happened', 'i was working', 'last year', 'a few months ago', 'last quarter', 'when i was'],
+      T: ['my task', 'my job was', 'i was responsible', 'the goal was', 'i needed to', 'we needed to', 'the question was', 'we had to figure out'],
+      A: ['what i did', 'i decided', 'so i', 'my approach', 'first i', 'then i', 'i pushed for', 'i suggested', 'i pulled', 'i worked', 'i reached out', 'i scheduled'],
+      R: ['the result', 'in the end', 'ultimately', 'we shipped', 'we ended up', 'the outcome', 'looking back', 'what i learned', 'i learned', 'this taught me', 'we delivered'],
+    };
+
+    const FILLERS = ['um', 'uh', 'er', 'ah', 'like', 'so', 'you know', 'i mean', 'actually', 'basically', 'literally', 'right', 'kind of', 'kinda', 'sort of', 'sorta'];
+
+    /* ============================================================
+       State + persistence
+       ============================================================ */
+    const LOG_KEY = 'intdrill_log_v1';
+    const NOTES_KEY = 'intdrill_notes_v1';
+    let state = {
+      view: 'landing',
+      activeCat: 'All',
+      questionId: null,
+      recording: false,
+      micStream: null,
+      recognition: null,
+      finalTranscript: '',
+      interimTranscript: '',
+      startTime: 0,
+      timerInterval: null,
+      latestMetrics: null,
+      log: {},
+      notes: {},
+    };
+    function loadAll() {
+      try { state.log = JSON.parse(localStorage.getItem(LOG_KEY) || '{}'); } catch (e) {}
+      try { state.notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch (e) {}
+    }
+    function saveLog() {
+      try { localStorage.setItem(LOG_KEY, JSON.stringify(state.log)); } catch (e) {}
+    }
+    function saveNotes() {
+      try { localStorage.setItem(NOTES_KEY, JSON.stringify(state.notes)); } catch (e) {}
+    }
+
+    /* ============================================================
+       Routing
+       ============================================================ */
+    function showView(name) {
+      state.view = name;
+      document.querySelectorAll('.view').forEach(v => {
+        v.classList.toggle('active', v.dataset.view === name);
+      });
+      const crumb = document.getElementById('crumb-extra');
+      if (name === 'landing') crumb.textContent = '';
+      else if (name === 'drill') {
+        const q = QUESTIONS.find(q => q.id === state.questionId);
+        crumb.textContent = ' · ' + (q ? q.cat : '');
+      } else if (name === 'report') crumb.textContent = ' · Report';
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    function goHome() {
+      stopRecording();
+      state.questionId = null;
+      renderLanding();
+      showView('landing');
+    }
+
+    /* ============================================================
+       Landing render
+       ============================================================ */
+    function renderLanding() {
+      const nav = document.getElementById('cat-nav');
+      nav.innerHTML = CATEGORIES.map(c => `
+        <button class="${c === state.activeCat ? 'active' : ''}" data-cat="${c}">${c}</button>
+      `).join('');
+      nav.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', () => {
+          state.activeCat = b.dataset.cat;
+          renderLanding();
+        });
+      });
+
+      const list = document.getElementById('q-list');
+      const filtered = state.activeCat === 'All' ? QUESTIONS : QUESTIONS.filter(q => q.cat === state.activeCat);
+      list.innerHTML = filtered.map((q, i) => {
+        const log = (state.log[q.id] || []);
+        const latest = log[log.length - 1];
+        const lastMeta = latest
+          ? `<b>${formatTime(latest.durationSec)}</b><br />${latest.fillers} filler${latest.fillers === 1 ? '' : 's'}`
+          : '<span style="color:var(--slate-300)">—</span>';
+        const idx = QUESTIONS.findIndex(qq => qq.id === q.id) + 1;
+        return `
+          <button class="q-row" data-q="${q.id}">
+            <div class="num">${idx}</div>
+            <div class="body">
+              <span class="cat-pill">${q.cat}</span>
+              <div class="stem">${q.stem}</div>
+            </div>
+            <div class="last">${lastMeta}</div>
+          </button>`;
+      }).join('');
+      list.querySelectorAll('.q-row').forEach(row => {
+        row.addEventListener('click', () => openQuestion(row.dataset.q));
+      });
+
+      const warn = document.getElementById('browser-warn');
+      const supportSR = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+      const supportMic = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      if (!supportSR || !supportMic) {
+        warn.style.display = 'block';
+        warn.textContent = !supportSR && !supportMic
+          ? 'Microphone + speech recognition aren\'t available in this browser. Try Chrome, Safari, or Edge.'
+          : !supportSR
+          ? 'Speech recognition isn\'t available — transcript + filler/STAR detection will be disabled. Pace still works.'
+          : 'Microphone access isn\'t available in this browser.';
+      }
+    }
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    /* ============================================================
+       Open question
+       ============================================================ */
+    function openQuestion(id) {
+      const q = QUESTIONS.find(q => q.id === id);
+      if (!q) return;
+      state.questionId = id;
+      state.finalTranscript = '';
+      state.interimTranscript = '';
+      document.getElementById('drill-cat').textContent = q.cat;
+      document.getElementById('drill-stem').textContent = q.stem;
+      document.getElementById('drill-listen').textContent = q.listenFor;
+
+      // Restore notes
+      const notes = state.notes[id] || { S: '', T: '', A: '', R: '' };
+      ['S', 'T', 'A', 'R'].forEach(k => {
+        document.getElementById('star-' + k.toLowerCase()).value = notes[k];
+      });
+
+      resetDrillUI();
+      showView('drill');
+    }
+
+    function resetDrillUI() {
+      document.getElementById('drill-timer').textContent = '0:00';
+      document.getElementById('drill-status').textContent = "Tap the mic when you're ready. Aim for 90–120 seconds per answer.";
+      document.getElementById('mic-btn').classList.remove('recording');
+      document.getElementById('drill-transcript').innerHTML = '';
+      document.getElementById('finish-btn').disabled = true;
+      state.finalTranscript = '';
+      state.interimTranscript = '';
+    }
+
+    function speakQuestion() {
+      const q = QUESTIONS.find(q => q.id === state.questionId);
+      if (!q) return;
+      if (!('speechSynthesis' in window)) {
+        document.getElementById('drill-status').textContent = 'Speech synthesis not supported in this browser.';
+        return;
+      }
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+      const u = new SpeechSynthesisUtterance(q.stem);
+      u.lang = 'en-US';
+      u.rate = 0.95;
+      u.pitch = 1.0;
+      window.speechSynthesis.speak(u);
+    }
+
+    /* ============================================================
+       Recording
+       ============================================================ */
+    async function startRecording() {
+      if (state.recording) return;
+      try {
+        state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        document.getElementById('drill-status').textContent = 'Mic permission denied — allow access in your browser, then try again.';
+        return;
+      }
+      startRecognition();
+      state.recording = true;
+      state.startTime = Date.now();
+      state.timerInterval = setInterval(updateTimer, 200);
+      document.getElementById('mic-btn').classList.add('recording');
+      document.getElementById('drill-status').textContent = 'Recording — tap mic to stop.';
+      document.getElementById('finish-btn').disabled = false;
+    }
+    function stopRecording() {
+      if (!state.recording) return;
+      state.recording = false;
+      if (state.recognition) {
+        try { state.recognition.stop(); } catch (e) {}
+        state.recognition = null;
+      }
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+      if (state.micStream) {
+        state.micStream.getTracks().forEach(t => t.stop());
+        state.micStream = null;
+      }
+      document.getElementById('mic-btn').classList.remove('recording');
+      document.getElementById('drill-status').textContent = "Done — tap 'Get report' to see your run.";
+    }
+    function updateTimer() {
+      if (!state.recording) return;
+      const sec = Math.floor((Date.now() - state.startTime) / 1000);
+      document.getElementById('drill-timer').textContent = formatTime(sec);
+    }
+    function startRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.maxAlternatives = 1;
+      rec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) state.finalTranscript += r[0].transcript + ' ';
+          else interim += r[0].transcript;
+        }
+        state.interimTranscript = interim;
+        renderLiveTranscript();
+      };
+      rec.onerror = () => {};
+      rec.onend = () => {
+        if (state.recording) {
+          try { rec.start(); } catch (e) {}
+        }
+      };
+      try { rec.start(); } catch (e) {}
+      state.recognition = rec;
+    }
+    function renderLiveTranscript() {
+      const el = document.getElementById('drill-transcript');
+      const text = state.finalTranscript + state.interimTranscript;
+      el.innerHTML = highlightFillers(text);
+      el.scrollTop = el.scrollHeight;
+    }
+    function highlightFillers(text) {
+      if (!text) return '';
+      const escaped = text.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+      const sorted = [...FILLERS].sort((a, b) => b.length - a.length);
+      let out = escaped;
+      for (const f of sorted) {
+        const pattern = new RegExp(`\\b${f.replace(/\s/g, '\\s+')}\\b`, 'gi');
+        out = out.replace(pattern, m => `<span class="filler">${m}</span>`);
+      }
+      return out;
+    }
+    function countFillers(text) {
+      if (!text) return 0;
+      let count = 0;
+      const sorted = [...FILLERS].sort((a, b) => b.length - a.length);
+      let scratch = ' ' + text.toLowerCase() + ' ';
+      for (const f of sorted) {
+        const pattern = new RegExp(`\\b${f.replace(/\s/g, '\\s+')}\\b`, 'gi');
+        const matches = scratch.match(pattern);
+        if (matches) {
+          count += matches.length;
+          scratch = scratch.replace(pattern, ' '.repeat(f.length));
+        }
+      }
+      return count;
+    }
+
+    /* ============================================================
+       STAR detection
+       ============================================================ */
+    function detectStarCoverage(text) {
+      if (!text) return { S: false, T: false, A: false, R: false };
+      const lower = ' ' + text.toLowerCase() + ' ';
+      const out = {};
+      for (const sec of ['S', 'T', 'A', 'R']) {
+        out[sec] = STAR_TRIGGERS[sec].some(p => lower.includes(' ' + p + ' ') || lower.includes(' ' + p));
+      }
+      return out;
+    }
+
+    /* ============================================================
+       Finish + report
+       ============================================================ */
+    function finishAttempt() {
+      stopRecording();
+      const text = state.finalTranscript.trim();
+      const elapsed = Math.max(1, Math.floor((Date.now() - state.startTime) / 1000));
+      const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
+      const wpm = Math.round((wordCount / elapsed) * 60);
+      const fillers = countFillers(text);
+      const fillerPer100 = wordCount ? Math.round((fillers / wordCount) * 100) : 0;
+      const starCoverage = detectStarCoverage(text);
+
+      const metrics = {
+        wpm, fillers, fillerPer100, words: wordCount, durationSec: elapsed,
+        starCoverage, transcript: text, when: Date.now(),
+      };
+      state.latestMetrics = metrics;
+      if (!state.log[state.questionId]) state.log[state.questionId] = [];
+      state.log[state.questionId].push(metrics);
+      if (state.log[state.questionId].length > 20) {
+        state.log[state.questionId] = state.log[state.questionId].slice(-20);
+      }
+      saveLog();
+      renderReport();
+      showView('report');
+    }
+
+    function renderReport() {
+      const m = state.latestMetrics;
+      const q = QUESTIONS.find(q => q.id === state.questionId);
+      document.getElementById('report-stem').textContent = q.stem;
+      document.getElementById('report-cat').textContent = q.cat;
+
+      // Verdicts
+      const verLen = m.durationSec < 30 ? ['Too short', 'bad']
+        : m.durationSec < 60 ? ['Brief', 'warn']
+        : m.durationSec < 150 ? ['On target', 'good']
+        : m.durationSec < 210 ? ['Long', 'warn']
+        : ['Way too long', 'bad'];
+      const verPace = m.wpm < 110 ? ['Slow', 'warn']
+        : m.wpm < 175 ? ['Engaging', 'good']
+        : m.wpm < 200 ? ['Fast', 'warn']
+        : ['Rushed', 'bad'];
+      const verFiller = m.fillerPer100 < 2 ? ['Crisp', 'good']
+        : m.fillerPer100 < 5 ? ['Some', 'warn']
+        : ['Heavy', 'bad'];
+      const starHits = ['S','T','A','R'].filter(k => m.starCoverage[k]).length;
+      const verStar = starHits === 4 ? ['Full STAR', 'good']
+        : starHits === 3 ? ['Mostly there', 'warn']
+        : starHits === 2 ? ['Half', 'bad']
+        : ['Missing structure', 'bad'];
+
+      const cards = [
+        { label: 'Length', value: formatTime(m.durationSec), unit: '', verdict: verLen },
+        { label: 'Pace', value: m.wpm, unit: 'wpm', verdict: verPace },
+        { label: 'Filler density', value: m.fillerPer100, unit: '/100 words', verdict: verFiller },
+        { label: 'STAR sections', value: `${starHits}/4`, unit: '', verdict: verStar },
+      ];
+      document.getElementById('report-scores').innerHTML = cards.map(c => `
+        <div class="score-card">
+          <div class="label">${c.label}</div>
+          <div class="value">${c.value}<span class="small">${c.unit ? ' ' + c.unit : ''}</span></div>
+          <div class="verdict ${c.verdict[1]}">${c.verdict[0]}</div>
+        </div>`).join('');
+
+      // STAR bars
+      const starNames = { S: 'Situation', T: 'Task', A: 'Action', R: 'Result' };
+      document.getElementById('star-bars').innerHTML = ['S','T','A','R'].map(k => {
+        const found = m.starCoverage[k];
+        return `
+          <div class="star-bar ${found ? 'found' : 'missing'}">
+            <div class="letter">${k}</div>
+            <div class="name">${starNames[k]}</div>
+            <div class="verdict">${found ? 'Found ✓' : 'Missing'}</div>
+          </div>`;
+      }).join('');
+
+      // Coach notes
+      const notes = computeAdvice(m, q);
+      const notesEl = document.getElementById('coach-notes');
+      notesEl.innerHTML = notes.length === 0
+        ? '<li>Strong run on every metric. Try a harder question or have a friend ask you the follow-up "Why did you choose that approach?"</li>'
+        : notes.map(n => `<li>${n}</li>`).join('');
+
+      // Transcript
+      const meta = `${m.words} words · ${m.fillers} filler${m.fillers === 1 ? '' : 's'} · ${formatTime(m.durationSec)}`;
+      document.getElementById('transcript-meta').textContent = meta;
+      const tEl = document.getElementById('transcript-text');
+      if (!m.transcript) {
+        tEl.innerHTML = '<span class="transcript-empty">No transcript captured. Speech recognition may be disabled in this browser.</span>';
+      } else {
+        tEl.innerHTML = highlightFillers(m.transcript);
+      }
+    }
+
+    function computeAdvice(m, q) {
+      const out = [];
+      if (m.durationSec < 30) {
+        out.push('Your answer was very short. Behavioral answers need a setup, an action, and a result — that\'s 60–120 seconds minimum. Use the STAR scaffold to expand.');
+      } else if (m.durationSec > 180) {
+        out.push(`Answer ran ${formatTime(m.durationSec)} — long. Interviewers cap at ~2 minutes mentally. Cut the situation/task setup; jump faster to your actions.`);
+      }
+      if (!m.starCoverage.A) {
+        out.push('We didn\'t detect Action language ("I decided…", "I pushed…", "I worked…"). Make sure you\'re talking about your specific actions, not "we" did things.');
+      }
+      if (!m.starCoverage.R) {
+        out.push('We didn\'t detect a Result. End with the outcome — what happened, what you learned, what changed. Specificity wins ("we cut load time by 30%" beats "it went well").');
+      }
+      if (!m.starCoverage.S) {
+        out.push('Set the scene first. "Last quarter I was on the X team working on Y" gives the interviewer a place to anchor.');
+      }
+      if (m.fillerPer100 >= 5) {
+        out.push(`Filler density was ${m.fillerPer100}/100 words — distractingly high in an interview. Pick your one most-used filler and target only that next attempt.`);
+      }
+      if (m.wpm > 200) {
+        out.push(`At ${m.wpm} wpm you\'re sprinting. Interviewers form their judgment partly on composure. Aim for ~145 wpm with intentional pauses.`);
+      }
+      if (q.cat === 'Failure' && !m.starCoverage.R) {
+        out.push('Failure questions are about Result — specifically, what you learned. Don\'t end mid-action.');
+      }
+      if (q.cat === 'Leadership' && !/\bi (decided|chose|pushed|owned|aligned|set)\b/i.test(m.transcript)) {
+        out.push('Leadership answers want decision verbs: "I decided", "I owned", "I aligned the team on…". Listen back for whether you used them.');
+      }
+      if (!m.transcript) {
+        out.push('Speech recognition appears disabled — switch to Chrome, Safari, or Edge to get filler + STAR coverage feedback.');
+      }
+      return out;
+    }
+
+    /* ============================================================
+       Wiring
+       ============================================================ */
+    function wireGlobal() {
+      document.body.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        if (action === 'home') goHome();
+        else if (action === 'finish') finishAttempt();
+        else if (action === 'restart') {
+          stopRecording();
+          resetDrillUI();
+        }
+        else if (action === 'retry') openQuestion(state.questionId);
+        else if (action === 'speak-question') speakQuestion();
+        else if (action === 'toggle-star') {
+          const card = document.getElementById('star-card');
+          const collapsed = card.classList.toggle('collapsed');
+          document.getElementById('toggle-star-btn').textContent = collapsed ? 'Show notes' : 'Hide notes';
+        }
+      });
+      document.getElementById('mic-btn').addEventListener('click', () => {
+        if (state.recording) stopRecording();
+        else startRecording();
+      });
+
+      // STAR notes save on input
+      ['s','t','a','r'].forEach(k => {
+        const ta = document.getElementById('star-' + k);
+        if (!ta) return;
+        ta.addEventListener('input', () => {
+          if (!state.questionId) return;
+          if (!state.notes[state.questionId]) state.notes[state.questionId] = { S:'', T:'', A:'', R:'' };
+          state.notes[state.questionId][k.toUpperCase()] = ta.value;
+          // Debounce save
+          clearTimeout(state._notesTimer);
+          state._notesTimer = setTimeout(saveNotes, 500);
+        });
+      });
+    }
+
+    /* ============================================================
+       Boot
+       ============================================================ */
+    loadAll();
+    renderLanding();
+    wireGlobal();
+  })();
+  </script>
+</body>
+</html>

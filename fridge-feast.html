@@ -779,6 +779,74 @@
       color: var(--terra-700);
     }
     .missing-box strong { color: var(--terra-700); }
+    .missing-box .shop-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .missing-box .shop-actions button {
+      background: var(--terra-500);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .missing-box .shop-actions button:hover { background: var(--terra-600); }
+    .missing-box .shop-actions button.secondary {
+      background: transparent;
+      color: var(--terra-700);
+      border: 1.5px solid var(--terra-500);
+    }
+    .missing-box .shop-actions button.secondary:hover {
+      background: var(--terra-500);
+      color: #fff;
+    }
+    .missing-box .copied-toast {
+      display: inline-block;
+      color: var(--sage-600);
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    /* v2: Dietary filter chips */
+    .dietary-block {
+      grid-column: 1 / -1;
+    }
+    .diet-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .diet-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--cream-100);
+      border: 1.5px solid var(--cream-300);
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--ink-700);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .diet-chip:hover { border-color: var(--sage-500); }
+    .diet-chip input { margin: 0; cursor: pointer; }
+    .diet-chip input:checked + span {
+      color: var(--sage-700);
+      font-weight: 700;
+    }
+    .diet-chip:has(input:checked) {
+      background: var(--sage-200);
+      border-color: var(--sage-500);
+    }
 
     .no-match {
       text-align: center;
@@ -983,6 +1051,16 @@
             <span class="servings-label">portions</span>
           </div>
         </div>
+        <div class="pref-block dietary-block">
+          <h3>Dietary filters <span class="opt-label" style="font-size:11px; color:var(--ink-400);">(optional)</span></h3>
+          <div class="diet-row" id="dietaryRow">
+            <label class="diet-chip"><input type="checkbox" data-diet="vegetarian"> <span>🌱 Vegetarian</span></label>
+            <label class="diet-chip"><input type="checkbox" data-diet="vegan"> <span>🌿 Vegan</span></label>
+            <label class="diet-chip"><input type="checkbox" data-diet="glutenFree"> <span>🌾 Gluten-free</span></label>
+            <label class="diet-chip"><input type="checkbox" data-diet="dairyFree"> <span>🥛 Dairy-free</span></label>
+            <label class="diet-chip"><input type="checkbox" data-diet="nutFree"> <span>🥜 Nut-free</span></label>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1048,6 +1126,14 @@
         useWebSearch: false,
       },
       generating: false,
+      // v2: dietary filters
+      dietary: {
+        vegetarian: false,
+        vegan: false,
+        glutenFree: false,
+        dairyFree: false,
+        nutFree: false,
+      },
     };
 
     const $ = (id) => document.getElementById(id);
@@ -2357,8 +2443,47 @@
       };
     }
 
+    // ============================================================
+    // v2: Dietary classification
+    // ============================================================
+    const DIETARY_KEYWORDS = {
+      meat: ['chicken', 'beef', 'pork', 'bacon', 'ham', 'sausage', 'turkey', 'lamb', 'prosciutto', 'pepperoni', 'salami', 'chorizo', 'pancetta', 'duck', 'venison'],
+      fish: ['salmon', 'tuna', 'shrimp', 'cod', 'tilapia', 'anchovy', 'sardine', 'fish', 'crab', 'lobster', 'scallop', 'clam', 'mussel', 'oyster', 'squid', 'octopus'],
+      dairy: ['milk', 'butter', 'cheese', 'cream', 'yogurt', 'parmesan', 'mozzarella', 'cheddar', 'ricotta', 'feta', 'gruyere', 'brie', 'goat cheese', 'sour cream', 'half and half', 'cream cheese', 'cottage cheese', 'mascarpone'],
+      eggs: ['egg', 'eggs'],
+      gluten: ['pasta', 'spaghetti', 'penne', 'linguine', 'fettuccine', 'noodle', 'bread', 'flour', 'tortilla', 'couscous', 'breadcrumb', 'panko', 'wheat', 'barley', 'rye', 'pita', 'naan', 'bagel', 'baguette', 'cracker', 'pretzel', 'soy sauce'],
+      nuts: ['almond', 'peanut', 'cashew', 'walnut', 'pecan', 'pine nut', 'hazelnut', 'macadamia', 'pistachio'],
+    };
+    function matchesAny(ingKey, keywords) {
+      const k = ingKey.toLowerCase();
+      return keywords.some(w => k.includes(w));
+    }
+    function recipeDietaryProfile(recipe) {
+      const keys = recipe.ingredients.filter(i => i.required).map(i => i.key.toLowerCase());
+      const hasMeat   = keys.some(k => matchesAny(k, DIETARY_KEYWORDS.meat));
+      const hasFish   = keys.some(k => matchesAny(k, DIETARY_KEYWORDS.fish));
+      const hasDairy  = keys.some(k => matchesAny(k, DIETARY_KEYWORDS.dairy));
+      const hasEggs   = keys.some(k => matchesAny(k, DIETARY_KEYWORDS.eggs));
+      const hasGluten = keys.some(k => matchesAny(k, DIETARY_KEYWORDS.gluten));
+      const hasNuts   = keys.some(k => matchesAny(k, DIETARY_KEYWORDS.nuts));
+      return {
+        vegetarian: !hasMeat && !hasFish,
+        vegan:      !hasMeat && !hasFish && !hasDairy && !hasEggs,
+        glutenFree: !hasGluten,
+        dairyFree:  !hasDairy,
+        nutFree:    !hasNuts,
+      };
+    }
+    function recipePassesDietary(recipe) {
+      const active = Object.keys(state.dietary).filter(k => state.dietary[k]);
+      if (active.length === 0) return true;
+      const profile = recipeDietaryProfile(recipe);
+      return active.every(k => profile[k]);
+    }
+
     function rankRecipes() {
       return RECIPES
+        .filter(recipePassesDietary)
         .map(r => ({ recipe: r, ...scoreRecipe(r) }))
         .sort((a, b) => b.score - a.score);
     }
@@ -2627,6 +2752,11 @@
         <div class="missing-box">
           <strong>You'll need to grab:</strong>
           ${missing.map(m => KEY_TO_ING[m.key]?.label || m.key).join(', ')}.
+          <div class="shop-actions">
+            <button type="button" data-shop-action="copy">📋 Copy shopping list</button>
+            <button type="button" class="secondary" data-shop-action="download">⬇️ Download .txt</button>
+            <span class="copied-toast" id="copiedToast" style="display:none;">✓ Copied!</span>
+          </div>
         </div>
       ` : '';
 
@@ -2665,7 +2795,51 @@
         });
       });
 
+      // v2: wire shopping list export buttons
+      DOM.recipeContent.querySelectorAll('[data-shop-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const list = buildShoppingList(recipe, missing, scale);
+          if (btn.dataset.shopAction === 'copy') {
+            navigator.clipboard.writeText(list).then(() => {
+              const toast = document.getElementById('copiedToast');
+              if (toast) {
+                toast.style.display = 'inline-block';
+                setTimeout(() => { toast.style.display = 'none'; }, 2000);
+              }
+            }).catch(() => alert('Copy failed — your browser may block clipboard access on file:// URLs.'));
+          } else if (btn.dataset.shopAction === 'download') {
+            const blob = new Blob([list], { type: 'text/plain;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `shopping-list-${recipe.id || 'recipe'}.txt`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        });
+      });
+
       DOM.recipeCard.classList.add('visible');
+    }
+
+    // v2: shopping list builder
+    function buildShoppingList(recipe, missing, scale) {
+      const header = `Shopping list for: ${recipe.name}\nServes: ${Math.round(recipe.servings * scale)}\nGenerated by Fridge Feast on ${new Date().toLocaleDateString()}\n\n`;
+      const lines = missing.map(ing => {
+        const scaled = scaleIngredient(ing, scale);
+        const name = KEY_TO_ING[ing.key]?.label || ing.key;
+        return `  [ ] ${formatQty(scaled.scaledQty, ing.unit)} ${name}`;
+      });
+      const opt = recipe.ingredients.filter(i => !i.required && !findUserIngredient(i.key));
+      let footer = '';
+      if (opt.length) {
+        footer = '\n\nOptional (recipe is fine without):\n' + opt.map(ing => {
+          const scaled = scaleIngredient(ing, scale);
+          const name = KEY_TO_ING[ing.key]?.label || ing.key;
+          return `  [ ] ${formatQty(scaled.scaledQty, ing.unit)} ${name}`;
+        }).join('\n');
+      }
+      return header + 'Need to buy:\n' + lines.join('\n') + footer + '\n';
     }
 
     function renderNoMatch(ranked) {
@@ -3183,8 +3357,47 @@ Each ingredient object:
       saveSettings();
     });
 
+    // v2: dietary checkboxes
+    function loadDietary() {
+      try {
+        const raw = localStorage.getItem('fridgefeast_dietary');
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        Object.keys(state.dietary).forEach(k => {
+          if (k in data) state.dietary[k] = !!data[k];
+        });
+      } catch {}
+    }
+    function saveDietary() {
+      try { localStorage.setItem('fridgefeast_dietary', JSON.stringify(state.dietary)); } catch {}
+    }
+    function wireDietary() {
+      document.querySelectorAll('[data-diet]').forEach(input => {
+        const key = input.dataset.diet;
+        input.checked = !!state.dietary[key];
+        input.addEventListener('change', () => {
+          state.dietary[key] = input.checked;
+          // Mutual exclusion: vegan implies vegetarian
+          if (key === 'vegan' && input.checked) {
+            state.dietary.vegetarian = true;
+            const vegBox = document.querySelector('[data-diet="vegetarian"]');
+            if (vegBox) vegBox.checked = true;
+          }
+          // Unchecking vegetarian also unchecks vegan
+          if (key === 'vegetarian' && !input.checked) {
+            state.dietary.vegan = false;
+            const veganBox = document.querySelector('[data-diet="vegan"]');
+            if (veganBox) veganBox.checked = false;
+          }
+          saveDietary();
+          updateGenerateButton();
+        });
+      });
+    }
+
     // INIT
     loadSettings();
+    loadDietary();
     DOM.aiToggle.checked = state.settings.useAi;
     DOM.webToggle.checked = state.settings.useWebSearch;
     DOM.apiKey.value = state.settings.apiKey;
@@ -3192,6 +3405,7 @@ Each ingredient object:
     renderChips();
     renderCuisines();
     renderServings();
+    wireDietary();
     updateGenerateButton();
     updateGenerateLabel();
   })();

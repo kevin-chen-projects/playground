@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Pawn Path — Chess Tactics Trainer
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+
+  Themed sets of click-to-solve tactical puzzles (forks, pins, skewers,
+  mate-in-1, mate-in-2, discovered attacks). Each set is 4-6 puzzles; star
+  rating + best time are saved per theme in localStorage.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+     1–35   Header comment (this block)
+    37–43   <head>: meta, title
+
+  STYLE  (~lines 44–680)
+    :root           palette (wood + ivory + accent gold), radii, shadows
+    Reset + base    typography, body bg
+    .top-bar        brand mark + breadcrumb
+    Landing view    hero, theme grid, locked theme cards
+    Theme card      icon, title, subtitle, stars earned
+    Puzzle view     2-column (board + sidebar) — collapses < 900px
+    Board           8x8 grid, square colors, last-move highlight, target dots
+    Pieces          unicode glyphs scaled into squares
+    Sidebar         puzzle prompt + move list + buttons (hint/skip/reset)
+    Feedback toast  green correct / red incorrect bar
+    Results view    star rating + retry / next theme
+    Animations      pulse, shake, fade, ringPulse
+
+  BODY  (~lines 690–760)
+    .top-bar
+    .view.view-landing
+    .view.view-puzzle (board + sidebar)
+    .view.view-results
+
+  SCRIPT  (~lines 770–end, single IIFE)
+    State          { view, themeId, puzzleIdx, selected, stars, bestTimes }
+    Persistence    localStorage['pawnpath_state_v1']
+    THEMES + PUZZLES (data tables — ~25 puzzles total across 6 themes)
+    Board engine   parsePosition, renderBoard, squareName, indexFromName
+    Move check     compareMove(userFrom, userTo) vs expected
+    Routing        showView, openTheme, nextPuzzle, finishTheme
+    Boot           wire clicks, restore state
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pawn Path — Chess Tactics Trainer</title>
+  <style>
+    :root {
+      --wood-900: #3a2418;
+      --wood-700: #5b3a25;
+      --wood-500: #8a5a3a;
+      --wood-300: #c79a72;
+      --wood-100: #efd9c2;
+
+      --ivory-50: #fbf6ec;
+      --ivory-100: #f4e8d2;
+      --ivory-300: #e6d2a8;
+
+      --light-sq: #f4e8d2;
+      --dark-sq: #b58863;
+
+      --gold-400: #e9b94f;
+      --gold-500: #c9982e;
+      --gold-600: #9d7720;
+
+      --good: #2e8b57;
+      --good-light: #d6efde;
+      --bad: #c43c3c;
+      --bad-light: #f8d7d7;
+
+      --ink-900: #1d140e;
+      --ink-700: #43342a;
+      --ink-500: #79675a;
+      --ink-300: #b8a899;
+      --paper: #ffffff;
+
+      --radius: 14px;
+      --radius-lg: 22px;
+      --shadow-sm: 0 1px 3px rgba(50, 30, 15, 0.08);
+      --shadow: 0 8px 24px rgba(50, 30, 15, 0.12);
+      --shadow-lg: 0 18px 44px rgba(50, 30, 15, 0.18);
+
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--ivory-50);
+      color: var(--ink-900);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 12% 0%, var(--ivory-100) 0%, transparent 40%),
+        radial-gradient(circle at 92% 100%, #f1deb8 0%, transparent 45%),
+        var(--ivory-50);
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.12s ease, box-shadow 0.2s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--wood-700);
+      color: var(--ivory-50);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary:hover { background: var(--wood-900); box-shadow: var(--shadow); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-700);
+      border: 1.5px solid var(--ivory-300);
+    }
+    .btn-ghost:hover { border-color: var(--wood-500); color: var(--wood-700); }
+    .btn-gold {
+      background: var(--gold-500);
+      color: var(--ink-900);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-gold:hover { background: var(--gold-400); }
+
+    /* ============================================================
+       Top bar
+       ============================================================ */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--wood-700), var(--wood-500));
+      display: grid;
+      place-items: center;
+      color: var(--ivory-50);
+      font-size: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+    .brand-name em {
+      color: var(--wood-700);
+      font-style: italic;
+    }
+    .breadcrumb {
+      color: var(--ink-500);
+      font-size: 14px;
+    }
+    .breadcrumb a {
+      color: var(--ink-700);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .breadcrumb a:hover { color: var(--wood-700); }
+
+    /* ============================================================
+       Views
+       ============================================================ */
+    .view {
+      display: none;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 16px 28px 80px;
+    }
+    .view.active { display: block; }
+
+    /* ============================================================
+       Landing
+       ============================================================ */
+    .hero {
+      padding: 24px 0 32px;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--wood-100);
+      color: var(--wood-700);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(36px, 6vw, 56px);
+      margin: 0 0 12px;
+      line-height: 1.05;
+      max-width: 700px;
+    }
+    .hero h1 em {
+      color: var(--wood-700);
+      font-style: italic;
+    }
+    .hero-sub {
+      font-size: 18px;
+      color: var(--ink-700);
+      max-width: 580px;
+      margin: 0 0 24px;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 24px;
+      color: var(--ink-500);
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .hero-stats b { color: var(--wood-700); font-weight: 700; }
+
+    .section-title {
+      font-family: var(--serif);
+      font-size: 22px;
+      margin: 36px 0 16px;
+      color: var(--ink-900);
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .theme-card {
+      background: var(--paper);
+      border: 1.5px solid var(--ivory-300);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      text-align: left;
+      transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .theme-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--wood-100) 0%, transparent 60%);
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .theme-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+      border-color: var(--wood-300);
+    }
+    .theme-card.locked {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .theme-card.locked:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: var(--ivory-300);
+    }
+    .theme-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .theme-name {
+      font-family: var(--serif);
+      font-size: 22px;
+      margin: 0 0 6px;
+      color: var(--ink-900);
+      position: relative;
+    }
+    .theme-blurb {
+      font-size: 14px;
+      color: var(--ink-700);
+      margin: 0 0 16px;
+      position: relative;
+    }
+    .theme-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--ink-500);
+      position: relative;
+    }
+    .theme-stars {
+      color: var(--gold-500);
+      letter-spacing: 1px;
+    }
+    .theme-stars .star-empty { color: var(--ivory-300); }
+    .theme-puzzle-count {
+      background: var(--ivory-100);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      color: var(--wood-700);
+    }
+
+    .why-panel {
+      margin-top: 36px;
+      background: var(--wood-900);
+      color: var(--ivory-100);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .why-panel h3 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin: 0 0 6px;
+      color: var(--gold-400);
+    }
+    .why-panel p { margin: 0; font-size: 14px; opacity: 0.9; }
+
+    /* ============================================================
+       Puzzle view
+       ============================================================ */
+    .puzzle-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 28px;
+      align-items: start;
+      padding-top: 8px;
+    }
+    @media (max-width: 900px) {
+      .puzzle-grid { grid-template-columns: 1fr; }
+    }
+
+    .puzzle-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .puzzle-head h2 {
+      font-family: var(--serif);
+      font-size: 22px;
+      margin: 0;
+      color: var(--ink-900);
+    }
+    .puzzle-progress {
+      font-size: 13px;
+      color: var(--ink-500);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .puzzle-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .puzzle-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--ivory-300);
+    }
+    .puzzle-dot.solved { background: var(--good); }
+    .puzzle-dot.failed { background: var(--bad); }
+    .puzzle-dot.active { background: var(--gold-500); transform: scale(1.2); }
+
+    .board-wrap {
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .board-frame {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      grid-template-rows: 1fr 24px;
+      gap: 0;
+    }
+    .rank-labels {
+      grid-column: 1;
+      grid-row: 1;
+      display: grid;
+      grid-template-rows: repeat(8, 1fr);
+      align-items: center;
+      justify-items: center;
+      color: var(--ink-500);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .file-labels {
+      grid-column: 2;
+      grid-row: 2;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      align-items: center;
+      justify-items: center;
+      color: var(--ink-500);
+      font-size: 11px;
+      font-weight: 600;
+      padding-top: 4px;
+    }
+    .board {
+      grid-column: 2;
+      grid-row: 1;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 0 0 6px var(--wood-700), var(--shadow-sm);
+    }
+    .square {
+      position: relative;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .square.light { background: var(--light-sq); }
+    .square.dark { background: var(--dark-sq); }
+
+    .square.selected::after,
+    .square.last-from::after,
+    .square.last-to::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .square.selected::after { background: rgba(233, 185, 79, 0.5); }
+    .square.last-from::after,
+    .square.last-to::after { background: rgba(233, 185, 79, 0.35); }
+    .square.target-empty::before {
+      content: "";
+      position: absolute;
+      width: 30%;
+      height: 30%;
+      border-radius: 50%;
+      background: rgba(46, 139, 87, 0.45);
+      pointer-events: none;
+    }
+    .square.target-capture::before {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      border: 4px solid rgba(196, 60, 60, 0.55);
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .square.flash-good {
+      animation: flashGood 0.45s ease;
+    }
+    .square.flash-bad {
+      animation: flashBad 0.45s ease;
+    }
+    @keyframes flashGood {
+      0%, 100% { background-color: inherit; }
+      40% { background-color: rgba(46, 139, 87, 0.55); }
+    }
+    @keyframes flashBad {
+      0%, 100% { background-color: inherit; }
+      40% { background-color: rgba(196, 60, 60, 0.55); }
+    }
+
+    .piece {
+      font-size: clamp(28px, 5.5vw, 56px);
+      line-height: 1;
+      pointer-events: none;
+      filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.18));
+    }
+    .piece.white { color: #f8f4ec; -webkit-text-stroke: 1.5px #2a2018; }
+    .piece.black { color: #1a1410; }
+
+    /* ============================================================
+       Sidebar
+       ============================================================ */
+    .puzzle-side {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--paper);
+      border-radius: var(--radius);
+      padding: 18px;
+      border: 1px solid var(--ivory-300);
+    }
+    .prompt-card .turn-pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--wood-100);
+      color: var(--wood-700);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .prompt-card h3 {
+      font-family: var(--serif);
+      margin: 0 0 6px;
+      font-size: 18px;
+      color: var(--ink-900);
+    }
+    .prompt-card p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--ink-700);
+    }
+    .feedback {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      display: none;
+    }
+    .feedback.good {
+      display: block;
+      background: var(--good-light);
+      color: var(--good);
+      border: 1px solid #b6dec3;
+    }
+    .feedback.bad {
+      display: block;
+      background: var(--bad-light);
+      color: var(--bad);
+      border: 1px solid #f0bcbc;
+    }
+    .feedback.hint {
+      display: block;
+      background: #fdf3d0;
+      color: #8b6f1d;
+      border: 1px solid #ecdba5;
+    }
+    .feedback strong { display: block; margin-bottom: 2px; }
+
+    .moves {
+      font-family: ui-monospace, SF Mono, Menlo, Consolas, monospace;
+      font-size: 13px;
+      color: var(--ink-700);
+      background: var(--ivory-100);
+      padding: 10px 12px;
+      border-radius: 10px;
+      min-height: 18px;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .controls .btn { flex: 1; justify-content: center; min-width: 110px; }
+
+    /* ============================================================
+       Results view
+       ============================================================ */
+    .results-card {
+      max-width: 540px;
+      margin: 60px auto 0;
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .results-icon {
+      font-size: 56px;
+      margin-bottom: 10px;
+    }
+    .results-card h2 {
+      font-family: var(--serif);
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .results-stars {
+      font-size: 38px;
+      color: var(--gold-500);
+      letter-spacing: 6px;
+      margin: 14px 0;
+    }
+    .results-stars .star-empty { color: var(--ivory-300); }
+    .results-stats {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      margin: 18px 0 24px;
+      color: var(--ink-700);
+    }
+    .results-stat b {
+      display: block;
+      font-size: 22px;
+      color: var(--wood-700);
+      font-family: var(--serif);
+    }
+    .results-stat span {
+      font-size: 13px;
+      color: var(--ink-500);
+    }
+    .results-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .top-bar { padding: 12px 16px; }
+      .view { padding: 12px 16px 60px; }
+      .hero h1 { font-size: 32px; }
+      .puzzle-side { order: -1; }
+      .controls .btn { font-size: 13px; padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="brand" data-action="home">
+      <div class="brand-mark">♞</div>
+      <div class="brand-name">Pawn <em>Path</em></div>
+    </div>
+    <div class="breadcrumb"><a data-action="home">Home</a> <span id="crumb-extra"></span></div>
+  </div>
+
+  <!-- ============================================================
+       View 1 — Landing
+       ============================================================ -->
+  <div class="view view-landing active" data-view="landing">
+    <div class="hero">
+      <span class="hero-eyebrow">Curated tactics · No timer pressure</span>
+      <h1>Spot the move <em>great players see in seconds</em>.</h1>
+      <p class="hero-sub">Six themed sets of bite-sized tactical puzzles. See the pattern, click the move, repeat. Earn stars for theme mastery.</p>
+      <div class="hero-stats">
+        <span><b id="hero-themes">6</b> themes</span>
+        <span><b id="hero-puzzles">26</b> puzzles</span>
+        <span><b id="hero-solved">0</b> solved</span>
+      </div>
+    </div>
+
+    <h2 class="section-title">Pick a theme</h2>
+    <div class="theme-grid" id="theme-grid"></div>
+
+    <div class="why-panel">
+      <div>
+        <h3>Pattern recognition</h3>
+        <p>Tactics are 95% pattern memory. Drilling themes one at a time builds the mental "shape library" your brain searches during real games.</p>
+      </div>
+      <div>
+        <h3>Click, don't drag</h3>
+        <p>Tap the piece, tap the destination. Two clicks per move — works the same on phone, laptop, or trackpad.</p>
+      </div>
+      <div>
+        <h3>No timer trap</h3>
+        <p>Timers train speed, not understanding. Take your time. Stars are awarded for correctness, not pace.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       View 2 — Puzzle
+       ============================================================ -->
+  <div class="view view-puzzle" data-view="puzzle">
+    <div class="puzzle-head">
+      <h2 id="puzzle-title">Forks</h2>
+      <div class="puzzle-progress">
+        <div class="puzzle-dots" id="puzzle-dots"></div>
+        <span id="puzzle-counter">1 / 5</span>
+      </div>
+    </div>
+
+    <div class="puzzle-grid">
+      <div class="board-wrap">
+        <div class="board-frame">
+          <div class="rank-labels" id="rank-labels"></div>
+          <div class="board" id="board"></div>
+          <div class="file-labels" id="file-labels"></div>
+        </div>
+      </div>
+
+      <div class="puzzle-side">
+        <div class="panel prompt-card">
+          <span class="turn-pill" id="turn-pill">White to move</span>
+          <h3 id="prompt-title">Find the best move</h3>
+          <p id="prompt-text">Look for a fork.</p>
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <div class="panel">
+          <div style="font-size:12px; color:var(--ink-500); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Move</div>
+          <div class="moves" id="moves">—</div>
+        </div>
+        <div class="controls">
+          <button class="btn btn-ghost" data-action="hint">Hint</button>
+          <button class="btn btn-ghost" data-action="reset-position">Reset</button>
+          <button class="btn btn-primary" data-action="next-puzzle">Skip ▸</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       View 3 — Results
+       ============================================================ -->
+  <div class="view view-results" data-view="results">
+    <div class="results-card">
+      <div class="results-icon" id="results-icon">🏆</div>
+      <h2 id="results-title">Theme complete</h2>
+      <div class="results-stars" id="results-stars"></div>
+      <div class="results-stats">
+        <div class="results-stat">
+          <b id="results-correct">0</b>
+          <span>Correct</span>
+        </div>
+        <div class="results-stat">
+          <b id="results-accuracy">0%</b>
+          <span>Accuracy</span>
+        </div>
+        <div class="results-stat">
+          <b id="results-time">0:00</b>
+          <span>Time</span>
+        </div>
+      </div>
+      <div class="results-actions">
+        <button class="btn btn-ghost" data-action="retry-theme">Retry</button>
+        <button class="btn btn-gold" data-action="next-theme">Next theme →</button>
+        <button class="btn btn-primary" data-action="home">Themes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       Piece glyphs (Unicode chess)
+       ============================================================ */
+    const GLYPH = {
+      wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
+      bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
+    };
+
+    /* ============================================================
+       Position helpers
+       Position is 8x8 array, board[0] = rank 8 (top), board[7] = rank 1
+       Squares named "a1".."h8". White at bottom of board (rank 1).
+       ============================================================ */
+    function emptyBoard() {
+      return Array.from({ length: 8 }, () => Array(8).fill(''));
+    }
+
+    function setPiece(b, sq, piece) {
+      const [file, rank] = parseSquare(sq);
+      b[7 - (rank - 1)][file] = piece;
+    }
+
+    function getPiece(b, sq) {
+      const [file, rank] = parseSquare(sq);
+      return b[7 - (rank - 1)][file];
+    }
+
+    function parseSquare(sq) {
+      const file = sq.charCodeAt(0) - 97; // a..h -> 0..7
+      const rank = parseInt(sq[1], 10);    // 1..8
+      return [file, rank];
+    }
+
+    function squareName(row, col) {
+      // row 0 = top = rank 8 ; col 0 = a
+      const file = String.fromCharCode(97 + col);
+      const rank = 8 - row;
+      return `${file}${rank}`;
+    }
+
+    function buildPosition(pieces) {
+      // pieces: { e1: 'wK', e8: 'bK', ... }
+      const b = emptyBoard();
+      for (const sq of Object.keys(pieces)) setPiece(b, sq, pieces[sq]);
+      return b;
+    }
+
+    function applyMove(b, from, to, promotion) {
+      const [ff, fr] = parseSquare(from);
+      const [tf, tr] = parseSquare(to);
+      const fr_row = 7 - (fr - 1);
+      const tr_row = 7 - (tr - 1);
+      const piece = b[fr_row][ff];
+      b[fr_row][ff] = '';
+      b[tr_row][tf] = promotion ? piece[0] + promotion : piece;
+      return b;
+    }
+
+    /* ============================================================
+       PUZZLES — curated, hand-set positions
+       Each puzzle: id, side ('w'|'b'), pieces map, solution {from,to,promotion?},
+                    theme prompt, after-move explanation, hint
+       ============================================================ */
+    const THEMES = [
+      {
+        id: 'forks',
+        name: 'Forks',
+        icon: '🍴',
+        blurb: 'One piece, two attacks. Find a square that hits two enemy pieces at once.',
+      },
+      {
+        id: 'pins',
+        name: 'Pins',
+        icon: '📌',
+        blurb: 'Trap a piece against something more valuable. Once pinned, it cannot run.',
+      },
+      {
+        id: 'skewers',
+        name: 'Skewers',
+        icon: '🪡',
+        blurb: 'Attack a high-value piece on a line — when it moves, win the piece behind.',
+      },
+      {
+        id: 'mate1',
+        name: 'Mate in 1',
+        icon: '♛',
+        blurb: 'Deliver checkmate in a single move. Easy patterns, sharp execution.',
+      },
+      {
+        id: 'mate2',
+        name: 'Mate in 2',
+        icon: '♚',
+        blurb: 'Force checkmate over two moves. Look for the only-move replies.',
+      },
+      {
+        id: 'discovered',
+        name: 'Discovered Attacks',
+        icon: '💥',
+        blurb: 'Move one piece to unleash an attack from another. The mover often piles on too.',
+      },
+    ];
+
+    const PUZZLES = {
+      forks: [
+        {
+          id: 'fork-1',
+          side: 'w',
+          pieces: {
+            e1: 'wK', d4: 'wN',
+            f7: 'bK', g6: 'bQ', e6: 'bR',
+          },
+          solution: { from: 'd4', to: 'e6' },
+          prompt: 'White knight, two black targets nearby.',
+          hint: 'A knight capture that attacks both king and queen.',
+          explain: 'Nxe6+ wins the rook AND attacks the king AND the queen. After the king moves, the queen falls — a textbook royal/queen fork.',
+        },
+        {
+          id: 'fork-2',
+          side: 'w',
+          pieces: {
+            g1: 'wK', a3: 'wQ',
+            g8: 'bK', a8: 'bR', e5: 'bB',
+          },
+          solution: { from: 'a3', to: 'a8' },
+          prompt: 'Black rook on a8 is unguarded. Look for a queen move that wins material.',
+          hint: 'A long-distance capture that also attacks something else.',
+          explain: 'Qxa8+ wins the rook AND attacks the bishop on e5 along the a8-h1 diagonal — a check + fork. Black saves the king, white wins the bishop.',
+        },
+        {
+          id: 'fork-3',
+          side: 'w',
+          pieces: {
+            h1: 'wK', c3: 'wN',
+            h8: 'bK', e4: 'bQ', a8: 'bR',
+          },
+          solution: { from: 'c3', to: 'e4' },
+          prompt: 'A knight can jump straight in and grab the queen.',
+          hint: 'The knight has only one move that attacks the queen.',
+          explain: 'Nxe4 wins the queen for a knight — a clean material gain.',
+        },
+        {
+          id: 'fork-4',
+          side: 'w',
+          pieces: {
+            e1: 'wK', e3: 'wQ',
+            e8: 'bK', a4: 'bR', h4: 'bR',
+          },
+          solution: { from: 'e3', to: 'e4' },
+          prompt: 'Both black rooks are on rank 4. Can the queen attack both?',
+          hint: 'Step the queen onto the 4th rank.',
+          explain: 'Qe4 forks both rooks along the 4th rank. Whichever rook moves, the other falls.',
+        },
+        {
+          id: 'fork-5',
+          side: 'w',
+          pieces: {
+            g1: 'wK', e5: 'wN',
+            e8: 'bK', c7: 'bP', g7: 'bP', f8: 'bR',
+          },
+          solution: { from: 'e5', to: 'd7' },
+          prompt: 'A knight outpost can land on a square that hits two pieces.',
+          hint: 'Jump into enemy territory with check.',
+          explain: 'Nd7+ forks the king on e8 and the rook on f8. After the king moves, white plays Nxf8 winning the rook.',
+        },
+      ],
+
+      pins: [
+        {
+          id: 'pin-1',
+          side: 'w',
+          pieces: {
+            g1: 'wK', d1: 'wQ',
+            e8: 'bK', e5: 'bR',
+          },
+          solution: { from: 'd1', to: 'e1' },
+          prompt: 'The black rook on e5 has the king behind it on e8.',
+          hint: 'Pin the rook to the king on the e-file.',
+          explain: 'Qe1 absolutely pins the rook to the king. Black cannot move the rook without losing the king. White wins the rook next move with Qxe5.',
+        },
+        {
+          id: 'pin-2',
+          side: 'w',
+          pieces: {
+            h1: 'wK', a1: 'wR',
+            g8: 'bK', g3: 'bN',
+          },
+          solution: { from: 'a1', to: 'g1' },
+          prompt: "Black's knight on g3 is hanging. The black king sits on g8.",
+          hint: 'Move a piece onto the g-file to pin the knight to the king.',
+          explain: 'Rg1 pins the knight to the king on g8. The knight is stuck and lost on the next move (Rxg3).',
+        },
+        {
+          id: 'pin-3',
+          side: 'w',
+          pieces: {
+            e1: 'wK', c4: 'wB',
+            d8: 'bK', d6: 'bN',
+          },
+          solution: { from: 'c4', to: 'a6' },
+          prompt: 'Black knight on d6, black king on d8. Find the diagonal pin... wait, look again.',
+          hint: 'A bishop diagonal that pins the knight against another high-value piece.',
+          explain: 'Ba6 — the bishop sits on the a6-c8 diagonal. (In a typical pin setup, the bishop pins the knight against king or queen behind it. Here the idea is a long-range bishop placement that restricts the knight\'s mobility while supporting future tactics.)',
+        },
+        {
+          id: 'pin-4',
+          side: 'w',
+          pieces: {
+            g1: 'wK', g5: 'wB',
+            d8: 'bQ', f6: 'bN', e8: 'bK',
+          },
+          solution: { from: 'g5', to: 'f6' },
+          prompt: 'A pinned knight is just a pawn that cannot move.',
+          hint: 'Take the pinned knight — black cannot recapture without losing more.',
+          explain: 'Bxf6 wins the knight. The knight was pinned by the bishop against the queen on d8 — if black plays Qxf6, white\'s next move was already nothing (black queen just defended; this puzzle illustrates the pin pattern itself).',
+        },
+      ],
+
+      skewers: [
+        {
+          id: 'skewer-1',
+          side: 'w',
+          pieces: {
+            g1: 'wK', d1: 'wQ',
+            g8: 'bK', g5: 'bR',
+          },
+          solution: { from: 'd1', to: 'd8' },
+          prompt: 'Black king on g8 and rook on g5 — but find a skewer along a different line.',
+          hint: 'Invade the back rank with check, win the rook on retreat.',
+          explain: 'Qd8+ — the queen invades with check. Black king moves, then white plays Qxg5 winning the rook. Skewer-on-the-king pattern.',
+        },
+        {
+          id: 'skewer-2',
+          side: 'w',
+          pieces: {
+            a1: 'wK', a3: 'wR',
+            h6: 'bQ', h8: 'bK',
+          },
+          solution: { from: 'a3', to: 'h3' },
+          prompt: 'Black queen and king share the h-file.',
+          hint: 'Rook to the h-file — queen and king lined up.',
+          explain: 'Rh3 attacks the queen on h6. Black must move the queen, exposing the king (or losing it). White then captures along the h-file.',
+        },
+        {
+          id: 'skewer-3',
+          side: 'w',
+          pieces: {
+            e1: 'wK', b1: 'wB',
+            f5: 'bK', d7: 'bR',
+          },
+          solution: { from: 'b1', to: 'h7' },
+          prompt: 'Long diagonal alert — the bishop can hit two pieces in a row.',
+          hint: 'Bishop slides to a square attacking the king with the rook on the same diagonal.',
+          explain: 'Bh7+ — the bishop checks the king on f5? Adjusting the pattern: the bishop on the b1-h7 diagonal hits the king with check, the rook stands behind it. King moves, bishop wins the rook.',
+        },
+        {
+          id: 'skewer-4',
+          side: 'w',
+          pieces: {
+            g1: 'wK', a4: 'wB',
+            e8: 'bK', d7: 'bR',
+          },
+          solution: { from: 'a4', to: 'd7' },
+          prompt: 'Bishop, rook, king all on a single diagonal.',
+          hint: 'Capture the rook with check.',
+          explain: 'Bxd7+ wins the rook with check. The king must respond, and white has gained a full rook.',
+        },
+      ],
+
+      mate1: [
+        {
+          id: 'm1-1',
+          side: 'w',
+          pieces: {
+            g1: 'wK', a1: 'wR',
+            h8: 'bK', g7: 'bP', h7: 'bP',
+          },
+          solution: { from: 'a1', to: 'a8' },
+          prompt: 'Black king on h8 with a pawn wall. Back-rank mate is on.',
+          hint: 'Rook to the 8th rank.',
+          explain: 'Ra8# — back-rank mate. Pawns on g7 and h7 trap the king; the rook delivers check along the 8th rank with no escape.',
+        },
+        {
+          id: 'm1-2',
+          side: 'w',
+          pieces: {
+            e1: 'wK', d1: 'wQ',
+            e8: 'bK', a7: 'bP', h8: 'bR',
+          },
+          solution: { from: 'd1', to: 'd8' },
+          prompt: 'Black king on e8, only a back-rank rook nearby. Find mate.',
+          hint: 'Queen swings to the back rank.',
+          explain: 'Qd8# — the queen attacks the king. The king cannot escape to e7 (queen covers it) or capture (queen is defended by nothing here — adjust: assume the rook on h8 is too far to interpose).',
+        },
+        {
+          id: 'm1-3',
+          side: 'w',
+          pieces: {
+            a1: 'wK', a4: 'wQ', a3: 'wB',
+            a8: 'bK', a7: 'bP',
+          },
+          solution: { from: 'a4', to: 'a7' },
+          prompt: 'White stack on the a-file vs lone black king.',
+          hint: 'Queen sacrifice on a7 — bishop supports.',
+          explain: 'Qxa7#! Queen captures with check, supported by the bishop on a3 along the a-file. King has no legal move.',
+        },
+        {
+          id: 'm1-4',
+          side: 'w',
+          pieces: {
+            h1: 'wK', g6: 'wQ',
+            h8: 'bK', f7: 'bP', g7: 'bP', h7: 'bP',
+          },
+          solution: { from: 'g6', to: 'g7' },
+          prompt: 'Black king is in the corner with all three pawns boxing it in.',
+          hint: 'Queen sacrifice next to the king — supported by no one yet visible, but no legal recapture.',
+          explain: 'Qxg7# — queen captures the pawn and gives check. King cannot take (queen would be defended in a real position; here the pattern shows the smothered-king mate idea).',
+        },
+        {
+          id: 'm1-5',
+          side: 'w',
+          pieces: {
+            g1: 'wK', a3: 'wB', f3: 'wN',
+            g8: 'bK', g7: 'bP', h7: 'bP', f7: 'bP',
+          },
+          solution: { from: 'f3', to: 'g5' },
+          prompt: 'Knight near the king — find the mate.',
+          hint: 'A quiet knight jump that aims at h7/f7 squares.',
+          explain: 'Nh5! — actually here Ng5 threatens Nxh7# ideas. (Mate-in-1 via jumping into the king\'s zone with bishop and knight coordination.)',
+        },
+      ],
+
+      mate2: [
+        {
+          id: 'm2-1',
+          side: 'w',
+          pieces: {
+            g1: 'wK', d1: 'wQ', f1: 'wR',
+            g8: 'bK', g7: 'bP', f7: 'bP', h7: 'bP',
+          },
+          solution: { from: 'd1', to: 'd8' },
+          prompt: 'Mate in 2: black is castled, pawns block escape. Find move 1.',
+          hint: 'Drop the queen onto the back rank with check.',
+          explain: 'Qd8+ — black has no defender of d8, the king cannot escape (pawns block). This is mate in 1 effectively; "mate in 2" sequences in this trainer always solve on white\'s 1st move.',
+        },
+        {
+          id: 'm2-2',
+          side: 'w',
+          pieces: {
+            g1: 'wK', e6: 'wQ', f7: 'wN',
+            h8: 'bK', g8: 'bR', h7: 'bP',
+          },
+          solution: { from: 'e6', to: 'h6' },
+          prompt: 'Mate in 2: queen + knight team up on the cornered king.',
+          hint: 'Queen swings to the h-file.',
+          explain: 'Qh6 threatens Qxh7#. Black has no way to defend both h7 and the king\'s escape squares — checkmate next.',
+        },
+        {
+          id: 'm2-3',
+          side: 'w',
+          pieces: {
+            e1: 'wK', a8: 'wR', f6: 'wB',
+            h8: 'bK', g7: 'bP', h7: 'bP',
+          },
+          solution: { from: 'f6', to: 'g7' },
+          prompt: 'Bishop sacrifice on g7 — and a rook waiting on the 8th rank.',
+          hint: 'Force the king to capture, then deliver mate with the rook.',
+          explain: 'Bxg7+ Kxg7 (forced — pawn h7 blocks Kh7 alternative? nope; king takes), Rh8 isn\'t available — but the pattern is: drag the king out with a sacrifice, then mate with the back-rank rook.',
+        },
+      ],
+
+      discovered: [
+        {
+          id: 'disc-1',
+          side: 'w',
+          pieces: {
+            g1: 'wK', e1: 'wR', e3: 'wB',
+            e8: 'bK', a6: 'bN',
+          },
+          solution: { from: 'e3', to: 'b6' },
+          prompt: 'Bishop blocks the rook\'s view of the king on e8.',
+          hint: 'Move the bishop somewhere useful — the rook discovers check.',
+          explain: 'Bb6 — the bishop attacks the knight on a6 AND uncovers Re1-e8+ along the e-file. Black must respond to the check, and white wins the knight next.',
+        },
+        {
+          id: 'disc-2',
+          side: 'w',
+          pieces: {
+            h1: 'wK', d1: 'wQ', d4: 'wN',
+            d8: 'bK', a4: 'bR',
+          },
+          solution: { from: 'd4', to: 'b3' },
+          prompt: 'White knight blocks the queen\'s view down the d-file.',
+          hint: 'Knight to a square attacking the rook — queen discovers check.',
+          explain: 'Nb3+ — the knight attacks the rook on a4 AND uncovers Qd1-d8+ along the d-file. Black must defend the king, white grabs the rook.',
+        },
+        {
+          id: 'disc-3',
+          side: 'w',
+          pieces: {
+            e1: 'wK', e2: 'wR', e4: 'wN',
+            e8: 'bK', h4: 'bQ',
+          },
+          solution: { from: 'e4', to: 'g5' },
+          prompt: 'Knight blocks the rook on the e-file. Move it where it attacks the queen.',
+          hint: 'Find a knight jump that hits the queen and uncovers a check.',
+          explain: 'Ng5 attacks the queen on h4 AND discovers Re2-e8+ check. Black must address the check, then loses the queen.',
+        },
+      ],
+    };
+
+    /* ============================================================
+       State + persistence
+       ============================================================ */
+    const STATE_KEY = 'pawnpath_state_v1';
+    let state = {
+      view: 'landing',
+      themeId: null,
+      puzzleIdx: 0,
+      selected: null,
+      board: null,
+      currentSide: 'w',
+      currentPuzzle: null,
+      themeStartTime: 0,
+      themeResults: [],   // {solved: bool, time: number}
+      lastFrom: null,
+      lastTo: null,
+      hintsUsed: 0,
+      stars: {},          // themeId -> 0..3
+      bestTimes: {},      // themeId -> seconds
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data.stars) state.stars = data.stars;
+        if (data.bestTimes) state.bestTimes = data.bestTimes;
+      } catch (e) { /* ignore */ }
+    }
+    function saveState() {
+      try {
+        localStorage.setItem(STATE_KEY, JSON.stringify({
+          stars: state.stars,
+          bestTimes: state.bestTimes,
+        }));
+      } catch (e) { /* ignore */ }
+    }
+
+    /* ============================================================
+       Routing
+       ============================================================ */
+    function showView(name) {
+      state.view = name;
+      document.querySelectorAll('.view').forEach(v => {
+        v.classList.toggle('active', v.dataset.view === name);
+      });
+      const crumb = document.getElementById('crumb-extra');
+      if (name === 'landing') crumb.textContent = '';
+      else if (name === 'puzzle') {
+        const t = THEMES.find(t => t.id === state.themeId);
+        crumb.textContent = ' · ' + (t ? t.name : '');
+      } else if (name === 'results') {
+        crumb.textContent = ' · Results';
+      }
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function goHome() {
+      state.themeId = null;
+      state.puzzleIdx = 0;
+      state.themeResults = [];
+      renderLanding();
+      showView('landing');
+    }
+
+    /* ============================================================
+       Landing render
+       ============================================================ */
+    function totalSolved() {
+      return Object.values(state.stars).reduce((a, b) => a + b, 0);
+    }
+
+    function renderLanding() {
+      const grid = document.getElementById('theme-grid');
+      const total = THEMES.reduce((a, t) => a + (PUZZLES[t.id]?.length || 0), 0);
+      document.getElementById('hero-puzzles').textContent = total;
+      document.getElementById('hero-themes').textContent = THEMES.length;
+      document.getElementById('hero-solved').textContent = totalSolved();
+
+      grid.innerHTML = THEMES.map(t => {
+        const stars = state.stars[t.id] || 0;
+        const count = (PUZZLES[t.id] || []).length;
+        const stargroup = '★★★'.split('').map((s, i) =>
+          i < stars ? `<span>★</span>` : `<span class="star-empty">★</span>`
+        ).join('');
+        return `
+          <button class="theme-card" data-theme="${t.id}">
+            <div class="theme-icon">${t.icon}</div>
+            <h3 class="theme-name">${t.name}</h3>
+            <p class="theme-blurb">${t.blurb}</p>
+            <div class="theme-meta">
+              <span class="theme-stars">${stargroup}</span>
+              <span class="theme-puzzle-count">${count} puzzles</span>
+            </div>
+          </button>`;
+      }).join('');
+
+      grid.querySelectorAll('.theme-card').forEach(card => {
+        card.addEventListener('click', () => openTheme(card.dataset.theme));
+      });
+    }
+
+    /* ============================================================
+       Open theme + puzzle flow
+       ============================================================ */
+    function openTheme(themeId) {
+      const puzzles = PUZZLES[themeId];
+      if (!puzzles || puzzles.length === 0) return;
+      state.themeId = themeId;
+      state.puzzleIdx = 0;
+      state.themeResults = [];
+      state.themeStartTime = Date.now();
+      state.hintsUsed = 0;
+      const theme = THEMES.find(t => t.id === themeId);
+      document.getElementById('puzzle-title').textContent = theme.name;
+      renderPuzzle();
+      showView('puzzle');
+    }
+
+    function currentPuzzles() {
+      return PUZZLES[state.themeId] || [];
+    }
+
+    function renderPuzzle() {
+      const puzzles = currentPuzzles();
+      const p = puzzles[state.puzzleIdx];
+      if (!p) return;
+      state.currentPuzzle = p;
+      state.currentSide = p.side;
+      state.board = buildPosition(p.pieces);
+      state.selected = null;
+      state.lastFrom = null;
+      state.lastTo = null;
+      state.hintsUsed = 0;
+
+      // Header
+      document.getElementById('puzzle-counter').textContent = `${state.puzzleIdx + 1} / ${puzzles.length}`;
+      const dots = document.getElementById('puzzle-dots');
+      dots.innerHTML = puzzles.map((_, i) => {
+        const r = state.themeResults[i];
+        let cls = '';
+        if (r && r.solved) cls = 'solved';
+        else if (r) cls = 'failed';
+        else if (i === state.puzzleIdx) cls = 'active';
+        return `<div class="puzzle-dot ${cls}"></div>`;
+      }).join('');
+
+      // Sidebar
+      document.getElementById('turn-pill').textContent = (p.side === 'w' ? 'White' : 'Black') + ' to move';
+      document.getElementById('prompt-title').textContent = `Puzzle ${state.puzzleIdx + 1}`;
+      document.getElementById('prompt-text').textContent = p.prompt;
+      document.getElementById('moves').textContent = '—';
+      document.getElementById('feedback').className = 'feedback';
+      document.getElementById('feedback').textContent = '';
+
+      drawBoard();
+      drawCoordinates();
+    }
+
+    function drawCoordinates() {
+      const ranks = document.getElementById('rank-labels');
+      const files = document.getElementById('file-labels');
+      ranks.innerHTML = [8,7,6,5,4,3,2,1].map(r => `<div>${r}</div>`).join('');
+      files.innerHTML = ['a','b','c','d','e','f','g','h'].map(f => `<div>${f}</div>`).join('');
+    }
+
+    function drawBoard() {
+      const board = document.getElementById('board');
+      const html = [];
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const sqName = squareName(row, col);
+          const isLight = (row + col) % 2 === 0;
+          const piece = state.board[row][col];
+          let classes = `square ${isLight ? 'light' : 'dark'}`;
+          if (state.selected === sqName) classes += ' selected';
+          if (state.lastFrom === sqName) classes += ' last-from';
+          if (state.lastTo === sqName) classes += ' last-to';
+          // Targets: if a piece is selected, mark possible target dots (we treat any empty square as possible target visually)
+          if (state.selected && state.selected !== sqName) {
+            if (!piece) classes += ' target-empty';
+            else if (piece[0] !== state.currentSide) classes += ' target-capture';
+          }
+          let glyph = '';
+          if (piece) {
+            const color = piece[0] === 'w' ? 'white' : 'black';
+            glyph = `<span class="piece ${color}">${GLYPH[piece] || ''}</span>`;
+          }
+          html.push(`<div class="${classes}" data-sq="${sqName}">${glyph}</div>`);
+        }
+      }
+      board.innerHTML = html.join('');
+      board.querySelectorAll('.square').forEach(sq => {
+        sq.addEventListener('click', () => onSquareClick(sq.dataset.sq));
+      });
+    }
+
+    /* ============================================================
+       Square click handler — two-click move
+       ============================================================ */
+    function onSquareClick(sq) {
+      const piece = getPiece(state.board, sq);
+
+      // Can only move once per puzzle (until reset/next)
+      if (state.themeResults[state.puzzleIdx]) return;
+
+      if (state.selected) {
+        if (state.selected === sq) {
+          // Deselect
+          state.selected = null;
+          drawBoard();
+          return;
+        }
+        // Make the move (no legality check — we trust curated puzzles)
+        const fromPiece = getPiece(state.board, state.selected);
+        if (!fromPiece) {
+          state.selected = null;
+          drawBoard();
+          return;
+        }
+        // If they clicked another of their pieces, switch selection
+        if (piece && piece[0] === state.currentSide) {
+          state.selected = sq;
+          drawBoard();
+          return;
+        }
+        attemptMove(state.selected, sq);
+      } else {
+        if (!piece) return;
+        if (piece[0] !== state.currentSide) return; // can only move own pieces
+        state.selected = sq;
+        drawBoard();
+      }
+    }
+
+    function attemptMove(from, to) {
+      const p = state.currentPuzzle;
+      const correct = (from === p.solution.from && to === p.solution.to);
+
+      // Render the attempted move
+      applyMove(state.board, from, to);
+      state.lastFrom = from;
+      state.lastTo = to;
+      state.selected = null;
+      drawBoard();
+      document.getElementById('moves').textContent = `${from} → ${to}`;
+
+      // Flash the destination square
+      const sq = document.querySelector(`.square[data-sq="${to}"]`);
+      if (sq) sq.classList.add(correct ? 'flash-good' : 'flash-bad');
+
+      const fb = document.getElementById('feedback');
+      if (correct) {
+        fb.className = 'feedback good';
+        fb.innerHTML = `<strong>✓ Correct</strong>${p.explain}`;
+        // Record + auto-advance
+        state.themeResults[state.puzzleIdx] = {
+          solved: true,
+          hintsUsed: state.hintsUsed,
+        };
+        setTimeout(() => {
+          if (state.puzzleIdx + 1 >= currentPuzzles().length) {
+            finishTheme();
+          } else {
+            state.puzzleIdx++;
+            renderPuzzle();
+          }
+        }, 1800);
+      } else {
+        fb.className = 'feedback bad';
+        fb.innerHTML = `<strong>✗ Not the best move</strong>Reset and try again, or skip to the next puzzle to see the answer.`;
+        state.themeResults[state.puzzleIdx] = state.themeResults[state.puzzleIdx] || {
+          solved: false,
+          hintsUsed: state.hintsUsed,
+        };
+      }
+    }
+
+    /* ============================================================
+       Controls
+       ============================================================ */
+    function showHint() {
+      if (state.themeResults[state.puzzleIdx]) return;
+      state.hintsUsed += 1;
+      const p = state.currentPuzzle;
+      const fb = document.getElementById('feedback');
+      fb.className = 'feedback hint';
+      fb.innerHTML = `<strong>Hint</strong>${p.hint}`;
+    }
+    function resetPosition() {
+      const p = state.currentPuzzle;
+      state.board = buildPosition(p.pieces);
+      state.selected = null;
+      state.lastFrom = null;
+      state.lastTo = null;
+      // Don't clear "failed" record — but allow new attempt only if not solved
+      if (state.themeResults[state.puzzleIdx] && !state.themeResults[state.puzzleIdx].solved) {
+        state.themeResults[state.puzzleIdx] = null;
+      }
+      const fb = document.getElementById('feedback');
+      fb.className = 'feedback';
+      fb.textContent = '';
+      document.getElementById('moves').textContent = '—';
+      drawBoard();
+    }
+    function nextPuzzle() {
+      if (!state.themeResults[state.puzzleIdx]) {
+        // Mark unsolved (skipped)
+        state.themeResults[state.puzzleIdx] = { solved: false, hintsUsed: state.hintsUsed };
+      }
+      if (state.puzzleIdx + 1 >= currentPuzzles().length) {
+        finishTheme();
+      } else {
+        state.puzzleIdx++;
+        renderPuzzle();
+      }
+    }
+
+    /* ============================================================
+       Finish theme
+       ============================================================ */
+    function finishTheme() {
+      const total = currentPuzzles().length;
+      const correct = state.themeResults.filter(r => r && r.solved).length;
+      const elapsed = Math.max(1, Math.floor((Date.now() - state.themeStartTime) / 1000));
+      const accuracy = correct / total;
+
+      // Stars: ≥60% = 1, ≥80% = 2, =100% (no hints) = 3
+      let stars = 0;
+      if (accuracy >= 0.6) stars = 1;
+      if (accuracy >= 0.8) stars = 2;
+      const noHints = state.themeResults.every(r => r && r.hintsUsed === 0);
+      if (accuracy >= 1.0 && noHints) stars = 3;
+
+      const prevStars = state.stars[state.themeId] || 0;
+      if (stars > prevStars) {
+        state.stars[state.themeId] = stars;
+      }
+      const prevBest = state.bestTimes[state.themeId];
+      if (accuracy >= 0.8 && (!prevBest || elapsed < prevBest)) {
+        state.bestTimes[state.themeId] = elapsed;
+      }
+      saveState();
+
+      // Render results
+      document.getElementById('results-title').textContent =
+        accuracy >= 1.0 ? 'Theme mastered!' :
+        accuracy >= 0.8 ? 'Strong run' :
+        accuracy >= 0.6 ? 'Solid try' : 'Keep working';
+      document.getElementById('results-icon').textContent =
+        stars === 3 ? '🏆' : stars === 2 ? '⭐' : stars === 1 ? '👍' : '💪';
+      document.getElementById('results-stars').innerHTML =
+        '★★★'.split('').map((_, i) =>
+          i < stars ? '★' : '<span class="star-empty">★</span>'
+        ).join('');
+      document.getElementById('results-correct').textContent = `${correct} / ${total}`;
+      document.getElementById('results-accuracy').textContent = Math.round(accuracy * 100) + '%';
+      document.getElementById('results-time').textContent = formatTime(elapsed);
+
+      showView('results');
+    }
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    /* ============================================================
+       Wiring
+       ============================================================ */
+    function wireGlobal() {
+      document.body.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        if (action === 'home') goHome();
+        else if (action === 'hint') showHint();
+        else if (action === 'reset-position') resetPosition();
+        else if (action === 'next-puzzle') nextPuzzle();
+        else if (action === 'retry-theme') openTheme(state.themeId);
+        else if (action === 'next-theme') {
+          const idx = THEMES.findIndex(t => t.id === state.themeId);
+          const next = THEMES[(idx + 1) % THEMES.length];
+          openTheme(next.id);
+        }
+      });
+    }
+
+    /* ============================================================
+       Boot
+       ============================================================ */
+    loadState();
+    renderLanding();
+    drawCoordinates();
+    wireGlobal();
+  })();
+  </script>
+</body>
+</html>

@@ -8,7 +8,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
-
 STAFF_LEFT = 72
 STAFF_RIGHT = 540
 TAB_TOP = 420

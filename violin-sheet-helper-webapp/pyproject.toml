@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# CI runs pytest from this directory (working-directory in .github/workflows/ci.yml).
+# pythonpath here puts the subproject root on sys.path so `from src.api.main import app`
+# in tests/ resolves without needing a conftest.py shim.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

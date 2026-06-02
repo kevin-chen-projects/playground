@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Mind Benders — A Playground of Illusions
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+
+  WHAT IT IS
+  ==============================================================================
+  A fun place to visit (and to show your friends) collecting the viral,
+  perception-bending illusions everyone argues about. Every illusion here is
+  GENERATED IN THE BROWSER — no external images or audio files — so the page
+  stays self-contained and works offline.
+
+  Two of the most famous illusions rely on one specific photo (The Dress) or
+  one specific recording (Yanny/Laurel). Those originals are copyrighted media
+  we don't ship. Instead we RECREATE the underlying effect from scratch and say
+  so plainly, so you still get the "wait, what do YOU see/hear?" moment.
+
+  THE ILLUSIONS
+  ==============================================================================
+  Ambiguous (people genuinely split):
+    • Spinning Dancer .... silhouette with no depth cues; spins either way
+    • The Dress .......... ambiguous swatch + lighting context you can shift
+    • Yanny or Laurel .... synthesized word + a frequency-tilt slider
+
+  Audio (pure Web Audio synthesis):
+    • Shepard Tone ....... a scale that rises (or falls) forever
+    • Tritone Paradox .... same two notes; some hear up, some hear down
+
+  Geometry (everyone's brain is fooled — with "prove it" reveals):
+    • Café Wall .......... parallel lines that look slanted
+    • Müller-Lyer ........ equal lines that look unequal (measure them)
+    • Ebbinghaus ......... equal circles that look different (overlay them)
+    • Checker Shadow ..... two squares, identical color (connect them)
+
+  Motion / color aftereffects (stare, then look away):
+    • Motion Spiral ...... the world breathes after you stare
+    • Color Afterimage ... stare at the dot, see the flag in true color
+    • Rotating Snakes .... static rings that drift in your periphery
+    • Scintillating Grid . phantom dots that vanish when you look right at them
+
+  FILE INDEX
+  ==============================================================================
+  HEAD            header comment, meta, title
+  STYLE           :root palette, base, top-bar, hero, card grid, detail view,
+                  per-illusion CSS (cafe wall, snakes, grid, etc.)
+  BODY            .top-bar, #landing (hero + grouped card grid), #detail
+  SCRIPT (IIFE)
+    ILLUSIONS     registry: id, title, group, blurb, build(stage, api)
+    Router        showLanding / openIllusion / hashchange
+    Audio         shared AudioContext + Shepard-tone engine
+    Builders      one function per illusion, returns {teardown}
+    Boot          render grid, wire routing
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mind Benders — A Playground of Illusions</title>
+  <style>
+    :root {
+      --bg-900: #0b0a1a;
+      --bg-800: #13112b;
+      --bg-700: #1c1940;
+      --bg-600: #272252;
+      --panel:  #181534;
+      --panel-2:#211d49;
+      --ink:    #f4f2ff;
+      --ink-dim:#b9b4d8;
+      --ink-faint:#827da6;
+      --line:   #322c63;
+
+      --accent: #ff5d8f;   /* hot pink */
+      --accent-2:#5be9d6;  /* aqua */
+      --accent-3:#ffd66b;  /* amber */
+      --violet: #8a7bff;
+
+      --shadow: 0 16px 48px rgba(0,0,0,.45);
+      --radius: 18px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at 15% -10%, #2a1f55 0%, transparent 55%),
+        radial-gradient(1000px 800px at 110% 10%, #14304a 0%, transparent 50%),
+        var(--bg-900);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent-2); }
+    button { font-family: inherit; }
+
+    /* ---- top bar ---- */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 22px;
+      background: rgba(11,10,26,.72);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; cursor: pointer; border: 0; background: 0; color: inherit; padding: 0; }
+    .brand .glyph {
+      width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto;
+      background: conic-gradient(from 0deg, var(--accent), var(--accent-3), var(--accent-2), var(--violet), var(--accent));
+      animation: spin 9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .brand b { font-size: 1.15rem; letter-spacing: .2px; }
+    .brand span { color: var(--ink-faint); font-weight: 500; font-size: .8rem; margin-left: 2px; }
+    .top-spacer { flex: 1; }
+    .top-hint { color: var(--ink-faint); font-size: .82rem; }
+
+    .wrap { max-width: 1140px; margin: 0 auto; padding: 0 22px 80px; }
+
+    /* ---- hero ---- */
+    .hero { text-align: center; padding: 54px 12px 30px; }
+    .hero h1 {
+      font-size: clamp(2.1rem, 5.5vw, 3.6rem);
+      line-height: 1.04; margin: 0 0 14px; letter-spacing: -1px;
+      background: linear-gradient(100deg, var(--accent) 5%, var(--accent-3) 45%, var(--accent-2) 90%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero p { color: var(--ink-dim); font-size: 1.08rem; max-width: 640px; margin: 0 auto; line-height: 1.55; }
+    .hero .nudge { margin-top: 18px; font-size: .9rem; color: var(--ink-faint); }
+
+    /* ---- groups + grid ---- */
+    .group-title {
+      display: flex; align-items: baseline; gap: 12px;
+      margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+    }
+    .group-title h2 { font-size: 1.18rem; margin: 0; letter-spacing: .3px; }
+    .group-title small { color: var(--ink-faint); font-size: .82rem; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 16px; }
+    .card {
+      position: relative; text-align: left; cursor: pointer;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 16px; color: inherit; overflow: hidden;
+      transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow); }
+    .card .thumb {
+      height: 118px; border-radius: 12px; margin-bottom: 13px; overflow: hidden;
+      background: var(--bg-700); display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .card h3 { margin: 0 0 5px; font-size: 1.04rem; }
+    .card p { margin: 0; color: var(--ink-dim); font-size: .86rem; line-height: 1.45; }
+    .card .tag {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      font-size: .66rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      padding: 4px 8px; border-radius: 999px; background: rgba(0,0,0,.45); color: var(--accent-3);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    /* ---- detail view ---- */
+    #detail { display: none; }
+    #detail.active { display: block; }
+    #landing.hidden { display: none; }
+
+    .back {
+      display: inline-flex; align-items: center; gap: 7px; margin: 24px 0 8px;
+      background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+      padding: 9px 15px; border-radius: 999px; cursor: pointer; font-size: .9rem;
+      transition: border-color .15s, transform .15s;
+    }
+    .back:hover { border-color: var(--accent); transform: translateX(-2px); }
+
+    .detail-head { margin: 10px 0 22px; }
+    .detail-head h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 8px; letter-spacing: -.5px; }
+    .detail-head .blurb { color: var(--ink-dim); font-size: 1.02rem; max-width: 720px; line-height: 1.55; }
+
+    .stage {
+      background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 24px; min-height: 320px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px; box-shadow: var(--shadow);
+    }
+    .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
+    .btn {
+      background: var(--accent); color: #2a0a16; border: 0; font-weight: 700;
+      padding: 11px 18px; border-radius: 11px; cursor: pointer; font-size: .92rem;
+      transition: transform .12s, filter .12s;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    .btn.ghost:hover { border-color: var(--accent); }
+    .btn.alt { background: var(--accent-2); color: #06302b; }
+    .btn[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .slider-row { display: flex; align-items: center; gap: 12px; width: min(520px, 100%); }
+    .slider-row label { font-size: .85rem; color: var(--ink-dim); white-space: nowrap; }
+    input[type=range] { flex: 1; accent-color: var(--accent); }
+
+    .readout { font-size: .9rem; color: var(--ink-dim); text-align: center; min-height: 1.2em; }
+    .readout b { color: var(--accent-3); }
+
+    /* poll */
+    .poll { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .poll .opt {
+      background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+      padding: 10px 16px; border-radius: 11px; cursor: pointer; font-size: .9rem; min-width: 120px;
+    }
+    .poll .opt:hover { border-color: var(--accent-2); }
+    .poll .opt .bar { height: 6px; border-radius: 999px; background: var(--accent-2); margin-top: 8px; transition: width .4s ease; }
+    .poll .opt small { color: var(--ink-faint); display: block; margin-top: 4px; }
+
+    .explain {
+      margin: 22px 0; background: var(--panel-2); border: 1px solid var(--line);
+      border-left: 3px solid var(--accent-3); border-radius: 12px; padding: 18px 20px;
+    }
+    .explain h4 { margin: 0 0 8px; font-size: .82rem; text-transform: uppercase; letter-spacing: .8px; color: var(--accent-3); }
+    .explain p { margin: 0; color: var(--ink-dim); line-height: 1.6; font-size: .96rem; }
+    .disclaimer { margin-top: 10px; font-size: .82rem; color: var(--ink-faint); font-style: italic; }
+
+    canvas { display: block; max-width: 100%; }
+
+    /* café wall */
+    .cafe { --row-h: 26px; --tile: 52px; border: 1px solid #555; overflow: hidden; border-radius: 8px; }
+    .cafe-row { display: flex; height: var(--row-h); }
+    .cafe-row .t { width: var(--tile); height: 100%; }
+    .cafe-mortar { height: 3px; background: #8a8a8a; }
+
+    /* scintillating grid */
+    .scint { position: relative; background: #111; padding: 0; border-radius: 8px; }
+
+    /* rotating snakes uses inline svg */
+    .pulse-note { font-size: .8rem; color: var(--ink-faint); }
+
+    @media (max-width: 560px) {
+      .stage { padding: 16px; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      .card .thumb { height: 92px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <button class="brand" id="brandBtn" title="Home">
+      <span class="glyph"></span>
+      <span><b>Mind Benders</b><span>· a playground of illusions</span></span>
+    </button>
+    <div class="top-spacer"></div>
+    <div class="top-hint">Best with sound on 🔊 · grab a friend 👀</div>
+  </div>
+
+  <!-- ===================== LANDING ===================== -->
+  <div id="landing" class="wrap">
+    <section class="hero">
+      <h1>Your brain is lying to you.<br/>It's kind of beautiful.</h1>
+      <p>A collection of the viral, argument-starting illusions — the ones where you and a friend stare at the exact same thing and swear it's different. Everything here is generated live in your browser. Pick one and go.</p>
+      <div class="nudge">↓ Tap any illusion. The fun is comparing notes with someone next to you.</div>
+    </section>
+    <div id="groups"></div>
+  </div>
+
+  <!-- ===================== DETAIL ===================== -->
+  <div id="detail" class="wrap">
+    <button class="back" id="backBtn">← All illusions</button>
+    <div class="detail-head">
+      <h1 id="dTitle"></h1>
+      <div class="blurb" id="dBlurb"></div>
+    </div>
+    <div class="stage" id="stage"></div>
+    <div id="dExplain"></div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+     Shared audio engine
+     ============================================================ */
+  let actx = null;
+  function audio() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    return actx;
+  }
+
+  /* ============================================================
+     Illusion registry
+     Each: { id, title, group, tag, blurb, explain, build(stage) }
+     build() returns an optional { teardown } to stop timers/audio.
+     ============================================================ */
+  const GROUPS = [
+    { key: "ambiguous", name: "The great debates", note: "Same stimulus, people genuinely split. Show a friend." },
+    { key: "audio",     name: "Audio illusions", note: "Pure synthesized sound — turn it up." },
+    { key: "geometry",  name: "Your eyes vs. the ruler", note: "Everyone gets fooled. Each has a “prove it” button." },
+    { key: "after",     name: "Stare, then look away", note: "Aftereffects that hijack your visual system for a few seconds." },
+  ];
+
+  const ILLUSIONS = [];
+
+  /* ---------- thumbnail helper: tiny live preview per card ---------- */
+  function thumbDancer(el)  { el.innerHTML = '<canvas width="200" height="118"></canvas>'; spinSilhouette(el.querySelector("canvas"), { mini: true }); }
+  function thumbDress(el)   { el.style.background = "linear-gradient(125deg,#9aa7c4 0 45%,#7b6a4e 55% 100%)"; }
+  function thumbYanny(el)   { el.innerHTML = bars(el); }
+  function thumbShepard(el) { el.innerHTML = bars(el); }
+  function thumbTritone(el) { el.innerHTML = bars(el); }
+  function thumbCafe(el)    { el.style.background = repeatingCafe(); }
+  function thumbMuller(el)  { el.innerHTML = svgMuller(true); }
+  function thumbEbb(el)     { el.innerHTML = svgEbb(true); }
+  function thumbChecker(el) { el.innerHTML = '<canvas width="200" height="118"></canvas>'; drawChecker(el.querySelector("canvas"), false, true); }
+  function thumbSpiral(el)  { el.innerHTML = svgSpiral(); el.querySelector("svg").style.animation = "spin 6s linear infinite"; }
+  function thumbAfter(el)   { el.style.background = "linear-gradient(90deg,#00c7c1,#ffb3c1)"; }
+  function thumbSnakes(el)  { el.innerHTML = snakesSVG(2); }
+  function thumbScint(el)   { el.style.background = "#222"; el.innerHTML = scintMini(); }
+
+  function bars() {
+    let s = '<div style="display:flex;gap:3px;align-items:flex-end;height:70px">';
+    const h = [30,55,20,68,40,60,25,50,35,62,18];
+    for (const v of h) s += `<div style="width:9px;height:${v}px;background:linear-gradient(var(--accent-2),var(--violet));border-radius:3px"></div>`;
+    return s + "</div>";
+  }
+  function repeatingCafe() {
+    return "repeating-linear-gradient(90deg,#111 0 16px,#eee 16px 32px), repeating-linear-gradient(0deg, transparent 0 13px,#888 13px 16px)";
+  }
+
+  /* ============================================================
+     1. SPINNING DANCER (ambiguous silhouette)
+     A featureless silhouette: with no shading or occlusion cues,
+     your brain can't tell which way it spins, so it flips.
+     We animate a horizontal "squash" (cos) which is direction-free,
+     plus optional depth cues you can switch on to bias yourself.
+     ============================================================ */
+  function spinSilhouette(canvas, opts) {
+    opts = opts || {};
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    let t = 0, raf = 0, bias = 0, speed = opts.mini ? 0.9 : 1.0;
+
+    function dancer(phase, depthFront) {
+      // phase 0..1 → horizontal scale via cos; silhouette drawn as a stylized figure.
+      const sx = Math.cos(phase * Math.PI * 2);
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H * 0.52, s = (opts.mini ? 0.42 : 1) * Math.min(W, H) / 130;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(sx, 1);                 // <- the ambiguity: only x flips
+      ctx.fillStyle = opts.mini ? "#cdb6ff" : "#11102a";
+      // body
+      const path = new Path2D();
+      path.moveTo(0, -58 * s);
+      path.arc(0, -64 * s, 9 * s, 0, Math.PI * 2);        // head
+      path.rect(-6 * s, -56 * s, 12 * s, 44 * s);          // torso
+      // raised spinning leg (out to one side)
+      path.moveTo(0, -14 * s);
+      path.lineTo(40 * s, -34 * s); path.lineTo(46 * s, -28 * s);
+      path.lineTo(6 * s, -8 * s);
+      // standing leg
+      path.moveTo(-5 * s, -12 * s); path.lineTo(-7 * s, 56 * s); path.lineTo(2 * s, 56 * s); path.lineTo(2 * s, -10 * s);
+      // arms
+      path.moveTo(-4 * s, -50 * s); path.lineTo(-44 * s, -40 * s); path.lineTo(-44 * s, -34 * s); path.lineTo(-2 * s, -44 * s);
+      path.moveTo(4 * s, -50 * s); path.lineTo(40 * s, -58 * s); path.lineTo(40 * s, -52 * s); path.lineTo(2 * s, -44 * s);
+      ctx.fill(path);
+      ctx.restore();
+
+      // optional depth cue: a faint floor ellipse on the side the leg
+      // swings toward, biasing which way the figure "reads" as turning.
+      if (depthFront !== 0) {
+        const side = (sx >= 0 ? 1 : -1) * depthFront;
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = opts.mini ? "#cdb6ff" : "#5be9d6";
+        ctx.beginPath();
+        ctx.ellipse(cx + side * 46 * s, cy + 56 * s, 30 * s, 8 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function loop() {
+      t += 0.006 * speed;
+      dancer(t % 1, bias);
+      raf = requestAnimationFrame(loop);
+    }
+    loop();
+    return {
+      setBias: (b) => { bias = b; },
+      setSpeed: (v) => { speed = v; },
+      teardown: () => cancelAnimationFrame(raf),
+    };
+  }
+
+  ILLUSIONS.push({
+    id: "dancer", group: "ambiguous", tag: "viral",
+    title: "The Spinning Dancer",
+    thumb: thumbDancer,
+    blurb: "Is she spinning clockwise or counter-clockwise? There is no correct answer — the silhouette has no depth cues, so your brain picks a direction and commits. Most people can flip her with practice.",
+    explain: "A rotating 3-D figure cast as a flat silhouette is genuinely ambiguous: nothing tells you whether the outstretched leg is in front of or behind the body. Your visual system fills the gap with a guess — and once it commits, the figure 'snaps' into spinning one way. Look at the very edges, or imagine the leg coming toward you, and you can force the flip.",
+    build(stage) {
+      stage.innerHTML = `
+        <canvas width="280" height="320" style="background:linear-gradient(180deg,#1a1840,#0d0c22);border-radius:14px"></canvas>
+        <div class="readout">Which way is she turning? Stare softly — then try to flip her.</div>
+        <div class="controls">
+          <button class="btn ghost" data-b="-1">Nudge clockwise ↻</button>
+          <button class="btn ghost" data-b="0">No hints</button>
+          <button class="btn ghost" data-b="1">Nudge counter ↺</button>
+        </div>
+        <div class="slider-row"><label>Speed</label><input type="range" min="0.3" max="2" step="0.1" value="1" id="spd"></div>`;
+      const engine = spinSilhouette(stage.querySelector("canvas"), {});
+      stage.querySelectorAll("[data-b]").forEach((b) =>
+        b.addEventListener("click", () => engine.setBias(+b.dataset.b)));
+      stage.querySelector("#spd").addEventListener("input", (e) => engine.setSpeed(+e.target.value));
+      return engine;
+    },
+  });
+
+  /* ============================================================
+     2. THE DRESS (recreated)
+     The original is one specific photo. We recreate the EFFECT:
+     an ambiguous swatch whose perceived color flips depending on
+     the lighting context your brain assumes. Slide the context.
+     ============================================================ */
+  ILLUSIONS.push({
+    id: "dress", group: "ambiguous", tag: "recreated",
+    title: "White-Gold or Black-Blue?",
+    thumb: thumbDress,
+    blurb: "The 2015 dress that broke the internet. We don't ship the original photo — instead this is a from-scratch recreation of why it splits people: it's all about the lighting your brain assumes.",
+    explain: "Your brain constantly 'discounts the illuminant' — it subtracts the color of the light to guess an object's true color. If you assume the dress is in cool bluish shadow, your brain removes blue and you see white-and-gold. If you assume warm light, it removes yellow and you see blue-and-black. Slide the assumed lighting below and watch the same pixels change identity.",
+    build(stage) {
+      stage.innerHTML = `
+        <canvas width="300" height="300" id="dressC" style="border-radius:14px"></canvas>
+        <div class="slider-row"><label>Assumed light: cool → warm</label>
+          <input type="range" min="-100" max="100" value="0" id="lit"></div>
+        <div class="readout" id="dr">Drag the slider. Same swatch, different stories.</div>
+        <div class="poll" id="poll">
+          <button class="opt" data-k="wg">⚪🟡 White &amp; gold<div class="bar" style="width:0%"></div><small>0</small></button>
+          <button class="opt" data-k="bb">🔵⚫ Blue &amp; black<div class="bar" style="width:0%"></div><small>0</small></button>
+        </div>`;
+      const c = stage.querySelector("#dressC"), ctx = c.getContext("2d");
+      const votes = { wg: 0, bb: 0 };
+      function draw(warm) {
+        // background = the assumed illuminant
+        const bgCool = `rgb(${120 + warm * 0.2},${150},${190 - warm * 0.4})`;
+        ctx.fillStyle = bgCool; ctx.fillRect(0, 0, 300, 300);
+        // ambiguous stripes: the SAME base colors, only the surrounding light changes
+        const lace = `rgb(${150 + warm * 0.6},${145 + warm * 0.2},${150 - warm * 0.6})`;
+        const stripe = `rgb(${110 + warm * 0.5},${95 + warm * 0.1},${70 - warm * 0.5})`;
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = i % 2 ? lace : stripe;
+          ctx.fillRect(40, 30 + i * 40, 220, 38);
+        }
+        ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fillRect(0, 0, 300, 300);
+      }
+      draw(0);
+      stage.querySelector("#lit").addEventListener("input", (e) => {
+        const w = +e.target.value; draw(w);
+        stage.querySelector("#dr").innerHTML = w < -20 ? "Cool light assumed → many now see <b>white &amp; gold</b>"
+          : w > 20 ? "Warm light assumed → many now see <b>blue &amp; black</b>" : "Neutral — what do you see?";
+      });
+      stage.querySelector("#poll").addEventListener("click", (e) => {
+        const o = e.target.closest(".opt"); if (!o) return;
+        votes[o.dataset.k]++; const tot = votes.wg + votes.bb;
+        stage.querySelectorAll(".opt").forEach((b) => {
+          const v = votes[b.dataset.k]; b.querySelector(".bar").style.width = (tot ? v / tot * 100 : 0) + "%";
+          b.querySelector("small").textContent = v + (v === 1 ? " vote" : " votes");
+        });
+      });
+    },
+  });
+
+  /* ============================================================
+     3. YANNY / LAUREL (recreated, frequency-tilt)
+     We synthesize a two-formant utterance and let you tilt the
+     spectrum. Boost highs → "Yanny"; boost lows → "Laurel".
+     ============================================================ */
+  ILLUSIONS.push({
+    id: "yanny", group: "ambiguous", tag: "recreated",
+    title: "Yanny or Laurel?",
+    thumb: thumbYanny,
+    blurb: "The audio clip that split the world in 2018. We synthesize a vowel-like sound with both high and low frequency cues stacked together, then let YOU tilt which ones dominate.",
+    explain: "The original recording contained both high-frequency energy (which our ears parse as 'Yanny') and low-frequency energy ('Laurel') at the same time. Whichever your ears emphasize — based on your speakers, age, and expectation — wins. Here a tilt filter literally hands the decision to you: drag toward treble for Yanny, toward bass for Laurel.",
+    build(stage) {
+      stage.innerHTML = `
+        <div class="readout" style="font-size:1.05rem">🔊 Turn your volume up, then press play and drag the slider.</div>
+        <div class="controls"><button class="btn" id="play">▶ Play loop</button>
+          <button class="btn ghost" id="stop">■ Stop</button></div>
+        <div class="slider-row"><label>LAUREL (bass)</label>
+          <input type="range" min="0" max="100" value="50" id="tilt">
+          <label>YANNY (treble)</label></div>
+        <div class="readout" id="yr">Leaning: <b>balanced</b></div>
+        <div class="poll" id="poll">
+          <button class="opt" data-k="y">I hear "Yanny"<div class="bar" style="width:0%"></div><small>0</small></button>
+          <button class="opt" data-k="l">I hear "Laurel"<div class="bar" style="width:0%"></div><small>0</small></button>
+        </div>`;
+      let nodes = null, raf = 0;
+      const votes = { y: 0, l: 0 };
+      function start() {
+        stop();
+        const ac = audio();
+        const master = ac.createGain(); master.gain.value = 0.0; master.connect(ac.destination);
+        // Low band ("Laurel"): low formants ~ 500/900 Hz
+        // High band ("Yanny"): high partials ~ 2.4k/3.2k Hz
+        const low = ac.createGain(), high = ac.createGain();
+        low.connect(master); high.connect(master);
+        function fm(freq, gainNode, depth) {
+          const o = ac.createOscillator(); o.type = "sawtooth"; o.frequency.value = freq;
+          const g = ac.createGain(); g.gain.value = depth; o.connect(g); g.connect(gainNode); o.start();
+          return o;
+        }
+        const oscs = [
+          fm(520, low, 0.18), fm(900, low, 0.12), fm(220, low, 0.10),
+          fm(2400, high, 0.10), fm(3200, high, 0.08), fm(4200, high, 0.05),
+        ];
+        // syllable envelope ~ "la-rel" / "ya-nny": two pulses per second
+        let t0 = ac.currentTime;
+        function env() {
+          const now = ac.currentTime, ph = ((now - t0) % 1.1) / 1.1;
+          const amp = ph < 0.5 ? Math.sin(ph * Math.PI * 2) : Math.max(0, Math.sin((ph) * Math.PI * 2)) * 0.7;
+          master.gain.setTargetAtTime(0.25 * Math.max(0.05, amp), now, 0.02);
+          raf = requestAnimationFrame(env);
+        }
+        env();
+        nodes = { master, low, high, oscs };
+        applyTilt(+stage.querySelector("#tilt").value);
+      }
+      function applyTilt(v) {
+        if (!nodes) return;
+        nodes.high.gain.value = v / 100;
+        nodes.low.gain.value = 1 - v / 100;
+        stage.querySelector("#yr").innerHTML = "Leaning: <b>" +
+          (v > 62 ? "Yanny" : v < 38 ? "Laurel" : "balanced") + "</b>";
+      }
+      function stop() {
+        cancelAnimationFrame(raf);
+        if (nodes) { nodes.oscs.forEach((o) => { try { o.stop(); } catch (e) {} }); nodes.master.disconnect(); nodes = null; }
+      }
+      stage.querySelector("#play").addEventListener("click", start);
+      stage.querySelector("#stop").addEventListener("click", stop);
+      stage.querySelector("#tilt").addEventListener("input", (e) => applyTilt(+e.target.value));
+      stage.querySelector("#poll").addEventListener("click", (e) => {
+        const o = e.target.closest(".opt"); if (!o) return; votes[o.dataset.k]++;
+        const tot = votes.y + votes.l;
+        stage.querySelectorAll(".opt").forEach((b) => {
+          const val = votes[b.dataset.k]; b.querySelector(".bar").style.width = (tot ? val / tot * 100 : 0) + "%";
+          b.querySelector("small").textContent = val + (val === 1 ? " vote" : " votes");
+        });
+      });
+      return { teardown: stop };
+    },
+  });
+
+  /* ============================================================
+     4. SHEPARD TONE (endless rise/fall)
+     ============================================================ */
+  function shepardEngine(direction) {
+    const ac = audio();
+    const master = ac.createGain(); master.gain.value = 0.0; master.connect(ac.destination);
+    master.gain.setTargetAtTime(0.5, ac.currentTime, 0.1);
+    const N = 7, base = 55; // octaves of A
+    const voices = [];
+    for (let i = 0; i < N; i++) {
+      const o = ac.createOscillator(); o.type = "sine";
+      const g = ac.createGain(); o.connect(g); g.connect(master); o.start();
+      voices.push({ o, g, p: i / N });
+    }
+    let raf = 0;
+    const dir = direction === "down" ? -1 : 1;
+    function tick() {
+      for (const v of voices) {
+        v.p += dir * 0.0009; v.p = (v.p % 1 + 1) % 1;
+        const semis = v.p * 7 * 12;          // sweep across 7 octaves
+        v.o.frequency.value = base * Math.pow(2, semis / 12);
+        // bell-shaped loudness: quiet at the extremes, loud in the middle
+        const x = (v.p - 0.5) * 2;
+        v.g.gain.value = Math.exp(-x * x * 4) * 0.5;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    tick();
+    return { teardown: () => { cancelAnimationFrame(raf); voices.forEach((v) => { try { v.o.stop(); } catch (e) {} }); master.disconnect(); } };
+  }
+
+  ILLUSIONS.push({
+    id: "shepard", group: "audio", tag: "synth",
+    title: "The Endless Staircase",
+    thumb: thumbShepard,
+    blurb: "A tone that climbs forever (or falls forever) without ever actually getting higher. The audio version of M.C. Escher's endless staircase.",
+    explain: "Several pure tones, one octave apart, sweep upward together. As the highest fades out at the top, a new one fades in at the bottom — and the loudness is shaped so the edges are always quiet. Your ear tracks the rising pitches but never notices the hand-off, so the scale seems to ascend without limit. Hans Zimmer used this trick to build endless tension in Dunkirk.",
+    build(stage) {
+      stage.innerHTML = `
+        <div class="readout" style="font-size:1.05rem">🔊 Headphones recommended.</div>
+        <div class="controls">
+          <button class="btn" data-d="up">▲ Rise forever</button>
+          <button class="btn alt" data-d="down">▼ Fall forever</button>
+          <button class="btn ghost" id="stop">■ Stop</button>
+        </div>
+        <div class="readout" id="sr">Press a button. It never actually arrives anywhere.</div>`;
+      let eng = null;
+      function go(d) { if (eng) eng.teardown(); eng = shepardEngine(d);
+        stage.querySelector("#sr").textContent = d === "up" ? "Climbing… and climbing… and climbing…" : "Falling… and falling… and falling…"; }
+      stage.querySelectorAll("[data-d]").forEach((b) => b.addEventListener("click", () => go(b.dataset.d)));
+      stage.querySelector("#stop").addEventListener("click", () => { if (eng) { eng.teardown(); eng = null; } stage.querySelector("#sr").textContent = "Stopped."; });
+      return { teardown: () => { if (eng) eng.teardown(); } };
+    },
+  });
+
+  /* ============================================================
+     5. TRITONE PARADOX
+     Two Shepard-style tones a tritone apart; whether it sounds
+     like it goes UP or DOWN depends on the listener.
+     ============================================================ */
+  function shepardChord(pitchClass) {
+    // build a single Shepard tone fixed at a pitch class (0..11)
+    const ac = audio();
+    const master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+    const N = 6;
+    for (let i = 0; i < N; i++) {
+      const semis = pitchClass + i * 12;
+      const f = 55 * Math.pow(2, semis / 12);
+      const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = f;
+      const g = ac.createGain();
+      const oct = i / (N - 1), x = (oct - 0.5) * 2;
+      g.gain.value = Math.exp(-x * x * 3) * 0.4;
+      o.connect(g); g.connect(master); o.start();
+      o.stop(ac.currentTime + 0.7);
+    }
+    master.gain.setValueAtTime(0, ac.currentTime);
+    master.gain.linearRampToValueAtTime(0.8, ac.currentTime + 0.05);
+    master.gain.setValueAtTime(0.8, ac.currentTime + 0.55);
+    master.gain.linearRampToValueAtTime(0, ac.currentTime + 0.7);
+  }
+
+  ILLUSIONS.push({
+    id: "tritone", group: "audio", tag: "synth",
+    title: "The Tritone Paradox",
+    thumb: thumbTritone,
+    blurb: "Two notes, exactly half an octave apart. Some people are certain the pair goes up; others are equally certain it goes down. You'll argue about this one.",
+    explain: "Each note is a Shepard tone — ambiguous in octave. With the two notes a tritone apart, there's no 'correct' direction: up and down are literally the same distance. Diana Deutsch discovered that which way you hear it depends on your native language and accent — your brain anchors pitch class to the speech patterns you grew up with. Two friends will reliably disagree.",
+    build(stage) {
+      stage.innerHTML = `
+        <div class="readout" style="font-size:1.05rem">🔊 Listen to the two-note pair. Up or down?</div>
+        <div class="controls">
+          <button class="btn" id="play">▶ Play a random pair</button>
+        </div>
+        <div class="readout" id="tr">—</div>
+        <div class="poll" id="poll">
+          <button class="opt" data-k="up">It went UP ▲<div class="bar" style="width:0%"></div><small>0</small></button>
+          <button class="opt" data-k="down">It went DOWN ▼<div class="bar" style="width:0%"></div><small>0</small></button>
+        </div>`;
+      const votes = { up: 0, down: 0 };
+      let seed = 3;
+      stage.querySelector("#play").addEventListener("click", () => {
+        seed = (seed * 7 + 5) % 12;                 // deterministic but varied
+        const a = seed, b = (a + 6) % 12;
+        shepardChord(a);
+        setTimeout(() => shepardChord(b), 750);
+        stage.querySelector("#tr").innerHTML = "Played a pair. There's no right answer — what did <b>you</b> hear?";
+      });
+      stage.querySelector("#poll").addEventListener("click", (e) => {
+        const o = e.target.closest(".opt"); if (!o) return; votes[o.dataset.k]++;
+        const tot = votes.up + votes.down;
+        stage.querySelectorAll(".opt").forEach((bn) => {
+          const v = votes[bn.dataset.k]; bn.querySelector(".bar").style.width = (tot ? v / tot * 100 : 0) + "%";
+          bn.querySelector("small").textContent = v + (v === 1 ? " vote" : " votes");
+        });
+      });
+    },
+  });
+
+  /* ============================================================
+     6. CAFÉ WALL
+     ============================================================ */
+  ILLUSIONS.push({
+    id: "cafe", group: "geometry", tag: "classic",
+    title: "The Café Wall",
+    thumb: thumbCafe,
+    blurb: "Every horizontal line of mortar between these tiles is perfectly straight and parallel. They look like they slope. Set the mortar to zero to prove it.",
+    explain: "When dark and light tiles are offset row to row and separated by a thin grey 'mortar' line, small contrast cues at each tile's edge get integrated by your visual system into a tilt. Remove the mortar (or match its brightness to the tiles) and the wedges vanish — the rows were straight the whole time.",
+    build(stage) {
+      stage.innerHTML = `<div id="wall" style="width:min(420px,100%)"></div>
+        <div class="slider-row"><label>Mortar thickness</label>
+          <input type="range" min="0" max="6" value="3" id="m"></div>
+        <div class="slider-row"><label>Row offset</label>
+          <input type="range" min="0" max="50" value="25" id="o"></div>
+        <div class="readout">Slide mortar to <b>0</b> — the slant disappears.</div>`;
+      const wall = stage.querySelector("#wall");
+      function render(mortar, offset) {
+        const tiles = 8, rows = 7; let html = "";
+        for (let r = 0; r < rows; r++) {
+          const shift = (r % 2) * offset;
+          html += `<div class="cafe-row" style="transform:translateX(${shift - offset / 2}px)">`;
+          for (let c = 0; c < tiles + 1; c++) html += `<div class="t" style="background:${c % 2 ? '#f4f4f4' : '#111'}"></div>`;
+          html += "</div>";
+          if (r < rows - 1) html += `<div class="cafe-mortar" style="height:${mortar}px"></div>`;
+        }
+        wall.className = "cafe"; wall.innerHTML = html;
+      }
+      render(3, 25);
+      stage.querySelector("#m").addEventListener("input", (e) => render(+e.target.value, +stage.querySelector("#o").value));
+      stage.querySelector("#o").addEventListener("input", (e) => render(+stage.querySelector("#m").value, +e.target.value));
+    },
+  });
+
+  /* ============================================================
+     7. MÜLLER-LYER
+     ============================================================ */
+  function svgMuller(mini) {
+    const w = mini ? 200 : 460, h = mini ? 118 : 200, y1 = h * 0.38, y2 = h * 0.66, len = w * 0.55, x0 = (w - len) / 2;
+    const a = 14;
+    function arrow(x, y, len, out) {
+      const d = out ? 1 : -1;
+      return `<line x1="${x}" y1="${y}" x2="${x + len}" y2="${y}" stroke="#5be9d6" stroke-width="3"/>
+        <line x1="${x}" y1="${y}" x2="${x + d * a}" y2="${y - a}" stroke="#5be9d6" stroke-width="3"/>
+        <line x1="${x}" y1="${y}" x2="${x + d * a}" y2="${y + a}" stroke="#5be9d6" stroke-width="3"/>
+        <line x1="${x + len}" y1="${y}" x2="${x + len - d * a}" y2="${y - a}" stroke="#5be9d6" stroke-width="3"/>
+        <line x1="${x + len}" y1="${y}" x2="${x + len - d * a}" y2="${y + a}" stroke="#5be9d6" stroke-width="3"/>`;
+    }
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+      ${arrow(x0, y1, len, true)}${arrow(x0, y2, len, false)}</svg>`;
+  }
+  ILLUSIONS.push({
+    id: "muller", group: "geometry", tag: "classic",
+    title: "Müller-Lyer Arrows",
+    thumb: thumbMuller,
+    blurb: "Two lines, identical length. The one with outward fins looks shorter than the one with inward fins. Press the button to snap rulers on them.",
+    explain: "The arrowheads trick your brain's depth machinery: inward fins read like the near corner of a building (so the line feels 'closer and longer'), outward fins like a far interior corner. Your size-constancy system 'corrects' the lengths that were never wrong. The lines are pixel-for-pixel equal.",
+    build(stage) {
+      stage.innerHTML = `<div id="mho"></div>
+        <div class="controls"><button class="btn" id="prove">📏 Prove they're equal</button></div>
+        <div class="readout" id="r">The top line looks shorter… right?</div>`;
+      stage.querySelector("#mho").innerHTML = svgMuller(false);
+      stage.querySelector("#prove").addEventListener("click", () => {
+        const svg = stage.querySelector("svg");
+        const w = 460, len = w * 0.55, x0 = (w - len) / 2;
+        const overlay = `<rect x="${x0}" y="60" width="${len}" height="4" fill="#ff5d8f" opacity=".9"/>
+          <rect x="${x0}" y="${0.66 * 200}" width="${len}" height="0"/>
+          <line x1="${x0}" y1="40" x2="${x0}" y2="150" stroke="#ffd66b" stroke-dasharray="4"/>
+          <line x1="${x0 + len}" y1="40" x2="${x0 + len}" y2="150" stroke="#ffd66b" stroke-dasharray="4"/>`;
+        svg.insertAdjacentHTML("beforeend", overlay);
+        stage.querySelector("#r").innerHTML = "Same start, same end, <b>same length</b>. The fins did it all.";
+      });
+    },
+  });
+
+  /* ============================================================
+     8. EBBINGHAUS
+     ============================================================ */
+  function svgEbb(mini) {
+    const w = mini ? 200 : 460, h = mini ? 118 : 240, cy = h / 2;
+    function ring(cx, R, n, r) {
+      let s = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#ff5d8f"/>`;
+      for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; s += `<circle cx="${cx + Math.cos(a) * (R + r + 8)}" cy="${cy + Math.sin(a) * (R + r + 8)}" r="${r}" fill="#5be9d6"/>`; }
+      return s;
+    }
+    const cx1 = w * 0.28, cx2 = w * 0.72, R = mini ? 12 : 26;
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+      ${ring(cx1, R, 6, mini ? 9 : 20)}${ring(cx2, R, 8, mini ? 4 : 9)}</svg>`;
+  }
+  ILLUSIONS.push({
+    id: "ebbinghaus", group: "geometry", tag: "classic",
+    title: "Ebbinghaus Circles",
+    thumb: thumbEbb,
+    blurb: "The two pink center circles are exactly the same size. Surrounded by big neighbors one looks tiny; surrounded by small ones it looks huge.",
+    explain: "Your brain judges size relative to context, not in absolute terms. A circle dwarfed by large companions reads as small; the same circle ringed by tiny ones reads as large. It's a vivid demo that perception is always comparative — and it even affects how hard people grip objects.",
+    build(stage) {
+      stage.innerHTML = `<div id="eb"></div>
+        <div class="controls"><button class="btn" id="prove">⭐ Show they match</button></div>
+        <div class="readout" id="r">Left center vs. right center — bet they look different.</div>`;
+      stage.querySelector("#eb").innerHTML = svgEbb(false);
+      stage.querySelector("#prove").addEventListener("click", () => {
+        const svg = stage.querySelector("svg"); const w = 460, cy = 120, R = 26;
+        svg.insertAdjacentHTML("beforeend",
+          `<circle cx="${w*0.28}" cy="${cy}" r="${R}" fill="none" stroke="#ffd66b" stroke-width="3"/>
+           <circle cx="${w*0.72}" cy="${cy}" r="${R}" fill="none" stroke="#ffd66b" stroke-width="3"/>`);
+        stage.querySelector("#r").innerHTML = "Both outlined at the <b>exact same radius</b>. Identical.";
+      });
+    },
+  });
+
+  /* ============================================================
+     9. CHECKER SHADOW (Adelson)
+     ============================================================ */
+  function drawChecker(canvas, showProof, mini) {
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height, n = 8, s = W / n;
+    // checkerboard
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      const dark = (r + c) % 2 === 0;
+      ctx.fillStyle = dark ? "#777" : "#bcbcbc";
+      ctx.fillRect(c * s, r * s, s, s);
+    }
+    // cylinder + shadow (the shadow darkens squares it falls on)
+    const shadowCols = [3, 4, 5, 6, 7];
+    ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "rgba(40,40,60,.55)";
+    ctx.beginPath(); ctx.moveTo(s * 2.4, 0); ctx.lineTo(W, H * 0.55); ctx.lineTo(W, H); ctx.lineTo(s * 1.6, H); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // cylinder
+    ctx.fillStyle = "#2a6f4a"; ctx.fillRect(s * 1.1, mini ? 0 : -10, s * 0.8, H * 0.55);
+    ctx.beginPath(); ctx.ellipse(s * 1.5, H * 0.55, s * 0.4, s * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+    // label A (in light, a dark square) and B (in shadow, a light square)
+    const A = { c: 2, r: 5 }, B = { c: 5, r: 2 };
+    ctx.fillStyle = "#fff"; ctx.font = `bold ${mini ? 12 : 20}px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    if (!mini) {
+      ctx.fillText("A", (A.c + .5) * s, (A.r + .5) * s);
+      ctx.fillText("B", (B.c + .5) * s, (B.r + .5) * s);
+    }
+    if (showProof) {
+      // bridge both squares with a bar of their actual shared color
+      ctx.fillStyle = "#969696"; // the true pixel value both squares share
+      ctx.fillRect((A.c + .5) * s, (A.r + .5) * s, (B.c - A.c) * s, 18);
+      ctx.fillRect((B.c + .5) * s - 0, (B.r + .5) * s, 18, (A.r - B.r) * s);
+    }
+    return { A, B };
+  }
+  ILLUSIONS.push({
+    id: "checker", group: "geometry", tag: "classic",
+    title: "Same-Color Checkerboard",
+    thumb: thumbChecker,
+    blurb: "Square A (in the light) and square B (in the cylinder's shadow) are the exact same shade of grey. Nobody believes it. Hit the button and connect them.",
+    explain: "Edward Adelson's masterpiece. Your brain knows shadows make things look darker, so it mentally 'brightens' square B to recover its 'true' color — and over-corrects. The moment you draw a solid bar of the actual pixel color bridging A and B, the bar matches both, and the illusion collapses. Knowing the trick doesn't stop you seeing it.",
+    build(stage) {
+      stage.innerHTML = `<canvas width="360" height="360" style="border-radius:12px"></canvas>
+        <div class="controls"><button class="btn" id="prove" aria-pressed="false">🔗 Connect A and B</button></div>
+        <div class="readout" id="r">A looks dark, B looks light — they're the same grey.</div>`;
+      const c = stage.querySelector("canvas");
+      drawChecker(c, false, false);
+      let on = false;
+      stage.querySelector("#prove").addEventListener("click", (e) => {
+        on = !on; e.target.setAttribute("aria-pressed", on);
+        c.getContext("2d").clearRect(0, 0, c.width, c.height);
+        drawChecker(c, on, false);
+        stage.querySelector("#r").innerHTML = on ? "The bridge is <b>one flat color</b> — and it matches both squares." : "A looks dark, B looks light — they're the same grey.";
+      });
+    },
+  });
+
+  /* ============================================================
+     10. MOTION SPIRAL (aftereffect)
+     ============================================================ */
+  function svgSpiral() {
+    let p = "";
+    const turns = 5, pts = 240, cx = 120, cy = 120;
+    for (let i = 0; i <= pts; i++) {
+      const t = i / pts, ang = t * turns * Math.PI * 2, rad = t * 110;
+      const x = cx + Math.cos(ang) * rad, y = cy + Math.sin(ang) * rad;
+      p += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+    }
+    return `<svg viewBox="0 0 240 240" width="240" height="240">
+      <circle cx="120" cy="120" r="118" fill="#0d0c22"/>
+      <path d="${p}" fill="none" stroke="#5be9d6" stroke-width="9"/></svg>`;
+  }
+  ILLUSIONS.push({
+    id: "spiral", group: "after", tag: "aftereffect",
+    title: "The Breathing World",
+    thumb: thumbSpiral,
+    blurb: "Stare at the center of the spinning spiral for 30 seconds, then look at your hand or a friend's face. The world will gently warp and breathe.",
+    explain: "This is the motion aftereffect (the 'waterfall illusion'). Neurons tuned to inward motion fatigue while you stare; when you look away at something still, the opposing (outward) neurons briefly dominate with no inward signal to balance them, so stationary things appear to expand. It's direct evidence that motion has dedicated detectors in your brain.",
+    build(stage) {
+      stage.innerHTML = `<div id="sp">${svgSpiral()}</div>
+        <div class="controls">
+          <button class="btn" id="go">▶ Spin (then stare 30s)</button>
+          <button class="btn alt" id="rev">Reverse</button>
+          <button class="btn ghost" id="stop">■ Stop</button>
+        </div>
+        <div class="readout">Keep your eyes locked on the dead center. Then look away fast.</div>`;
+      const svg = stage.querySelector("svg"); let dir = 1, spinning = false;
+      function apply() {
+        svg.style.animation = spinning ? "spin 8s linear infinite" : "none";
+        svg.style.animationDirection = dir > 0 ? "normal" : "reverse";
+      }
+      stage.querySelector("#go").addEventListener("click", () => { spinning = true; apply(); });
+      stage.querySelector("#rev").addEventListener("click", () => { dir *= -1; apply(); });
+      stage.querySelector("#stop").addEventListener("click", () => { spinning = false; svg.style.animation = "none"; });
+      return { teardown: () => { svg.style.animation = "none"; } };
+    },
+  });
+
+  /* ============================================================
+     11. COLOR AFTERIMAGE (flag)
+     ============================================================ */
+  ILLUSIONS.push({
+    id: "afterimage", group: "after", tag: "aftereffect",
+    title: "The Impossible Flag",
+    thumb: thumbAfter,
+    blurb: "Stare at the dot on this cyan-black-and-yellow flag for 20 seconds, then look at a white wall (or press 'Reveal'). You'll see the Stars and Stripes in full color.",
+    explain: "Your color receptors come in opponent pairs: red-green and blue-yellow. Stare at cyan long enough and the 'cyan' channel tires out; look at white and the opposing 'red' response floods in unopposed. The negative-color flag is painted in each color's exact opposite, so the afterimage snaps back to red, white, and blue.",
+    build(stage) {
+      stage.innerHTML = `<canvas width="380" height="240" style="border-radius:10px"></canvas>
+        <div class="controls">
+          <button class="btn" id="reveal">⬜ Reveal (look here)</button>
+          <button class="btn ghost" id="back">↩ Show the colored flag</button>
+        </div>
+        <div class="readout" id="r">Stare at the black dot ~20 seconds without moving your eyes.</div>`;
+      const c = stage.querySelector("canvas"), ctx = c.getContext("2d");
+      function neg() {
+        // opponent colors: blue field→ yellow/orange?, we use cyan field + black stripes + yellow stars
+        ctx.fillStyle = "#00b3b3"; ctx.fillRect(0, 0, 380, 240);        // → red field
+        for (let i = 0; i < 13; i++) { ctx.fillStyle = i % 2 ? "#fff" : "#111"; ctx.fillRect(0, i * (240 / 13), 380, 240 / 13); }
+        ctx.fillStyle = "#0a8a8a"; ctx.fillRect(0, 0, 160, 240 * 7 / 13); // canton → blue
+        // stars (yellow → blue/white afterimage)
+        ctx.fillStyle = "#111";
+        for (let r = 0; r < 5; r++) for (let col = 0; col < 6; col++) {
+          ctx.beginPath(); ctx.arc(16 + col * 26, 14 + r * 24, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(190, 120, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      function white() { ctx.fillStyle = "#f7f7f7"; ctx.fillRect(0, 0, 380, 240); ctx.fillStyle = "#444"; ctx.beginPath(); ctx.arc(190, 120, 4, 0, Math.PI * 2); ctx.fill(); }
+      neg();
+      stage.querySelector("#reveal").addEventListener("click", () => { white(); stage.querySelector("#r").innerHTML = "See it? <b>Red, white &amp; blue</b> — painted only in your eyes."; });
+      stage.querySelector("#back").addEventListener("click", () => { neg(); stage.querySelector("#r").textContent = "Stare at the black dot ~20 seconds without moving your eyes."; });
+    },
+  });
+
+  /* ============================================================
+     12. ROTATING SNAKES (peripheral drift)
+     ============================================================ */
+  function snakesSVG(rings) {
+    const size = rings > 2 ? 420 : 200, cx = size / 2, cy = size / 2;
+    let s = `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="#1b1b1b"/>`;
+    const cols = ["#111", "#2b6cff", "#fff", "#ffb000"]; // black-blue-white-yellow asymmetric luminance
+    const ringCount = rings, segs = 24;
+    for (let r = 0; r < ringCount; r++) {
+      const R0 = 30 + r * (cx - 35) / ringCount, R1 = 30 + (r + 1) * (cx - 35) / ringCount;
+      for (let i = 0; i < segs; i++) {
+        const a0 = i / segs * Math.PI * 2, a1 = (i + 1) / segs * Math.PI * 2;
+        const col = cols[(i + r) % 4];
+        const x0 = cx + Math.cos(a0) * R0, y0 = cy + Math.sin(a0) * R0;
+        const x1 = cx + Math.cos(a0) * R1, y1 = cy + Math.sin(a0) * R1;
+        const x2 = cx + Math.cos(a1) * R1, y2 = cy + Math.sin(a1) * R1;
+        const x3 = cx + Math.cos(a1) * R0, y3 = cy + Math.sin(a1) * R0;
+        s += `<path d="M${x0} ${y0}L${x1} ${y1}L${x2} ${y2}L${x3} ${y3}Z" fill="${col}"/>`;
+      }
+    }
+    return s + "</svg>";
+  }
+  ILLUSIONS.push({
+    id: "snakes", group: "after", tag: "static!",
+    title: "Rotating Snakes",
+    thumb: thumbSnakes,
+    blurb: "This image is 100% static — nothing moves. But the rings churn and drift in your peripheral vision. Look directly at any one ring and it freezes.",
+    explain: "Akiyoshi Kitaoka's famous design. A repeating black→blue→white→yellow order creates an asymmetric brightness gradient. Your peripheral motion detectors fire slightly faster for bright-to-dark edges, and your tiny involuntary eye movements (you make several per second) feed those detectors a phantom drift signal. Foveal vision is sharp enough to override it — so direct gaze kills the motion.",
+    build(stage) {
+      stage.innerHTML = `<div>${snakesSVG(4)}</div>
+        <div class="readout">Let your eyes wander around the image — don't fixate. Feel them spin?</div>
+        <div class="pulse-note">Tip: it's strongest in soft, indirect light.</div>`;
+    },
+  });
+
+  /* ============================================================
+     13. SCINTILLATING GRID
+     ============================================================ */
+  function scintMini() {
+    return `<div style="position:relative;width:200px;height:118px;background:#222">${dotsHTML(7, 4, 26, 14)}</div>`;
+  }
+  function dotsHTML(cols, rows, gap, pad) {
+    let s = "";
+    for (let r = 0; r <= rows; r++) for (let c = 0; c <= cols; c++) {
+      s += `<div style="position:absolute;left:${pad + c * gap - 4}px;top:${pad + r * gap - 4}px;width:8px;height:8px;border-radius:50%;background:#fff"></div>`;
+    }
+    // grey lines
+    let lines = "";
+    for (let c = 0; c <= cols; c++) lines += `<div style="position:absolute;left:${pad + c * gap - 1}px;top:${pad - 1}px;width:2px;height:${rows * gap}px;background:#777"></div>`;
+    for (let r = 0; r <= rows; r++) lines += `<div style="position:absolute;left:${pad - 1}px;top:${pad + r * gap - 1}px;height:2px;width:${cols * gap}px;background:#777"></div>`;
+    return lines + s;
+  }
+  ILLUSIONS.push({
+    id: "scint", group: "after", tag: "classic",
+    title: "Scintillating Grid",
+    thumb: thumbScint,
+    blurb: "Black dots flicker in and out at the intersections of this grid — but the dots you're looking at directly are always white. They only appear where you're not looking.",
+    explain: "At each crossing, the white dot is flanked by long grey bars on all sides. Your retina's center-surround cells respond to that local contrast and momentarily 'fill in' a dark smudge — but only in your low-resolution periphery. Wherever your sharp central vision lands, the real white dot wins. Chase a dot and it's never there.",
+    build(stage) {
+      stage.innerHTML = `<div id="grid" style="position:relative;background:#1c1c1c;border-radius:10px"></div>
+        <div class="readout">Let your gaze drift. Count the black dots… if you can.</div>`;
+      const g = stage.querySelector("#grid");
+      const cols = 11, rows = 7, gap = 46, pad = 30;
+      g.style.width = (cols * gap + pad * 2) + "px";
+      g.style.height = (rows * gap + pad * 2) + "px";
+      g.innerHTML = dotsHTML(cols, rows, gap, pad);
+    },
+  });
+
+  /* ============================================================
+     Router
+     ============================================================ */
+  const landing = document.getElementById("landing");
+  const detail = document.getElementById("detail");
+  let current = null;
+
+  function renderGrid() {
+    const host = document.getElementById("groups");
+    host.innerHTML = "";
+    for (const g of GROUPS) {
+      const items = ILLUSIONS.filter((i) => i.group === g.key);
+      if (!items.length) continue;
+      const sec = document.createElement("section");
+      sec.innerHTML = `<div class="group-title"><h2>${g.name}</h2><small>${g.note}</small></div>`;
+      const grid = document.createElement("div"); grid.className = "grid";
+      for (const it of items) {
+        const card = document.createElement("button"); card.className = "card";
+        card.innerHTML = `${it.tag ? `<span class="tag">${it.tag}</span>` : ""}
+          <div class="thumb"></div><h3>${it.title}</h3><p>${it.blurb.split(".")[0]}.</p>`;
+        try { it.thumb && it.thumb(card.querySelector(".thumb")); } catch (e) {}
+        card.addEventListener("click", () => { location.hash = it.id; });
+        grid.appendChild(card);
+      }
+      sec.appendChild(grid); host.appendChild(sec);
+    }
+  }
+
+  function teardownCurrent() {
+    if (current && current.handle && current.handle.teardown) {
+      try { current.handle.teardown(); } catch (e) {}
+    }
+    current = null;
+  }
+
+  function openIllusion(it) {
+    teardownCurrent();
+    landing.classList.add("hidden");
+    detail.classList.add("active");
+    document.getElementById("dTitle").textContent = it.title;
+    document.getElementById("dBlurb").textContent = it.blurb;
+    const stage = document.getElementById("stage"); stage.innerHTML = "";
+    const handle = it.build(stage) || {};
+    current = { it, handle };
+    const ex = document.getElementById("dExplain");
+    ex.innerHTML = `<div class="explain"><h4>What's going on</h4><p>${it.explain}</p>
+      ${it.tag === "recreated" ? `<p class="disclaimer">Note: the famous original is copyrighted media we don't ship. This is a from-scratch recreation of the underlying effect.</p>` : ""}</div>`;
+    window.scrollTo(0, 0);
+  }
+
+  function showLanding() {
+    teardownCurrent();
+    detail.classList.remove("active");
+    landing.classList.remove("hidden");
+  }
+
+  function route() {
+    const id = location.hash.replace("#", "");
+    const it = ILLUSIONS.find((x) => x.id === id);
+    if (it) openIllusion(it); else showLanding();
+  }
+
+  document.getElementById("backBtn").addEventListener("click", () => { location.hash = ""; });
+  document.getElementById("brandBtn").addEventListener("click", () => { location.hash = ""; });
+  window.addEventListener("hashchange", route);
+
+  renderGrid();
+  route();
+})();
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ A running list of everything we're building in this repo, grouped so it's easy t
 
 **How to view:** Every single-file site is a self-contained `.html` — open it directly in a browser, no build step. Folder projects have their own setup notes (see each row's path). For an engineering-level map of any file (structure, functions, palettes), see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-01 (added Mind Benders illusions site)_
 
 ---
 
@@ -38,6 +38,12 @@ _Last updated: 2026-06-01_
 | **Spades** | 4-player Spades vs. AI bots with tunable difficulty | [spades.html](spades.html) | Complete |
 | **Birthday Slots** | 3-reel slot machine, procedurally-synthesized audio | [slot-machine.html](slot-machine.html) | Complete |
 | **Birthday Slots (Memes)** | Slots variant with meme sound effects | [slot-machine-memes.html](slot-machine-memes.html) | Complete |
+
+## Fun & curiosities
+
+| Site | What it is | Open | Status |
+|------|------------|------|--------|
+| **Mind Benders** | Playground of viral illusions — spinning dancer, the dress, Yanny/Laurel, Shepard tone, café wall, afterimages — all generated in-browser, with "prove it" reveals | [illusions.html](illusions.html) | Complete |
 
 ## Tools & utilities
 

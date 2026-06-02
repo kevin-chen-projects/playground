@@ -4,7 +4,7 @@ A running list of everything we're building in this repo, grouped so it's easy t
 
 **How to view:** Every single-file site is a self-contained `.html` — open it directly in a browser, no build step. Folder projects have their own setup notes (see each row's path). For an engineering-level map of any file (structure, functions, palettes), see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 
-_Last updated: 2026-06-01 (added Mind Benders illusions site)_
+_Last updated: 2026-06-01 (added Scam Shield online-safety site)_
 
 ---
 
@@ -18,6 +18,7 @@ _Last updated: 2026-06-01 (added Mind Benders illusions site)_
 | **SAT Reading Sprints** | Timed SAT reading practice — 5 passages, 22 questions, per-answer explanations | [sat-reading.html](sat-reading.html) | Complete |
 | **Money Smarts** | Friendly personal-finance literacy site | [money-smarts.html](money-smarts.html) | Complete |
 | **Violin Voyage** | Beginner violin + sheet-music reading tutor | [violin-voyage.html](violin-voyage.html) | Complete |
+| **Scam Shield** | Online-safety lessons for older adults — phishing/text/call scams, "Spot the Scam" practice, quizzes, big-text a11y controls, "I was scammed" help checklist | [scam-shield.html](scam-shield.html) | Complete |
 
 ## Language & speech
 

@@ -43,6 +43,7 @@ _Last updated: 2026-06-01_
 
 | Site | What it is | Open | Status |
 |------|------------|------|--------|
+| **FluoroMatch** | IF fluorophore panel designer — assigns dyes + detection channels to antibody targets, balancing estimated signal by abundance (bright dyes→rare targets) with spillover + autofluorescence warnings and a spectral plot | [fluoro-match.html](fluoro-match.html) | Complete |
 | **Mortgage Lab** | Affordability suite — payment, affordability, rent-vs-buy, refinance, with charts | [mortgage-lab.html](mortgage-lab.html) | Complete |
 | **Fridge Feast** | Cook-from-what-you-have recipe generator | [fridge-feast.html](fridge-feast.html) | Complete |
 | **Stock Screener** | Momentum day-trading reference (RVOL, options flow) — run `python fetch_data.py` then serve | [stock-screener/](stock-screener/) | Complete |

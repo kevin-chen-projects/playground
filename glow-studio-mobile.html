@@ -2,49 +2,46 @@
 <html lang="en">
 <!--
   ============================================================
-  GLOW STUDIO MOBILE — Batch photo editor (1–5 photos)
+  GLOW STUDIO MOBILE — Single-photo touch retouch editor
   Layout: flex column, mobile-tuned (100dvh, safe-area)
   Deps: none. See PLAYGROUND_NOTES.md for full reference.
-  Diff vs desktop glow-studio.html: no painting, single
-  strength slider, batch (5 max), thumbnails, no presets.
+  Diff vs desktop glow-studio.html: touch-first (finger
+  brush + pinch-zoom/pan), bottom-sheet UI, no side panels.
+  Shares the core engine: brush painting, presets, auto-glow,
+  adjustment sliders, undo/redo history.
 
   FILE INDEX (line numbers reflect post-comment positions)
     60    <style>
     61    CSS variables (blush + ink palette)
     103   Landing (mobile, fixed, safe-area)
     219   Editor flex column
-    228   Header (back, brand, apply-all, download)
-    278   Photo strip (56x56 thumbnails)
-    348   Canvas area + radial bg
-    392   Auto face badge
-    395   Context panel (sliders)
+    395   Context panel (brush sliders)
     449   Tool strip
     501   Bottom actions (compare/auto-glow/clear/reset)
     526   Bottom sheets
     666   Toast
     688   </style>
     690   <body>
-    693   Landing HTML (One-Tap pill, brand, upload)
-    725   Editor header
-    778   Photo strip + canvas + strength + tools + actions
+    692   Landing HTML (One-Tap pill, brand, upload)
+    724   Editor: header + canvas + sliders + tools + actions
     893   <script> — main IIFE
-    897     State (photos[], activePhoto, edits per photo)
+    897     State (single photo: retouch + adjustments)
     935     DOM refs
     954     Toasts
-    971     File handling (multi-file)
-    1053    History (per-photo)
+    971     File handling (single file)
+    1053    History (undo/redo)
     1093    Render (retouch + adjustments)
     1102    Adjustments
     1170    Gaussian blur
-    1218    Brush application (auto-detected regions)
+    1218    Brush application
     1384    Coordinate conversion
     1396    Stage transform (zoom/pan)
-    1441    Touch handling
+    1441    Touch handling (draw + pinch-zoom)
     1620    Tool selection
-    1638    Sliders (single strength)
+    1638    Sliders
     1690    Header buttons
-    1716    Bottom actions (compare/clear/reset)
-    1781    Auto Glow (one-tap enhancement)
+    1716    Bottom actions
+    1781    Auto glow
     1803    Presets
     1847    Sample portrait
     2397  </script>

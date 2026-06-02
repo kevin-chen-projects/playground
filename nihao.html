@@ -3205,6 +3205,53 @@
       // SVG viewBox is 400×200. X = time (0..400), Y = pitch (0=high, 200=low)
       // We normalize each user recording to its own pitch range so absolute pitch doesn't matter.
 
+      // --- Pitch-track cleanup -------------------------------------------------
+      // The autocorrelation detector occasionally emits octave errors (a frame
+      // that reads at 2× or ½ the true pitch) and isolated outliers. Left raw,
+      // these wreck both the drawn curve (min/max normalization stretches to the
+      // glitch) and the score (raw fmax-fmin explodes on one bad sample). We clean
+      // the track before anything consumes it.
+
+      function median(arr) {
+        if (!arr.length) return 0;
+        const s = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(s.length / 2);
+        return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+      }
+
+      // Robust spread: distance between the 10th and 90th percentile, immune to
+      // the one-off outliers that raw (max - min) would amplify.
+      function robustRange(arr) {
+        if (arr.length < 2) return 0;
+        const s = [...arr].sort((a, b) => a - b);
+        const at = q => s[Math.min(s.length - 1, Math.max(0, Math.round(q * (s.length - 1))))];
+        return at(0.9) - at(0.1);
+      }
+
+      // Returns a cleaned copy of the {t, hz} samples: folds obvious octave
+      // errors back toward the local median, then drops samples still far from it.
+      function cleanPitchTrack(pitches) {
+        if (pitches.length < 3) return pitches.slice();
+        const ref = median(pitches.map(p => p.hz));
+        if (ref <= 0) return pitches.slice();
+        const out = [];
+        for (const p of pitches) {
+          let hz = p.hz;
+          // Fold octave errors: pull a doubled/halved reading toward the median.
+          if (hz > ref * 1.5) hz /= 2;
+          else if (hz < ref * 0.66) hz *= 2;
+          // Drop anything still more than 35% off the median — genuine garbage.
+          if (Math.abs(hz - ref) <= ref * 0.35) out.push({ t: p.t, hz });
+        }
+        // If filtering was too aggressive (e.g. a real glide), keep the folded track.
+        return out.length >= 3 ? out : pitches.map(p => {
+          let hz = p.hz;
+          if (hz > ref * 1.5) hz /= 2;
+          else if (hz < ref * 0.66) hz *= 2;
+          return { t: p.t, hz };
+        });
+      }
+
       function clearUserCurve() {
         $('#user-curve').setAttribute('d', '');
         const now = $('#user-now');
@@ -3214,12 +3261,15 @@
 
       function drawUserCurve(pitches) {
         if (!pitches.length) return;
-        const xs = pitches.map(p => (p.t / RECORD_MS) * 400);
-        const fs = pitches.map(p => p.hz);
+        const clean = cleanPitchTrack(pitches);
+        if (!clean.length) return;
+        const xs = clean.map(p => (p.t / RECORD_MS) * 400);
+        const fs = clean.map(p => p.hz);
         const fmin = Math.min(...fs);
-        const fmax = Math.max(...fs);
-        const range = Math.max(20, fmax - fmin);
-        const ys = fs.map(f => 180 - ((f - fmin) / range) * 160);
+        // Normalize to a robust spread so a single stray frame can't stretch the
+        // axis and make a steady tone look jagged.
+        const range = Math.max(20, robustRange(fs));
+        const ys = fs.map(f => 180 - Math.max(0, Math.min(1, (f - fmin) / range)) * 160);
         let d = `M ${xs[0]} ${ys[0]}`;
         for (let i = 1; i < xs.length; i++) d += ` L ${xs[i]} ${ys[i]}`;
         $('#user-curve').setAttribute('d', d);
@@ -3253,18 +3303,21 @@
 
       function scorePitch(pitches, toneNum) {
         if (pitches.length < 4) return { score: 0, reason: 'not enough audio' };
+        // Strip octave errors / outliers before any statistics are computed.
+        const cleaned = cleanPitchTrack(pitches);
+        if (cleaned.length < 4) return { score: 0, reason: 'not enough audio' };
         // Smooth pitches with a small moving average
         const smoothed = [];
-        for (let i = 0; i < pitches.length; i++) {
+        for (let i = 0; i < cleaned.length; i++) {
           const lo = Math.max(0, i - 1);
-          const hi = Math.min(pitches.length - 1, i + 1);
+          const hi = Math.min(cleaned.length - 1, i + 1);
           let s = 0, n = 0;
-          for (let j = lo; j <= hi; j++) { s += pitches[j].hz; n++; }
+          for (let j = lo; j <= hi; j++) { s += cleaned[j].hz; n++; }
           smoothed.push(s / n);
         }
         const fmin = Math.min(...smoothed);
         const fmax = Math.max(...smoothed);
-        const range = fmax - fmin;
+        const range = robustRange(smoothed);
         const N = smoothed.length;
         const first = smoothed.slice(0, Math.max(1, Math.floor(N * 0.25)));
         const last  = smoothed.slice(Math.floor(N * 0.75));
@@ -3281,9 +3334,11 @@
         let score = 0;
         let reason = '';
         if (toneNum === 1) {
-          // flat: range should be small relative to mean
+          // flat: range should be small relative to mean. The band is generous
+          // (~25% spread) because a natural held note carries vibrato/jitter that
+          // shouldn't read as "wandering" once outliers are stripped.
           const avgF = (startAvg + endAvg) / 2;
-          const flatness = 1 - Math.min(1, range / (avgF * 0.18));
+          const flatness = 1 - Math.min(1, range / (avgF * 0.25));
           score = Math.round(flatness * 100);
           reason = score >= 75
             ? 'Steady and flat — exactly tone 1.'
@@ -3813,12 +3868,13 @@
 
       function quizDrawUserCurve(pitches) {
         if (!pitches.length) return;
-        const xs = pitches.map(p => (p.t / RECORD_MS) * 400);
-        const fs = pitches.map(p => p.hz);
+        const clean = cleanPitchTrack(pitches);
+        if (!clean.length) return;
+        const xs = clean.map(p => (p.t / RECORD_MS) * 400);
+        const fs = clean.map(p => p.hz);
         const fmin = Math.min(...fs);
-        const fmax = Math.max(...fs);
-        const range = Math.max(20, fmax - fmin);
-        const ys = fs.map(f => 180 - ((f - fmin) / range) * 160);
+        const range = Math.max(20, robustRange(fs));
+        const ys = fs.map(f => 180 - Math.max(0, Math.min(1, (f - fmin) / range)) * 160);
         let d = `M ${xs[0]} ${ys[0]}`;
         for (let i = 1; i < xs.length; i++) d += ` L ${xs[i]} ${ys[i]}`;
         $('#quiz-user-curve').setAttribute('d', d);

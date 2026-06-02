@@ -4,7 +4,7 @@ A running list of everything we're building in this repo, grouped so it's easy t
 
 **How to view:** Every single-file site is a self-contained `.html` — open it directly in a browser, no build step. Folder projects have their own setup notes (see each row's path). For an engineering-level map of any file (structure, functions, palettes), see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 
-_Last updated: 2026-06-01 (added Scam Shield online-safety site)_
+_Last updated: 2026-06-01 (corrected Bio Basics / NiHao module counts to match shipped builds)_
 
 ---
 
@@ -12,8 +12,8 @@ _Last updated: 2026-06-01 (added Scam Shield online-safety site)_
 
 | Site | What it is | Open | Status |
 |------|------------|------|--------|
-| **Bio Basics** | Molecular biology, museum-friendly — 11-module curriculum (cell → DNA → CRISPR), interactive SVGs + quizzes | [bio-basics.html](bio-basics.html) | 6 of 11 modules built |
-| **NiHao 你好** | Mandarin made easy — live mic pitch-detection tone trainer, pinyin chart, radical decomposition | [nihao.html](nihao.html) | 3 of 11 modules built |
+| **Bio Basics** | Molecular biology, museum-friendly — 11-module curriculum (cell → DNA → CRISPR), interactive SVGs + quizzes | [bio-basics.html](bio-basics.html) | Complete (11 modules) |
+| **NiHao 你好** | Mandarin made easy — live mic pitch-detection tone trainer, pinyin chart, radical decomposition | [nihao.html](nihao.html) | 4 of 11 modules built |
 | **Math Ace** | Kumon-style K–5 math tutor — 44 topics, sequential practice, stars + best times (CA Common Core aligned) | [math-ace.html](math-ace.html) | Complete |
 | **SAT Reading Sprints** | Timed SAT reading practice — 5 passages, 22 questions, per-answer explanations | [sat-reading.html](sat-reading.html) | Complete |
 | **Money Smarts** | Friendly personal-finance literacy site | [money-smarts.html](money-smarts.html) | Complete |

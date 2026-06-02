@@ -1,0 +1,5 @@
+# Screenshot/preview artifacts
+.shot-profile/
+.shotprofile/
+.preview.png
+.DS_Store

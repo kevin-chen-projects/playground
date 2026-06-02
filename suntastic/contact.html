@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — Suntastic Wedding Photography &amp; Officiants</title>
+  <meta name="description" content="Check your date and start the conversation with Suntastic — Las Vegas wedding photographers and licensed Nevada officiants." />
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Primary">
+      <a class="brand" href="index.html">
+        <span class="mark"><span class="sun">Sun</span>tastic</span>
+        <span class="tag">Las Vegas</span>
+      </a>
+      <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="packages.html">Packages</a></li>
+        <li><a href="testimonials.html">Testimonials</a></li>
+        <li><a href="contact.html" class="active">Contact</a></li>
+        <li class="nav-cta"><a href="contact.html" class="btn">Book a Date</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="page-hero">
+    <div class="hero-bg"><img src="assets/img/contact-hero.svg" alt="A Las Vegas desert sunset" /></div>
+    <div class="wrap">
+      <p class="eyebrow on-dark">Say Hello</p>
+      <h1>Let's tell your story.</h1>
+      <p>Tell us a little about your day. We reply to every inquiry personally, usually within 48 hours.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="contact-grid">
+        <!-- FORM -->
+        <div class="reveal">
+          <p class="eyebrow">Inquiry</p>
+          <h2>Check your date.</h2>
+          <hr class="divider" />
+          <form id="inquiry-form" novalidate>
+            <div class="grid grid-2" style="gap:0 20px;">
+              <div class="field">
+                <label for="firstName">First Name</label>
+                <input type="text" id="firstName" name="firstName" autocomplete="given-name" required />
+              </div>
+              <div class="field">
+                <label for="lastName">Last Name</label>
+                <input type="text" id="lastName" name="lastName" autocomplete="family-name" required />
+              </div>
+            </div>
+            <div class="grid grid-2" style="gap:0 20px;">
+              <div class="field">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" autocomplete="email" required />
+              </div>
+              <div class="field">
+                <label for="phone">Phone</label>
+                <input type="tel" id="phone" name="phone" autocomplete="tel" />
+              </div>
+            </div>
+            <div class="grid grid-2" style="gap:0 20px;">
+              <div class="field">
+                <label for="date">Wedding Date</label>
+                <input type="date" id="date" name="date" />
+              </div>
+              <div class="field">
+                <label for="package">Interested In</label>
+                <select id="package" name="package">
+                  <option value="">Select a collection…</option>
+                  <option>The Elopement</option>
+                  <option>The Celebration</option>
+                  <option>The Grand</option>
+                  <option>Officiant only</option>
+                  <option>Custom / not sure yet</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="message">Tell Us About Your Day</label>
+              <textarea id="message" name="message" placeholder="Where are you celebrating? What are you dreaming up? Anything we should know?"></textarea>
+            </div>
+            <button type="submit" class="btn">Send Inquiry</button>
+            <p class="form-note" hidden style="margin-top:20px; color:var(--champagne-d); font-weight:600;">
+              Thank you! This is a preview form — once the site is live we'll connect it so messages reach Suntastic's inbox. For now, please email us directly.
+            </p>
+          </form>
+        </div>
+
+        <!-- INFO -->
+        <div class="contact-info reveal">
+          <p class="eyebrow">Details</p>
+          <h2>Reach us directly.</h2>
+          <hr class="divider" />
+          <div class="info-row">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+            <div><div class="label">Email</div><div class="val"><a href="mailto:hello@suntastic.example">hello@suntastic.example</a></div></div>
+          </div>
+          <div class="info-row">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></div>
+            <div><div class="label">Phone</div><div class="val"><a href="tel:+17025550123">(702) 555-0123</a></div></div>
+          </div>
+          <div class="info-row">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s7-6.4 7-11a7 7 0 0 0-14 0c0 4.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+            <div><div class="label">Based In</div><div class="val">Las Vegas, Nevada</div></div>
+          </div>
+          <div class="info-row">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div><div class="label">Studio Hours</div><div class="val">By appointment · Mon–Sat</div></div>
+          </div>
+          <div class="info-row">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1.2" fill="currentColor"/></svg></div>
+            <div><div class="label">Follow Along</div><div class="val"><a href="#">@suntastic.lv</a></div></div>
+          </div>
+          <p style="margin-top:24px; color:var(--ink-soft); font-size:0.9rem;">
+            Serving all of Las Vegas and the surrounding desert — the Strip, Red Rock Canyon, Valley of Fire, and beyond. Travel beyond the valley is available on request.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAP placeholder -->
+  <section class="section-deep" style="padding-top:0;">
+    <div class="wrap">
+      <div class="frame frame-wide reveal" style="aspect-ratio:21/9; background:var(--ink); display:flex; align-items:center; justify-content:center;">
+        <span style="color:var(--champagne); letter-spacing:0.2em; text-transform:uppercase; font-size:0.8rem;">Map placeholder — embed Google Maps when live</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <span class="mark"><span class="sun">Sun</span>tastic</span>
+          <p>Boutique wedding photography &amp; licensed Nevada officiants, based in Las Vegas. Capturing love in the desert light.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="packages.html">Packages</a></li>
+            <li><a href="testimonials.html">Testimonials</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Get in Touch</h4>
+          <ul>
+            <li><a href="mailto:hello@suntastic.example">hello@suntastic.example</a></li>
+            <li><a href="tel:+17025550123">(702) 555-0123</a></li>
+            <li>Las Vegas, Nevada</li>
+            <li>By appointment only</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year">2026</span> Suntastic Photography. All rights reserved.</span>
+        <div class="socials">
+          <a href="#" aria-label="Instagram">Instagram</a>
+          <a href="#" aria-label="Pinterest">Pinterest</a>
+          <a href="#" aria-label="The Knot">The Knot</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

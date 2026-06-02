@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Scam Shield — online safety, made simple
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+
+  WHO IT'S FOR
+  ==============================================================================
+  Built first for older adults learning to recognize phishing, scam texts, and
+  fraud phone calls. Every design choice favors clarity over cleverness:
+    - Large default text (19px) with a built-in A / A+ / A++ size control
+    - High-contrast colors, big tap targets (min 48px), generous spacing
+    - Plain language, short sentences, no unexplained jargon
+    - Calm, reassuring tone — never scolding. Mistakes are normal.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+    Header comment (this block), <head> meta + title
+
+  STYLE
+    :root            palette (trust-blue + safe-green + alert-red + gold), type
+    Reset + base     box-sizing, body, focus rings, .sr-only
+    a11y             font-size scale via [data-text=sm|md|lg], reduced-motion
+    .top-bar         brand shield + text-size control
+    Buttons          .btn, .btn-primary, .btn-ghost, .btn-answer
+    Landing          hero, "how it works", curriculum grid, red-flags panel
+    Lesson view      lesson host, progress dots, prev/next nav
+    Cards            .card, .flag-card, .tip-card, .example (email/text/call)
+    Spot-the-Scam    .sim message mockups + verdict buttons + reveal
+    Quiz             question, options, feedback, results
+    Help view        "I think I was scammed" checklist + who to call
+    Animations       fadeIn, pulse, shake, checkPop (respect reduced-motion)
+    Mobile (<720px)  single column, larger touch targets
+
+  BODY
+    .top-bar
+    .view-landing    hero + how-it-works + curriculum + top red flags
+    .view-lesson     lesson host (rendered by JS)
+    .view-help       what-to-do-if-scammed reference
+
+  SCRIPT  (single IIFE)
+    State          { view, lessonId, sceneIndex, quiz, completed, textSize }
+    Persistence    localStorage['scamshield_state_v1']
+    a11y           applyTextSize(), cycleTextSize()
+    Routing        showView, openLesson, showScene, goHome
+    Curriculum     LESSONS array (7 lessons), all unlocked (no gating —
+                   learners should be free to jump to what worries them)
+    Renderers      scene builders: intro, flags, example, sim, quiz, recap
+    Spot-the-Scam  SIMS data, verdict handler, red-flag reveal
+    Quiz           grade, explanation per answer, mark complete
+    Boot           wire nav, restore state, back/forward
+
+  Notes
+  - No external requests: no fonts, no images, no analytics. All SVG inline.
+  - Nothing is collected. The only stored data is local progress + text size.
+  - Examples are fictional. Phone numbers/links are deliberately fake.
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Scam Shield — learn to spot phishing, scam texts, and fraud calls. Friendly online-safety lessons made for older adults." />
+  <title>Scam Shield — online safety, made simple</title>
+  <style>
+    /* ============================================================
+       :root — palette, radii, shadows, typography
+       ============================================================ */
+    :root {
+      /* Trust-blue — primary, calm and dependable */
+      --blue-800: #1e3a8a;
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-300: #93c5fd;
+      --blue-100: #dbeafe;
+      --blue-50:  #eff6ff;
+
+      /* Safe-green — "this is okay / you did it" */
+      --green-700: #15803d;
+      --green-600: #16a34a;
+      --green-500: #22c55e;
+      --green-100: #dcfce7;
+      --green-50:  #f0fdf4;
+
+      /* Alert-red — danger, scam, warning (used sparingly, never to scold) */
+      --red-700: #b91c1c;
+      --red-600: #dc2626;
+      --red-500: #ef4444;
+      --red-100: #fee2e2;
+      --red-50:  #fef2f2;
+
+      /* Gold — highlight, "remember this" tips */
+      --gold-700: #b45309;
+      --gold-500: #f59e0b;
+      --gold-100: #fef3c7;
+      --gold-50:  #fffbeb;
+
+      /* Inks — high-contrast text */
+      --ink-900: #0f172a;
+      --ink-700: #334155;
+      --ink-500: #64748b;
+      --ink-300: #cbd5e1;
+      --ink-200: #e2e8f0;
+      --ink-100: #f1f5f9;
+
+      /* Surfaces */
+      --paper: #ffffff;
+      --bg:    #f6f8fc;
+      --bg-alt:#eef2f9;
+
+      /* Radius / shadow */
+      --radius-sm: 10px;
+      --radius:    16px;
+      --radius-lg: 24px;
+      --shadow:    0 4px 16px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.14);
+      --ring:      0 0 0 4px var(--blue-300);
+
+      /* Typography — base bumped via [data-text] on <html> */
+      --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      --fs-base: 19px;
+    }
+
+    /* Text-size control: applied to <html> so rem scales everything */
+    html[data-text="sm"] { font-size: 17px; }
+    html[data-text="md"] { font-size: 19px; }
+    html[data-text="lg"] { font-size: 22px; }
+
+    /* ============================================================
+       Reset + base
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--ink-900);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 { line-height: 1.25; margin: 0 0 0.4em; }
+    h1 { font-size: 2.1rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.25rem; }
+    p  { margin: 0 0 1em; }
+
+    /* Visible, generous focus rings — important for keyboard + low vision */
+    :focus-visible { outline: none; box-shadow: var(--ring); border-radius: 8px; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      html { scroll-behavior: auto; }
+    }
+
+    /* ============================================================
+       Buttons — big tap targets, clear states
+       ============================================================ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 0.5em;
+      min-height: 52px; padding: 0.7em 1.4em;
+      font-family: var(--font); font-size: 1.05rem; font-weight: 700;
+      border: 2px solid transparent; border-radius: var(--radius-sm);
+      cursor: pointer; text-decoration: none;
+      transition: transform .12s ease, background .15s ease, box-shadow .15s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary { background: var(--blue-600); color: #fff; box-shadow: var(--shadow); }
+    .btn-primary:hover { background: var(--blue-700); }
+
+    .btn-ghost { background: var(--paper); color: var(--blue-700); border-color: var(--blue-300); }
+    .btn-ghost:hover { background: var(--blue-50); }
+
+    .btn-lg { min-height: 60px; font-size: 1.2rem; padding: 0.8em 1.8em; }
+
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ============================================================
+       Top bar
+       ============================================================ */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--paper);
+      border-bottom: 2px solid var(--ink-100);
+      box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    }
+    .top-bar-inner {
+      max-width: 1080px; margin: 0 auto; padding: 12px 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+      background: none; border: 0; cursor: pointer; padding: 6px; border-radius: 12px;
+      font-family: var(--font);
+    }
+    .brand:hover { background: var(--blue-50); }
+    .brand .shield { width: 40px; height: 40px; flex: none; }
+    .brand .name { font-size: 1.35rem; font-weight: 800; color: var(--blue-800); letter-spacing: -0.01em; }
+    .brand .name small { display: block; font-size: 0.72rem; font-weight: 600; color: var(--ink-500); letter-spacing: 0.02em; }
+
+    .top-spacer { flex: 1; }
+
+    /* Text-size control */
+    .text-ctrl { display: flex; align-items: center; gap: 8px; }
+    .text-ctrl .lbl { font-size: 0.85rem; font-weight: 700; color: var(--ink-500); }
+    .text-ctrl .seg {
+      display: inline-flex; border: 2px solid var(--ink-200); border-radius: 12px; overflow: hidden;
+    }
+    .text-ctrl button {
+      background: var(--paper); border: 0; cursor: pointer;
+      font-family: var(--font); font-weight: 800; color: var(--ink-700);
+      padding: 8px 0; width: 46px; min-height: 44px;
+      border-right: 2px solid var(--ink-200);
+    }
+    .text-ctrl button:last-child { border-right: 0; }
+    .text-ctrl button[aria-pressed="true"] { background: var(--blue-600); color: #fff; }
+    .text-ctrl button:nth-child(1) { font-size: 0.85rem; }
+    .text-ctrl button:nth-child(2) { font-size: 1.05rem; }
+    .text-ctrl button:nth-child(3) { font-size: 1.25rem; }
+    .help-link {
+      background: var(--red-50); color: var(--red-700); border: 2px solid var(--red-100);
+      font-weight: 800; border-radius: 12px; padding: 10px 16px; min-height: 44px;
+      cursor: pointer; font-family: var(--font); font-size: 0.95rem;
+    }
+    .help-link:hover { background: var(--red-100); }
+
+    /* ============================================================
+       Views
+       ============================================================ */
+    .view { display: none; animation: fadeIn .35s ease both; }
+    .view.active { display: block; }
+
+    /* ---------- Landing: hero ---------- */
+    .hero {
+      background:
+        radial-gradient(1200px 400px at 80% -10%, var(--blue-100), transparent),
+        linear-gradient(180deg, var(--blue-50), var(--bg));
+      padding: 56px 0 40px;
+      border-bottom: 1px solid var(--ink-100);
+    }
+    .hero-inner { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 36px; align-items: center; }
+    .hero h1 { font-size: 2.6rem; color: var(--blue-800); }
+    .hero .lede { font-size: 1.25rem; color: var(--ink-700); max-width: 30ch; }
+    .hero .cta-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+    .hero-art { display: flex; justify-content: center; }
+    .hero-art svg { width: 100%; max-width: 280px; height: auto; }
+
+    .reassure {
+      margin-top: 22px; display: inline-flex; align-items: center; gap: 10px;
+      background: var(--green-50); color: var(--green-700);
+      border: 2px solid var(--green-100); border-radius: 999px;
+      padding: 10px 18px; font-weight: 700; font-size: 1rem;
+    }
+
+    /* ---------- How it works ---------- */
+    .section { padding: 44px 0; }
+    .section h2 { text-align: center; color: var(--blue-800); }
+    .section .sub { text-align: center; color: var(--ink-500); max-width: 56ch; margin: 0 auto 32px; font-size: 1.1rem; }
+
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .step {
+      background: var(--paper); border: 2px solid var(--ink-100); border-radius: var(--radius);
+      padding: 24px; text-align: center;
+    }
+    .step .num {
+      width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 50%;
+      background: var(--blue-600); color: #fff; font-weight: 800; font-size: 1.3rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step h3 { color: var(--ink-900); }
+    .step p { color: var(--ink-700); margin: 0; }
+
+    /* ---------- Curriculum grid ---------- */
+    .lesson-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .lesson-card {
+      text-align: left; background: var(--paper); border: 2px solid var(--ink-100);
+      border-radius: var(--radius); padding: 22px; cursor: pointer; font-family: var(--font);
+      display: flex; gap: 18px; align-items: flex-start;
+      transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+    }
+    .lesson-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--blue-300); }
+    .lesson-card .ic {
+      width: 56px; height: 56px; flex: none; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lesson-card .ic svg { width: 32px; height: 32px; }
+    .lesson-card .meta h3 { margin: 0 0 4px; color: var(--ink-900); font-size: 1.2rem; }
+    .lesson-card .meta p { margin: 0; color: var(--ink-700); font-size: 1rem; }
+    .lesson-card .tag {
+      display: inline-block; margin-top: 10px; font-size: 0.82rem; font-weight: 700;
+      color: var(--ink-500); background: var(--ink-100); border-radius: 999px; padding: 3px 12px;
+    }
+    .lesson-card .tag.done { color: var(--green-700); background: var(--green-100); }
+
+    /* ---------- Top red flags panel ---------- */
+    .flags-panel {
+      background: var(--paper); border: 2px solid var(--red-100); border-radius: var(--radius-lg);
+      padding: 32px; box-shadow: var(--shadow);
+    }
+    .flags-panel h2 { color: var(--red-700); text-align: left; margin-bottom: 6px; }
+    .flags-panel > p { color: var(--ink-700); margin-bottom: 22px; }
+    .flag-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .flag-item { display: flex; gap: 12px; align-items: flex-start; }
+    .flag-item .dot {
+      width: 30px; height: 30px; flex: none; border-radius: 50%;
+      background: var(--red-100); color: var(--red-700);
+      display: flex; align-items: center; justify-content: center; font-weight: 900;
+    }
+    .flag-item b { color: var(--ink-900); }
+    .flag-item span { color: var(--ink-700); }
+
+    /* ============================================================
+       Lesson view
+       ============================================================ */
+    .lesson-head { background: var(--paper); border-bottom: 2px solid var(--ink-100); padding: 22px 0; }
+    .lesson-head-inner { display: flex; align-items: center; gap: 16px; }
+    .lesson-head .ic { width: 52px; height: 52px; border-radius: 14px; flex: none; display: flex; align-items: center; justify-content: center; }
+    .lesson-head .ic svg { width: 30px; height: 30px; }
+    .lesson-head h1 { font-size: 1.8rem; margin: 0; color: var(--ink-900); }
+    .lesson-head .crumb { color: var(--ink-500); font-weight: 700; font-size: 0.9rem; cursor: pointer; background: none; border: 0; padding: 0; font-family: var(--font); }
+    .lesson-head .crumb:hover { color: var(--blue-700); }
+
+    /* Progress dots */
+    .dots { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+    .dot-step { width: 14px; height: 14px; border-radius: 50%; background: var(--ink-200); transition: background .2s; }
+    .dot-step.active { background: var(--blue-600); transform: scale(1.15); }
+    .dot-step.done { background: var(--green-500); }
+
+    .scene { padding: 36px 0 24px; min-height: 50vh; }
+    .scene h2 { color: var(--blue-800); }
+    .scene .scene-lede { font-size: 1.15rem; color: var(--ink-700); margin-bottom: 26px; }
+
+    .card {
+      background: var(--paper); border: 2px solid var(--ink-100); border-radius: var(--radius);
+      padding: 24px; margin-bottom: 18px; box-shadow: var(--shadow);
+    }
+
+    /* Tip + key-point cards */
+    .tip-card {
+      display: flex; gap: 16px; background: var(--gold-50); border: 2px solid var(--gold-100);
+      border-radius: var(--radius); padding: 20px 22px; margin-bottom: 18px;
+    }
+    .tip-card .ic { font-size: 1.6rem; flex: none; }
+    .tip-card b { color: var(--gold-700); }
+    .tip-card p { margin: 0; color: var(--ink-700); }
+
+    /* Flag cards (red) — what makes something a scam */
+    .flag-card {
+      display: flex; gap: 16px; background: var(--red-50); border: 2px solid var(--red-100);
+      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px;
+    }
+    .flag-card .ic { width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--red-100); color: var(--red-700); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.2rem; }
+    .flag-card b { color: var(--red-700); display: block; margin-bottom: 2px; }
+    .flag-card p { margin: 0; color: var(--ink-700); }
+
+    /* Safe cards (green) — what you should do */
+    .safe-card {
+      display: flex; gap: 16px; background: var(--green-50); border: 2px solid var(--green-100);
+      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px;
+    }
+    .safe-card .ic { width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--green-100); color: var(--green-700); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.2rem; }
+    .safe-card b { color: var(--green-700); display: block; margin-bottom: 2px; }
+    .safe-card p { margin: 0; color: var(--ink-700); }
+
+    /* ---------- Example mockups (email / text / call) ---------- */
+    .example { border-radius: var(--radius); overflow: hidden; border: 2px solid var(--ink-200); margin-bottom: 18px; box-shadow: var(--shadow); }
+    .example .ex-head { background: var(--ink-100); padding: 12px 18px; font-weight: 700; color: var(--ink-700); display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+    .example .ex-body { background: var(--paper); padding: 20px; }
+    .email-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--ink-100); }
+    .email-row .k { color: var(--ink-500); font-weight: 700; width: 64px; flex: none; }
+    .email-row .v { color: var(--ink-900); word-break: break-word; }
+    .email-body { padding-top: 14px; color: var(--ink-900); }
+
+    /* Phone bubble for text-message examples */
+    .sms { background: var(--bg-alt); border-radius: var(--radius); padding: 18px; }
+    .sms .from { text-align: center; color: var(--ink-500); font-weight: 700; font-size: 0.9rem; margin-bottom: 10px; }
+    .bubble { background: #e9e9eb; color: #000; border-radius: 18px; padding: 12px 16px; max-width: 80%; font-size: 1.05rem; }
+
+    /* Inline highlight for red-flag words inside examples */
+    mark.flag { background: var(--red-100); color: var(--red-700); padding: 0 4px; border-radius: 5px; font-weight: 700; cursor: help; box-shadow: inset 0 -2px 0 var(--red-500); }
+
+    /* ============================================================
+       Spot-the-Scam simulator
+       ============================================================ */
+    .sim-progress { text-align: center; color: var(--ink-500); font-weight: 700; margin-bottom: 16px; }
+    .sim-msg { margin-bottom: 22px; }
+    .verdict-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
+    .btn-verdict {
+      min-height: 64px; font-size: 1.15rem; font-weight: 800; border-radius: var(--radius);
+      border: 3px solid; cursor: pointer; font-family: var(--font);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: transform .12s ease;
+    }
+    .btn-verdict:active { transform: translateY(1px); }
+    .btn-safe { background: var(--green-50); border-color: var(--green-500); color: var(--green-700); }
+    .btn-safe:hover { background: var(--green-100); }
+    .btn-scam { background: var(--red-50); border-color: var(--red-500); color: var(--red-700); }
+    .btn-scam:hover { background: var(--red-100); }
+    .btn-verdict:disabled { opacity: .45; }
+
+    .verdict-reveal { margin-top: 18px; animation: fadeIn .3s ease both; }
+    .verdict-banner { border-radius: var(--radius); padding: 18px 22px; font-weight: 800; font-size: 1.15rem; display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .verdict-banner.right { background: var(--green-100); color: var(--green-700); }
+    .verdict-banner.wrong { background: var(--gold-100); color: var(--gold-700); }
+
+    /* ============================================================
+       Quiz
+       ============================================================ */
+    .quiz-q { font-size: 1.3rem; font-weight: 800; color: var(--ink-900); margin-bottom: 6px; }
+    .quiz-count { color: var(--ink-500); font-weight: 700; margin-bottom: 18px; }
+    .options { display: grid; gap: 14px; }
+    .btn-answer {
+      text-align: left; background: var(--paper); border: 2px solid var(--ink-200);
+      border-radius: var(--radius); padding: 18px 20px; cursor: pointer;
+      font-family: var(--font); font-size: 1.1rem; color: var(--ink-900); font-weight: 600;
+      display: flex; align-items: center; gap: 14px; transition: border-color .12s, background .12s;
+    }
+    .btn-answer:hover:not(:disabled) { border-color: var(--blue-500); background: var(--blue-50); }
+    .btn-answer .key { width: 34px; height: 34px; flex: none; border-radius: 50%; background: var(--ink-100); color: var(--ink-700); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .btn-answer.correct { border-color: var(--green-500); background: var(--green-50); }
+    .btn-answer.correct .key { background: var(--green-500); color: #fff; }
+    .btn-answer.incorrect { border-color: var(--red-500); background: var(--red-50); }
+    .btn-answer.incorrect .key { background: var(--red-500); color: #fff; }
+    .btn-answer:disabled { cursor: default; }
+
+    .feedback { margin-top: 18px; border-radius: var(--radius); padding: 18px 20px; font-size: 1.05rem; animation: fadeIn .3s ease both; }
+    .feedback.good { background: var(--green-50); border: 2px solid var(--green-100); color: var(--ink-900); }
+    .feedback.bad { background: var(--gold-50); border: 2px solid var(--gold-100); color: var(--ink-900); }
+    .feedback b { display: block; margin-bottom: 4px; }
+
+    .results { text-align: center; padding: 20px 0; }
+    .results .score { font-size: 3rem; font-weight: 900; color: var(--blue-700); }
+    .results h2 { color: var(--blue-800); }
+
+    /* ---------- Recap ---------- */
+    .recap-list { display: grid; gap: 12px; margin: 0 0 24px; padding: 0; list-style: none; }
+    .recap-list li { display: flex; gap: 12px; align-items: flex-start; background: var(--paper); border: 2px solid var(--ink-100); border-radius: var(--radius-sm); padding: 14px 18px; }
+    .recap-list .chk { color: var(--green-600); font-weight: 900; font-size: 1.2rem; flex: none; }
+
+    /* ---------- Scene navigation ---------- */
+    .scene-nav { display: flex; justify-content: space-between; gap: 14px; padding: 20px 0 60px; }
+
+    /* ============================================================
+       Help view ("I think I was scammed")
+       ============================================================ */
+    .help-hero { background: linear-gradient(180deg, var(--red-50), var(--bg)); padding: 44px 0; border-bottom: 1px solid var(--red-100); }
+    .help-hero h1 { color: var(--red-700); }
+    .help-hero p { font-size: 1.2rem; color: var(--ink-700); max-width: 56ch; }
+    .checklist { display: grid; gap: 16px; counter-reset: step; }
+    .check-step { display: flex; gap: 16px; background: var(--paper); border: 2px solid var(--ink-100); border-radius: var(--radius); padding: 20px 22px; }
+    .check-step .n { width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--blue-600); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .check-step h3 { margin: 0 0 4px; }
+    .check-step p { margin: 0; color: var(--ink-700); }
+    .contacts { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; margin-top: 8px; }
+    .contact { background: var(--paper); border: 2px solid var(--ink-100); border-radius: var(--radius); padding: 20px; }
+    .contact b { color: var(--blue-800); font-size: 1.1rem; }
+    .contact .num { font-size: 1.35rem; font-weight: 900; color: var(--ink-900); margin: 6px 0; }
+    .contact p { margin: 0; color: var(--ink-700); font-size: 0.98rem; }
+
+    /* ============================================================
+       Footer
+       ============================================================ */
+    footer { background: var(--ink-900); color: var(--ink-300); padding: 30px 0; text-align: center; font-size: 0.95rem; }
+    footer b { color: #fff; }
+
+    /* ============================================================
+       Animations
+       ============================================================ */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes pulse  { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    @keyframes shake  { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    @keyframes checkPop { 0%{transform:scale(0)} 70%{transform:scale(1.2)} 100%{transform:scale(1)} }
+    .pulse { animation: pulse 2.4s ease-in-out infinite; }
+    .shake { animation: shake .4s ease; }
+
+    /* ============================================================
+       Mobile
+       ============================================================ */
+    @media (max-width: 760px) {
+      h1 { font-size: 1.7rem; }
+      .hero { padding: 36px 0 28px; }
+      .hero-inner { grid-template-columns: 1fr; gap: 20px; }
+      .hero h1 { font-size: 2rem; }
+      .hero-art { order: -1; }
+      .hero-art svg { max-width: 160px; }
+      .steps { grid-template-columns: 1fr; }
+      .lesson-grid { grid-template-columns: 1fr; }
+      .flag-list { grid-template-columns: 1fr; }
+      .verdict-row { grid-template-columns: 1fr; }
+      .contacts { grid-template-columns: 1fr; }
+      .top-bar-inner { flex-wrap: wrap; }
+      .text-ctrl .lbl { display: none; }
+      .lesson-head-inner { flex-wrap: wrap; }
+      .dots { margin-left: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       Top bar
+       ============================================================ -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <button class="brand" id="brandBtn" aria-label="Scam Shield home">
+        <svg class="shield" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 3 L42 10 V24 C42 35 34 42 24 45 C14 42 6 35 6 24 V10 Z" fill="var(--blue-600)"/>
+          <path d="M24 3 L42 10 V24 C42 35 34 42 24 45 Z" fill="var(--blue-800)" opacity="0.35"/>
+          <path d="M16 24 l5 5 l11 -12" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="name">Scam Shield<small>ONLINE SAFETY, MADE SIMPLE</small></span>
+      </button>
+
+      <span class="top-spacer"></span>
+
+      <div class="text-ctrl" role="group" aria-label="Text size">
+        <span class="lbl">Text size</span>
+        <div class="seg">
+          <button id="tsSm" aria-pressed="false" title="Small text">A</button>
+          <button id="tsMd" aria-pressed="true"  title="Medium text">A</button>
+          <button id="tsLg" aria-pressed="false" title="Large text">A</button>
+        </div>
+      </div>
+
+      <button class="help-link" id="helpBtn">🆘 I think I was scammed</button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       LANDING
+       ============================================================ -->
+  <main id="viewLanding" class="view active">
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <div>
+          <h1>Stay one step ahead of scammers.</h1>
+          <p class="lede">Friendly, plain-English lessons that show you how to spot fake emails, scam texts, and fraud phone calls — and what to do about them.</p>
+          <div class="cta-row">
+            <button class="btn btn-primary btn-lg" id="startBtn">Start learning →</button>
+            <button class="btn btn-ghost btn-lg" id="practiceBtn">Try a quick quiz</button>
+          </div>
+          <div class="reassure">
+            <span aria-hidden="true">💚</span> No sign-up. Nothing is collected. Go at your own pace.
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 240 260">
+            <path d="M120 12 L218 50 V130 C218 190 178 230 120 250 C62 230 22 190 22 130 V50 Z" fill="var(--blue-100)" stroke="var(--blue-600)" stroke-width="4"/>
+            <path d="M120 12 L218 50 V130 C218 190 178 230 120 250 Z" fill="var(--blue-300)" opacity="0.4"/>
+            <circle cx="120" cy="118" r="40" fill="none" stroke="var(--blue-700)" stroke-width="7"/>
+            <circle cx="120" cy="118" r="20" fill="var(--blue-700)"/>
+            <line x1="150" y1="148" x2="178" y2="176" stroke="var(--blue-700)" stroke-width="9" stroke-linecap="round"/>
+            <g class="pulse" style="transform-origin:120px 118px">
+              <path d="M104 118 l10 10 l22 -24" fill="none" stroke="var(--green-600)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section">
+      <div class="wrap">
+        <h2>How Scam Shield works</h2>
+        <p class="sub">Three simple steps. There's no test to pass and no way to "get it wrong" — every mistake is just practice.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <h3>Learn the tricks</h3>
+            <p>Short lessons explain how scammers try to fool you, with real-looking examples.</p>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <h3>Practice spotting them</h3>
+            <p>Look at fake messages and decide: safe or scam? We show you the warning signs.</p>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <h3>Know what to do</h3>
+            <p>If something already happened, follow a calm checklist and find who to call.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Curriculum -->
+    <section class="section" style="background:var(--bg-alt);">
+      <div class="wrap">
+        <h2>Choose a lesson</h2>
+        <p class="sub">Start anywhere. Pick whatever worries you most — they all stand on their own.</p>
+        <div class="lesson-grid" id="lessonGrid"><!-- rendered by JS --></div>
+      </div>
+    </section>
+
+    <!-- Top red flags -->
+    <section class="section">
+      <div class="wrap">
+        <div class="flags-panel">
+          <h2>🚩 The 6 biggest warning signs</h2>
+          <p>If a message has even one of these, slow down. Real companies and real family members do not behave this way.</p>
+          <div class="flag-list">
+            <div class="flag-item"><span class="dot">!</span><div><b>It rushes you.</b> <span>"Act now or your account closes in 24 hours."</span></div></div>
+            <div class="flag-item"><span class="dot">!</span><div><b>It scares you.</b> <span>Threats of arrest, fines, or losing your money.</span></div></div>
+            <div class="flag-item"><span class="dot">!</span><div><b>It asks for secrets.</b> <span>Passwords, PINs, or codes — no real company asks.</span></div></div>
+            <div class="flag-item"><span class="dot">!</span><div><b>It wants odd payment.</b> <span>Gift cards, wire transfers, or cryptocurrency.</span></div></div>
+            <div class="flag-item"><span class="dot">!</span><div><b>It comes out of nowhere.</b> <span>A prize you didn't enter, a refund you weren't owed.</span></div></div>
+            <div class="flag-item"><span class="dot">!</span><div><b>The details are off.</b> <span>Odd spelling, a strange web address, "Dear Customer."</span></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       LESSON
+       ============================================================ -->
+  <main id="viewLesson" class="view">
+    <div class="lesson-head">
+      <div class="wrap lesson-head-inner">
+        <div class="ic" id="lessonIc"></div>
+        <div>
+          <button class="crumb" id="lessonCrumb">← All lessons</button>
+          <h1 id="lessonTitle">Lesson</h1>
+        </div>
+        <div class="dots" id="lessonDots" aria-label="Lesson progress"></div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="scene" id="sceneHost"><!-- rendered by JS --></div>
+      <div class="scene-nav">
+        <button class="btn btn-ghost" id="prevBtn">← Back</button>
+        <button class="btn btn-primary" id="nextBtn">Next →</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============================================================
+       HELP — "I think I was scammed"
+       ============================================================ -->
+  <main id="viewHelp" class="view">
+    <section class="help-hero">
+      <div class="wrap">
+        <button class="crumb" id="helpCrumb" style="background:none;border:0;color:var(--ink-500);font-weight:700;cursor:pointer;font-family:var(--font);font-size:0.95rem;padding:0 0 8px;">← Back to home</button>
+        <h1>It's going to be okay. Let's take it one step at a time.</h1>
+        <p>Being targeted is not your fault — these criminals fool millions of people every year, including careful, smart people. Acting quickly can limit the harm. Here's exactly what to do.</p>
+      </div>
+    </section>
+    <section class="section">
+      <div class="wrap">
+        <div class="checklist">
+          <div class="check-step"><div class="n">1</div><div><h3>Stop all contact</h3><p>Don't send any more money, don't click anything else, and don't answer if they call back. It's okay to simply hang up or stop replying.</p></div></div>
+          <div class="check-step"><div class="n">2</div><div><h3>Call your bank right away</h3><p>Use the phone number on the back of your card — not a number anyone gave you. Tell them what happened. They can freeze cards, stop transfers, and watch for fraud.</p></div></div>
+          <div class="check-step"><div class="n">3</div><div><h3>Change your passwords</h3><p>Start with email and banking. If you reused that password anywhere else, change it there too. Ask a trusted person to help if you'd like.</p></div></div>
+          <div class="check-step"><div class="n">4</div><div><h3>Write down what happened</h3><p>Note dates, amounts, phone numbers, and any names. This helps your bank and the authorities.</p></div></div>
+          <div class="check-step"><div class="n">5</div><div><h3>Report it</h3><p>Reporting helps stop the scammer from hurting someone else. Use the contacts below.</p></div></div>
+          <div class="check-step"><div class="n">6</div><div><h3>Tell someone you trust</h3><p>A family member or friend can help you watch your accounts and feel less alone. You have nothing to be embarrassed about.</p></div></div>
+        </div>
+
+        <h2 style="margin-top:40px;color:var(--blue-800);">Who to call (United States)</h2>
+        <div class="contacts">
+          <div class="contact"><b>Your bank or card</b><div class="num">Number on your card</div><p>Report fraud and freeze accounts. Available 24/7 at most banks.</p></div>
+          <div class="contact"><b>Federal Trade Commission</b><div class="num">ReportFraud.ftc.gov</div><p>The U.S. government's official place to report scams. Or call 1-877-382-4357.</p></div>
+          <div class="contact"><b>Social Security fraud</b><div class="num">1-800-269-0271</div><p>If a caller claimed to be from Social Security or threatened your benefits.</p></div>
+          <div class="contact"><b>Local police</b><div class="num">Non-emergency line</div><p>File a report, especially if you lost money. Call 911 only for emergencies.</p></div>
+        </div>
+        <div class="tip-card" style="margin-top:24px;">
+          <span class="ic" aria-hidden="true">💛</span>
+          <p><b>Outside the U.S.?</b> Search "report a scam" plus your country's name, or ask your bank — every country has a fraud hotline. The steps above still apply everywhere.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p><b>Scam Shield</b> — a free learning tool. We never ask for personal information.</p>
+      <p>All examples shown are made up for teaching. When in doubt, slow down and ask someone you trust. 💙</p>
+    </div>
+  </footer>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ============================================================
+    // State + persistence
+    // ============================================================
+    var STORE_KEY = "scamshield_state_v1";
+    var state = {
+      view: "landing",       // landing | lesson | help
+      lessonId: null,
+      sceneIndex: 0,
+      completed: {},         // { lessonId: true }
+      textSize: "md",        // sm | md | lg
+      quiz: {},              // transient per-lesson quiz progress
+      sim: {}                // transient per-lesson sim progress
+    };
+
+    function load() {
+      try {
+        var raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          var saved = JSON.parse(raw);
+          if (saved.completed) state.completed = saved.completed;
+          if (saved.textSize) state.textSize = saved.textSize;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    function save() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({
+          completed: state.completed, textSize: state.textSize
+        }));
+      } catch (e) { /* ignore */ }
+    }
+
+    // ============================================================
+    // Accessibility — text size
+    // ============================================================
+    function applyTextSize() {
+      document.documentElement.setAttribute("data-text", state.textSize);
+      byId("tsSm").setAttribute("aria-pressed", state.textSize === "sm");
+      byId("tsMd").setAttribute("aria-pressed", state.textSize === "md");
+      byId("tsLg").setAttribute("aria-pressed", state.textSize === "lg");
+    }
+    function setTextSize(sz) { state.textSize = sz; applyTextSize(); save(); }
+
+    // ============================================================
+    // Tiny helpers
+    // ============================================================
+    function byId(id) { return document.getElementById(id); }
+    function el(tag, cls, html) {
+      var n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (html != null) n.innerHTML = html;
+      return n;
+    }
+    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+    // ============================================================
+    // Icons (inline SVG) — keyed by name
+    // ============================================================
+    var ICONS = {
+      mail:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+      phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-3 2a14 14 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+      chat:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/></svg>',
+      lock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+      cart:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11l2-8H6"/></svg>',
+      heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21S4 14.5 4 8.8A4.2 4.2 0 0 1 12 6a4.2 4.2 0 0 1 8 2.8C20 14.5 12 21 12 21z"/></svg>',
+      shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>'
+    };
+
+    // ============================================================
+    // Curriculum
+    //   Each lesson: id, title, blurb, icon, color (for icon chip),
+    //   and a list of scenes. Scenes are typed objects the renderer
+    //   knows how to draw.
+    // ============================================================
+    var LESSONS = [
+      {
+        id: "phishing", title: "Spotting scam emails", icon: "mail",
+        color: "var(--blue-600)", chip: "var(--blue-100)",
+        blurb: "Fake emails that pretend to be your bank, Amazon, or the government.",
+        scenes: [
+          { type: "intro", heading: "What is “phishing”?",
+            lede: "Phishing (say it like “fishing”) is when a criminal sends a fake message hoping you'll “bite.”",
+            body: [
+              "The message looks like it's from a company you trust — your bank, a delivery service, or even the government. It usually wants you to do one of two things:",
+              "<b>1)</b> Click a link that takes you to a fake website made to steal your password, or<br><b>2)</b> Reply with personal information like your card number or a security code.",
+              "The good news: once you know the warning signs, scam emails start to look obvious. Let's walk through a real-looking example."
+            ],
+            tip: "Remember: a real company already knows your account details. They will never email you asking you to “confirm” your password." },
+
+          { type: "example-email", heading: "Look closely at this email",
+            lede: "This looks official at first glance. But several details give it away. The red words are the warning signs — tap or hover to see why.",
+            email: {
+              from: 'Amaz0n Security &lt;support@amazon-account-verify.com&gt;',
+              fromFlag: "The address is misspelled (“Amaz0n” with a zero) and the website after the @ sign is not amazon.com.",
+              subject: 'URGENT: Your account will be closed in 24 hours',
+              subjectFlag: "Creating panic and a deadline is the oldest trick. It's designed to stop you from thinking clearly.",
+              greeting: "Dear Valued Customer,",
+              greetingFlag: "A real company that has your account knows your name. “Dear Customer” is a red flag.",
+              lines: [
+                'We detected unusual activity on your account. You must <mark class="flag" data-flag="verify">verify your password and card details</mark> immediately or your account will be permanently suspended.',
+                'Click here to confirm: <mark class="flag" data-flag="link">http://amazon-secure-login.verify-now.ru</mark>',
+                'Failure to act within 24 hours will result in account termination.'
+              ],
+              flags: {
+                verify: "No legitimate company asks you to confirm your password or card by email. This is the actual theft attempt.",
+                link: "The web address is not amazon.com. It ends in “.ru” and has extra words. Hovering over links (without clicking) reveals where they really go."
+              }
+            },
+            tip: "On a computer, you can hover your mouse over a link (don't click!) to see the real address pop up. On a phone, press and hold the link to preview it." },
+
+          { type: "flags", heading: "The warning signs in scam emails",
+            lede: "Any one of these means: slow down and don't click.",
+            flags: [
+              { t: "A sense of urgency", d: "“Act now,” “24 hours,” “final notice.” Real problems give you time." },
+              { t: "Asking for secrets", d: "Passwords, PINs, card numbers, or codes. No real company asks by email." },
+              { t: "A strange sender address", d: "Look after the @ sign. “support@amaz0n-verify.com” is not Amazon." },
+              { t: "Generic greeting", d: "“Dear Customer” instead of your name." },
+              { t: "Spelling and grammar errors", d: "Big companies proofread. Scammers often don't." },
+              { t: "Links that don't match", d: "The text says “amazon.com” but the real link goes somewhere else." }
+            ],
+            safe: [
+              { t: "Don't click — go direct", d: "Open your browser and type the company's real website yourself, or use their app." },
+              { t: "Call the number you know", d: "Use the phone number on your card or a past bill, never one from the email." }
+            ] },
+
+          { type: "sim", heading: "Your turn: safe or scam?",
+            lede: "Read each message and decide. Don't worry about getting it wrong — that's how we learn.",
+            simId: "email" },
+
+          { type: "quiz", heading: "Quick check", quizId: "phishing" },
+
+          { type: "recap", heading: "You've got this",
+            points: [
+              "Phishing emails pretend to be someone you trust.",
+              "Watch for urgency, requests for secrets, and odd sender addresses.",
+              "Never click links in surprise emails — go to the website yourself.",
+              "A real company will never email asking for your password."
+            ] }
+        ]
+      },
+
+      {
+        id: "smishing", title: "Scam texts on your phone", icon: "chat",
+        color: "var(--green-600)", chip: "var(--green-100)",
+        blurb: "“Your package is held,” fake delivery and bank texts, wrong-number friends.",
+        scenes: [
+          { type: "intro", heading: "Scam texts (“smishing”)",
+            lede: "Scams don't only come by email. Text messages are now one of the most common ways criminals reach people.",
+            body: [
+              "A scam text might say a package is stuck, your bank account is locked, or you owe a small toll or fee. It always includes a link to tap.",
+              "Some start friendly — “Hi, is this still your number?” — to pull you into a conversation that slowly turns into a money or investment request.",
+              "The rule is simple: <b>don't tap links in texts you weren't expecting</b>, and never send money or codes to someone who contacted you first."
+            ],
+            tip: "Your bank, the post office, and the government will not text you a link asking you to log in or pay. When in doubt, go to the official app or website yourself." },
+
+          { type: "example-text", heading: "A typical scam text",
+            lede: "This is one of the most common scams today. Here's what's wrong with it.",
+            sms: {
+              from: "Unknown number",
+              bubble: 'USPS: Your package is being held due to an unpaid fee of $1.95. Update your address and pay here within 12 hrs: <mark class="flag" data-flag="link">usps-redelivery.info/track</mark>',
+              flags: [
+                { t: "A tiny, oddly specific fee", d: "$1.95 feels too small to worry about — that's the trick. They want your card details, not the $1.95." },
+                { t: "A deadline (“12 hrs”)", d: "Pressure to act fast before you think it through." },
+                { t: "A link that isn't the real USPS", d: "The real site is usps.com. “usps-redelivery.info” is a fake made to look close." },
+                { t: "You weren't expecting it", d: "If you're not waiting on a package, it's almost certainly fake — and even if you are, go to the carrier's real site." }
+              ]
+            },
+            tip: "Delivery companies put tracking info in their own app or on their real website. You never have to pay a “release fee” by tapping a text link." },
+
+          { type: "flags", heading: "Common text-scam types",
+            lede: "If a text matches one of these and you weren't expecting it, treat it as a scam.",
+            flags: [
+              { t: "“Your package is held”", d: "Fake delivery fee or address-update link. (USPS, FedEx, UPS, DHL.)" },
+              { t: "“Unpaid toll”", d: "A small road-toll fee with a link. Toll agencies don't text random links." },
+              { t: "“Bank alert: did you make this charge?”", d: "Wants you to tap or call a fake number and hand over account access." },
+              { t: "“Hi, is this still your number?”", d: "A friendly wrong-number opener that leads to romance or investment scams." },
+              { t: "“You won a prize / gift card”", d: "You can't win a contest you never entered." }
+            ],
+            safe: [
+              { t: "Don't tap. Don't reply.", d: "Replying (even “STOP”) tells them a real person is reading. Just delete it." },
+              { t: "Check the official way", d: "Open the delivery or bank app you already have, or type the real website yourself." },
+              { t: "Report and block", d: "Most phones let you report junk texts as spam, then block the number." }
+            ] },
+
+          { type: "sim", heading: "Your turn: safe or scam?", lede: "A mix of real and fake texts. Which would you trust?", simId: "text" },
+
+          { type: "quiz", heading: "Quick check", quizId: "smishing" },
+
+          { type: "recap", heading: "Nicely done",
+            points: [
+              "Scam texts almost always include a link and a reason to hurry.",
+              "Don't tap links or reply — even “STOP” confirms your number is active.",
+              "A “wrong number” that wants to keep chatting is a known scam.",
+              "Check packages and bank alerts in the official app, not the text."
+            ] }
+        ]
+      },
+
+      {
+        id: "calls", title: "Fraud phone calls", icon: "phone",
+        color: "var(--gold-500)", chip: "var(--gold-100)",
+        blurb: "Fake “grandchild in trouble,” IRS, Social Security, and tech-support calls.",
+        scenes: [
+          { type: "intro", heading: "Scam phone calls",
+            lede: "A live voice on the phone can feel very convincing — that's exactly why scammers use it.",
+            body: [
+              "The caller may claim to be from the government, your bank, a computer company, or even a grandchild in trouble. They create fear or urgency so you'll act before you think.",
+              "They can fake the number that shows up on your phone (this is called “spoofing”), so a familiar name on the screen does <b>not</b> prove who's really calling.",
+              "Your strongest move is the simplest one: <b>hang up</b>, then call back using a number you trust."
+            ],
+            tip: "It is always okay to hang up. You are never being rude by protecting yourself. Real officials and real companies will not mind you calling them back." },
+
+          { type: "example-call", heading: "The “grandchild in trouble” call",
+            lede: "This emotional scam targets loving grandparents. Here's how it usually goes — and the warning signs.",
+            call: {
+              script: [
+                { who: "Caller", text: "Grandma? It's me… I'm in trouble. Please don't tell Mom and Dad." },
+                { who: "Caller", text: "I was in a car accident and got arrested. I need $2,000 for bail — today. Can you help me?" },
+                { who: "Caller", text: "Don't tell anyone, it's embarrassing. Just buy gift cards and read me the numbers on the back." }
+              ],
+              flags: [
+                { t: "“Don't tell anyone”", d: "Secrecy keeps you from calling a relative who would spot the scam instantly." },
+                { t: "Sounds upset, voice unclear", d: "“I'm crying / my nose is broken” explains why the voice doesn't quite match." },
+                { t: "Urgent need for money today", d: "Real emergencies have time for a phone call to family to confirm." },
+                { t: "Payment in gift cards", d: "No court, hospital, or police station takes bail in gift cards. This alone proves it's a scam." }
+              ]
+            },
+            tip: "Hang up and call your grandchild (or their parent) directly on the number you already have. The “emergency” will turn out to be false — every time." },
+
+          { type: "flags", heading: "Phone-scam warning signs",
+            lede: "Hang up if you hear any of these.",
+            flags: [
+              { t: "They called you unexpectedly", d: "And then ask for money, account access, or personal details." },
+              { t: "Threats", d: "“You'll be arrested,” “your Social Security is suspended,” “you owe back taxes.”" },
+              { t: "Pressure to stay on the line", d: "“Don't hang up, don't tell anyone.” Real officials never demand this." },
+              { t: "Gift cards or wire transfers", d: "No government agency or company is paid this way. Ever." },
+              { t: "“We detected a virus on your computer”", d: "Microsoft and Apple do not call you about your computer." }
+            ],
+            safe: [
+              { t: "Hang up — it's allowed", d: "You don't owe a stranger your time. End the call." },
+              { t: "Call back on a trusted number", d: "From your card, a bill, or the official website — never a number the caller gave you." },
+              { t: "Take your time", d: "Tell them you'll call back. A real agency is fine with that; a scammer won't be." }
+            ] },
+
+          { type: "sim", heading: "Your turn: safe or scam?", lede: "Imagine these calls. Would you trust them or hang up?", simId: "call" },
+
+          { type: "quiz", heading: "Quick check", quizId: "calls" },
+
+          { type: "recap", heading: "Well done",
+            points: [
+              "Scammers fake the caller ID, so the name on screen proves nothing.",
+              "Threats and demands to “stay on the line” are huge red flags.",
+              "Gift cards and wire transfers are never how real bills are paid.",
+              "When unsure, hang up and call back on a number you trust."
+            ] }
+        ]
+      },
+
+      {
+        id: "passwords", title: "Strong passwords & sign-in codes", icon: "lock",
+        color: "var(--blue-700)", chip: "var(--blue-100)",
+        blurb: "Make passwords hard to guess, and never share the codes texted to you.",
+        scenes: [
+          { type: "intro", heading: "Locking your front door",
+            lede: "A good password is like a strong lock on your front door. Here's how to make one you can actually remember.",
+            body: [
+              "The best passwords are <b>long</b> — length matters more than fancy symbols. A short phrase of a few unrelated words works wonderfully: <b>PurpleTrainCoffeeRiver</b> is both strong and easy to recall.",
+              "Use a <b>different</b> password for your email and your bank. If one place is breached, the others stay safe. Email is the most important — it can reset all your other accounts.",
+              "It's okay to write passwords in a notebook kept somewhere safe at home. A locked drawer beats reusing one weak password everywhere."
+            ],
+            tip: "Length beats complexity. Four random words are stronger and far easier to remember than “P@ss1!”" },
+
+          { type: "flags", heading: "Sign-in codes: the golden rule",
+            lede: "Many accounts now text you a 6-digit code when you log in. This is a great safety feature — but scammers want that code.",
+            flags: [
+              { t: "Never share a code", d: "If anyone — by call, text, or email — asks for the code that was just texted to you, it's a scam. Always." },
+              { t: "“I'll send a code to confirm it's you”", d: "A common trick: they trigger the code, then ask you to read it back. Don't." },
+              { t: "Codes are for you alone", d: "The code's own message usually says “don't share this with anyone.” Believe it." }
+            ],
+            safe: [
+              { t: "Turn on the extra code (2-step)", d: "It's called two-factor or two-step verification. It blocks thieves even if they learn your password." },
+              { t: "Type codes in yourself", d: "Only ever enter a code into the app or site you opened — never read it aloud to a person." }
+            ] },
+
+          { type: "intro", heading: "A password manager can help",
+            lede: "If remembering many passwords feels overwhelming, a password manager remembers them for you.",
+            body: [
+              "A password manager is a trusted app that stores all your passwords in one secure vault. You only remember <b>one</b> strong password to open it.",
+              "It can also create long, random passwords for each account and fill them in for you — no typing, no sticky notes.",
+              "Well-known options are built into your phone and browser already. If this feels like a lot, ask a trusted family member to help you set one up."
+            ],
+            tip: "You don't have to use a password manager. If you prefer a notebook kept safely at home, that's far better than reusing one password everywhere." },
+
+          { type: "quiz", heading: "Quick check", quizId: "passwords" },
+
+          { type: "recap", heading: "Strong and steady",
+            points: [
+              "Long beats complex — a few unrelated words make a great password.",
+              "Use different passwords for email and banking.",
+              "Turn on the 6-digit sign-in code (two-step verification).",
+              "Never, ever read a sign-in code aloud to anyone who asks."
+            ] }
+        ]
+      },
+
+      {
+        id: "shopping", title: "Safe browsing & shopping", icon: "cart",
+        color: "var(--green-700)", chip: "var(--green-100)",
+        blurb: "Spot fake online stores, too-good-to-be-true deals, and pop-up warnings.",
+        scenes: [
+          { type: "intro", heading: "Shopping and browsing safely",
+            lede: "Most of the internet is safe and useful. A few simple habits keep you out of trouble.",
+            body: [
+              "Before you buy from a new store, search its name plus the word “reviews” or “scam.” Other shoppers will have warned the world if it's fake.",
+              "Pay with a <b>credit card</b> when you can — it offers the best protection if something goes wrong. Be very wary of any seller who asks for a bank transfer, gift cards, or cryptocurrency.",
+              "A price that seems far too good to be true usually is. Scam stores lure you with 90%-off designer goods that never arrive."
+            ],
+            tip: "The little padlock in your browser only means the connection is private — it does <b>not</b> mean the store is honest. Always check reviews too." },
+
+          { type: "flags", heading: "Warning signs of a fake store or deal",
+            lede: "Pause before you enter your card details if you see these.",
+            flags: [
+              { t: "Prices far too low", d: "“90% off” on brand-new popular items is bait." },
+              { t: "Only odd payment accepted", d: "Wire transfer, gift cards, crypto, or “friends & family” payment apps." },
+              { t: "No real contact details", d: "No phone, no address, or only a web form. Honest stores are reachable." },
+              { t: "Brand-new website, lots of pressure", d: "“Only 2 left! Sale ends in 5 minutes!” timers everywhere." },
+              { t: "Scary pop-ups", d: "“Your computer is infected! Call this number!” — always fake. Close the tab." }
+            ],
+            safe: [
+              { t: "Search before you buy", d: "“[store name] reviews” and “[store name] scam” take ten seconds." },
+              { t: "Prefer a credit card", d: "Best fraud protection and easiest to dispute a bad charge." },
+              { t: "Close scary pop-ups", d: "Don't call the number. Close the tab, or restart the browser if it won't close." }
+            ] },
+
+          { type: "quiz", heading: "Quick check", quizId: "shopping" },
+
+          { type: "recap", heading: "Shop with confidence",
+            points: [
+              "Search a new store's name with “reviews” or “scam” first.",
+              "Pay with a credit card for the best protection.",
+              "Deals that seem too good to be true almost always are.",
+              "Scary virus pop-ups are fake — never call the number; just close the tab."
+            ] }
+        ]
+      },
+
+      {
+        id: "habits", title: "Everyday safety habits", icon: "heart",
+        color: "var(--red-600)", chip: "var(--red-100)",
+        blurb: "Simple routines and a circle of trust that protect you every day.",
+        scenes: [
+          { type: "intro", heading: "Calm habits beat any single trick",
+            lede: "You don't need to be a computer expert. A few steady habits protect you from almost everything.",
+            body: [
+              "<b>Slow down.</b> Scams work by rushing you. Whenever a message creates fear or urgency, that feeling itself is the warning sign. Take a breath; nothing real will fall apart in five minutes.",
+              "<b>Pick a trusted person.</b> Choose one family member or friend you can call to ask “does this look right to you?” before acting on anything involving money. There is no embarrassment in asking.",
+              "<b>When in doubt, do nothing yet.</b> Not clicking, not paying, and not replying is always a safe choice. You can always check first and act later."
+            ],
+            tip: "Make this your motto: “I never give money or information to someone who contacted me first.” That one rule stops most scams cold." },
+
+          { type: "flags", heading: "Keep these habits handy",
+            lede: "A short checklist you can come back to anytime.",
+            flags: [
+              { t: "Don't act under pressure", d: "Urgency and fear are the scammer's main tools. Slow down on purpose." },
+              { t: "Never pay in gift cards or crypto", d: "No legitimate bill is ever paid this way." },
+              { t: "Don't trust caller ID or sender names", d: "Both are easily faked. Verify by contacting the company yourself." }
+            ],
+            safe: [
+              { t: "Keep devices updated", d: "Let your phone and computer install updates — they fix security holes." },
+              { t: "Have a trusted contact", d: "One person to sanity-check anything about money. Agree on this in advance." },
+              { t: "Talk about scams openly", d: "Sharing what you've seen helps friends and family stay safe too." }
+            ] },
+
+          { type: "quiz", heading: "Quick check", quizId: "habits" },
+
+          { type: "recap", heading: "You're well protected now",
+            points: [
+              "Slowing down defeats the scammer's number-one tool: urgency.",
+              "Never pay in gift cards, wire transfers, or cryptocurrency.",
+              "Caller ID and sender names can be faked — verify it yourself.",
+              "Keep one trusted person to check with, and talk about scams openly."
+            ] }
+        ]
+      }
+    ];
+
+    // ============================================================
+    // Spot-the-Scam data
+    //   Each sim is an array of messages. kind: 'email'|'text'|'call'
+    //   scam: true/false. why: explanation. flags: bullet reasons.
+    // ============================================================
+    var SIMS = {
+      email: [
+        { scam: true,
+          render: { from: 'Netflix &lt;billing@netflix-account-update.com&gt;', subject: 'Payment failed — update within 24h', body: 'Your membership is on hold. Update your payment details now to avoid cancellation: <b>netflix-billing-secure.com/update</b>' },
+          why: "Scam. The sender's address isn't netflix.com, there's an urgent 24-hour deadline, and the link goes to a look-alike site.",
+          flags: ["Sender domain is “netflix-account-update.com,” not netflix.com", "Urgent deadline to create panic", "Link to a fake look-alike website"] },
+        { scam: false,
+          render: { from: 'Library &lt;noreply@yourcountylibrary.org&gt;', subject: 'Your book is ready for pickup', body: 'Hello — the book you reserved, “The Lincoln Highway,” is now available at the front desk. It will be held for 7 days. No reply needed.' },
+          why: "Safe. It doesn't ask for money or personal details, there's no link to click, and it matches something you'd actually requested.",
+          flags: ["No request for passwords, money, or card details", "No suspicious link to click", "Matches a real action you took (reserving a book)"] },
+        { scam: true,
+          render: { from: 'IRS Refund Dept &lt;refund@irs-gov-payments.com&gt;', subject: 'You are owed a $1,438.00 tax refund', body: 'To claim your refund, confirm your bank account and Social Security number here: <b>irs-refund-claim.net</b>' },
+          why: "Scam. The real IRS never emails about refunds or asks for your Social Security number, and the address isn't irs.gov.",
+          flags: ["The IRS does not email about refunds", "Asks for your Social Security number", "Fake address: “irs-gov-payments.com”"] }
+      ],
+      text: [
+        { scam: true,
+          render: { from: "+1 (415) 555-0148", body: 'FedEx: We were unable to deliver your package. Please confirm your details and pay a $2.99 redelivery fee: fedex-reschedule.info' },
+          why: "Scam. A tiny fee plus a link that isn't fedex.com. Delivery companies don't collect fees by text link.",
+          flags: ["Small fee designed to seem harmless", "Link isn't the real fedex.com", "Unexpected — you weren't told to expect this"] },
+        { scam: false,
+          render: { from: "Your Pharmacy", body: 'Your prescription is ready for pickup at Main St Pharmacy. Reply STOP to opt out of refill reminders.' },
+          why: "Safe. It's a simple reminder with no link and no request for money or information — from a service you use.",
+          flags: ["No link asking you to log in or pay", "No request for personal information", "From a service you actually use"] },
+        { scam: true,
+          render: { from: "+1 (202) 555-0182", body: 'Hi! It’s Jessica from the conference last week 😊 So glad we connected! Have you ever looked into crypto investing? I made 40% last month.' },
+          why: "Scam. A friendly “wrong number” opener that pivots to an investment pitch is a classic romance/investment scam.",
+          flags: ["You don't actually know “Jessica”", "Quickly steers toward investing", "Promises of big, fast returns"] }
+      ],
+      call: [
+        { scam: true,
+          render: { caller: '"Social Security Administration"', body: '"Your Social Security number has been suspended due to suspicious activity. To avoid arrest, you must verify your number and pay a fee in gift cards immediately."' },
+          why: "Scam. Social Security numbers are never “suspended,” the government doesn't threaten arrest by phone, and no one is ever paid in gift cards.",
+          flags: ["Social Security numbers are never “suspended”", "Threat of arrest to scare you", "Demands payment in gift cards"] },
+        { scam: false,
+          render: { caller: 'Your dentist’s office', body: '"Hi, this is Dr. Lee’s office calling to remind you of your cleaning on Thursday at 2pm. Call us back if you need to reschedule."' },
+          why: "Safe. A simple appointment reminder, no money or personal info requested, from a place you know. You can always call the office back to confirm.",
+          flags: ["No request for money or personal details", "From a provider you actually use", "You can verify by calling the office's known number"] },
+        { scam: true,
+          render: { caller: '"Microsoft Support"', body: '"We’ve detected a virus on your computer. Please let us connect to your screen and enter your bank login so we can secure your accounts."' },
+          why: "Scam. Microsoft and Apple never call about viruses, and no real support will ask for your bank login or remote control to “secure” money.",
+          flags: ["Tech companies don't call you about viruses", "Wants remote control of your computer", "Asks for your bank login"] }
+      ]
+    };
+
+    // ============================================================
+    // Quizzes — keyed by quizId. Each question: q, options[], answer, why
+    // ============================================================
+    var QUIZZES = {
+      phishing: [
+        { q: "An email says your bank account is locked and you must “confirm your password” by clicking a link. What should you do?",
+          options: ["Click the link and enter my password quickly", "Ignore the link, and call my bank using the number on my card", "Reply to the email with my account number"],
+          answer: 1, why: "Real banks never ask you to confirm a password by email. Go directly to the bank using a number you trust." },
+        { q: "Which sender address is the real Amazon?",
+          options: ["support@amazon-account-verify.com", "service@amazon.com", "help@amaz0n-billing.net"],
+          answer: 1, why: "The real company's address ends in the company's true website (amazon.com). The others add extra words or misspell the name." },
+        { q: "What's the safest way to check a surprising email about your account?",
+          options: ["Click the email's link — it's faster", "Open a browser and type the company's website yourself", "Forward it to friends to ask"],
+          answer: 1, why: "Going to the website yourself (or using the official app) avoids fake links entirely." }
+      ],
+      smishing: [
+        { q: "You get a text: “USPS: pay a $1.95 fee to release your package: usps-redelivery.info.” You're not expecting a package. What do you do?",
+          options: ["Tap the link and pay — it's only $1.95", "Delete it; don't tap or reply", "Reply “STOP” to make it stop"],
+          answer: 1, why: "It's a scam after your card details. Don't tap, and don't reply — even “STOP” confirms your number is active." },
+        { q: "A text from an unknown number says “Hi, is this still your number?” and wants to chat. This is most likely…",
+          options: ["A friendly wrong number", "The start of a romance or investment scam", "My phone company"],
+          answer: 1, why: "This friendly opener is a known scam that slowly builds trust before asking for money or pushing an investment." },
+        { q: "How should you check a “bank alert” text?",
+          options: ["Tap the link in the text", "Call the number in the text", "Open your bank's official app or call the number on your card"],
+          answer: 2, why: "Never use contact details from the message itself. Use the app you already have or the number on your card." }
+      ],
+      calls: [
+        { q: "A caller says they're your grandchild, in jail, and needs bail money in gift cards — and begs you not to tell anyone. You should…",
+          options: ["Buy the gift cards quickly to help", "Hang up and call your grandchild or their parent directly", "Stay on the line and keep talking"],
+          answer: 1, why: "“Don't tell anyone” and “pay in gift cards” are proof of a scam. Hang up and call your family on a number you know." },
+        { q: "The caller ID shows your bank's name. Does that prove the call is really from your bank?",
+          options: ["Yes, caller ID is reliable", "No — caller ID can be faked (“spoofed”)", "Only if they know my name"],
+          answer: 1, why: "Scammers can make any name or number appear on your screen. Hang up and call back on a trusted number." },
+        { q: "Someone claiming to be “Microsoft” calls about a virus on your computer. This is…",
+          options: ["A helpful warning I should act on", "Always a scam — Microsoft doesn't call about viruses", "Worth letting them connect to check"],
+          answer: 1, why: "Microsoft and Apple never call you about viruses. Never let an unexpected caller connect to your computer." }
+      ],
+      passwords: [
+        { q: "Which is the strongest password?",
+          options: ["P@ss1!", "Fido2024", "PurpleTrainCoffeeRiver"],
+          answer: 2, why: "Length beats complexity. A few unrelated words are both stronger and easier to remember than a short tricky one." },
+        { q: "A text gives you a 6-digit sign-in code. A caller says they need you to read it back to “verify your identity.” You should…",
+          options: ["Read them the code", "Never share the code with anyone", "Text the code back to be safe"],
+          answer: 1, why: "A sign-in code is for you alone. Anyone asking you to share it is trying to break into your account." },
+        { q: "What's a good rule for your email and bank passwords?",
+          options: ["Use the same easy one so I don't forget", "Use different passwords for each", "Share them with my bank for safekeeping"],
+          answer: 1, why: "Different passwords mean one breach doesn't unlock everything. Email especially can reset your other accounts." }
+      ],
+      shopping: [
+        { q: "A brand-new store offers designer watches at 90% off, payable only by gift card. This is…",
+          options: ["A great deal I should grab fast", "Very likely a scam", "Fine as long as the site has a padlock"],
+          answer: 1, why: "Too-good prices plus gift-card-only payment are classic fake-store signs. The padlock only means the connection is private, not that the store is honest." },
+        { q: "Before buying from an unfamiliar website, a quick smart step is to…",
+          options: ["Search the store's name with “reviews” or “scam”", "Enter my card to see if it works", "Trust it if the photos look professional"],
+          answer: 0, why: "A ten-second search often reveals warnings from other shoppers. Photos are easy to copy." },
+        { q: "A pop-up shouts “Your computer is infected! Call this number now!” You should…",
+          options: ["Call the number for help", "Close the tab; never call — it's fake", "Enter my card to buy the “fix”"],
+          answer: 1, why: "These pop-ups are always fake. Close the tab (or restart the browser). Never call the number or pay." }
+      ],
+      habits: [
+        { q: "What single feeling is the best clue that a message might be a scam?",
+          options: ["Curiosity", "Pressure to act urgently or fear", "Boredom"],
+          answer: 1, why: "Urgency and fear are the scammer's main tools. When you feel rushed, slow down on purpose." },
+        { q: "What's a reliable everyday rule that stops most scams?",
+          options: ["Never give money or information to someone who contacted me first", "Always answer unknown numbers", "Reply to texts so they stop"],
+          answer: 0, why: "Most scams begin with them reaching out to you. Refusing to act on unsolicited contact stops them cold." },
+        { q: "If you're unsure whether something is a scam, the safest immediate action is to…",
+          options: ["Do nothing yet, and check with a trusted person", "Pay quickly to be safe", "Click to find out more"],
+          answer: 0, why: "Not acting is always safe. You can verify with a trusted person or the company before doing anything." }
+      ]
+    };
+
+    // ============================================================
+    // Routing
+    // ============================================================
+    function showView(name) {
+      state.view = name;
+      byId("viewLanding").classList.toggle("active", name === "landing");
+      byId("viewLesson").classList.toggle("active", name === "lesson");
+      byId("viewHelp").classList.toggle("active", name === "help");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    function goHome() {
+      showView("landing");
+      renderLessonGrid();
+      history.pushState({ view: "landing" }, "", "#home");
+    }
+
+    function openHelp() {
+      showView("help");
+      history.pushState({ view: "help" }, "", "#help");
+    }
+
+    function openLesson(id, push) {
+      var lesson = findLesson(id);
+      if (!lesson) return;
+      state.lessonId = id;
+      state.sceneIndex = 0;
+      state.quiz = {};
+      state.sim = {};
+      showView("lesson");
+      renderLessonChrome(lesson);
+      renderScene();
+      if (push !== false) history.pushState({ view: "lesson", id: id }, "", "#" + id);
+    }
+
+    function findLesson(id) {
+      for (var i = 0; i < LESSONS.length; i++) if (LESSONS[i].id === id) return LESSONS[i];
+      return null;
+    }
+
+    // ============================================================
+    // Landing — lesson grid
+    // ============================================================
+    function renderLessonGrid() {
+      var grid = byId("lessonGrid");
+      clear(grid);
+      LESSONS.forEach(function (lesson) {
+        var done = !!state.completed[lesson.id];
+        var card = el("button", "lesson-card");
+        card.setAttribute("aria-label", "Open lesson: " + lesson.title);
+        card.innerHTML =
+          '<span class="ic" style="background:' + lesson.chip + ';color:' + lesson.color + '">' + ICONS[lesson.icon] + '</span>' +
+          '<span class="meta"><h3>' + lesson.title + '</h3><p>' + lesson.blurb + '</p>' +
+          '<span class="tag' + (done ? ' done' : '') + '">' + (done ? '✓ Completed' : (lesson.scenes.length) + ' short steps') + '</span></span>';
+        card.addEventListener("click", function () { openLesson(lesson.id); });
+        grid.appendChild(card);
+      });
+    }
+
+    // ============================================================
+    // Lesson chrome — header, icon, progress dots
+    // ============================================================
+    function renderLessonChrome(lesson) {
+      byId("lessonTitle").textContent = lesson.title;
+      var ic = byId("lessonIc");
+      ic.style.background = lesson.chip;
+      ic.style.color = lesson.color;
+      ic.innerHTML = ICONS[lesson.icon];
+      renderDots();
+    }
+
+    function renderDots() {
+      var lesson = findLesson(state.lessonId);
+      var dots = byId("lessonDots");
+      clear(dots);
+      for (var i = 0; i < lesson.scenes.length; i++) {
+        var d = el("span", "dot-step");
+        if (i < state.sceneIndex) d.className += " done";
+        if (i === state.sceneIndex) d.className += " active";
+        dots.appendChild(d);
+      }
+    }
+
+    // ============================================================
+    // Scene rendering
+    // ============================================================
+    function renderScene() {
+      var lesson = findLesson(state.lessonId);
+      var scene = lesson.scenes[state.sceneIndex];
+      var host = byId("sceneHost");
+      clear(host);
+      renderDots();
+
+      var builder = SCENE_BUILDERS[scene.type];
+      if (builder) host.appendChild(builder(scene, lesson));
+
+      // Nav buttons
+      byId("prevBtn").style.visibility = state.sceneIndex === 0 ? "hidden" : "visible";
+      var isLast = state.sceneIndex === lesson.scenes.length - 1;
+      byId("nextBtn").textContent = isLast ? "Finish ✓" : "Next →";
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    var SCENE_BUILDERS = {
+      intro: function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        if (scene.lede) wrap.appendChild(el("p", "scene-lede", scene.lede));
+        var card = el("div", "card");
+        (scene.body || []).forEach(function (para) { card.appendChild(el("p", null, para)); });
+        wrap.appendChild(card);
+        if (scene.tip) wrap.appendChild(tipCard(scene.tip));
+        return wrap;
+      },
+
+      flags: function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        if (scene.lede) wrap.appendChild(el("p", "scene-lede", scene.lede));
+        (scene.flags || []).forEach(function (f) {
+          var c = el("div", "flag-card");
+          c.innerHTML = '<span class="ic">!</span><div><b>' + f.t + '</b><p>' + f.d + '</p></div>';
+          wrap.appendChild(c);
+        });
+        if (scene.safe && scene.safe.length) {
+          wrap.appendChild(el("h3", null, "✅ What to do instead"));
+          scene.safe.forEach(function (s) {
+            var c = el("div", "safe-card");
+            c.innerHTML = '<span class="ic">✓</span><div><b>' + s.t + '</b><p>' + s.d + '</p></div>';
+            wrap.appendChild(c);
+          });
+        }
+        return wrap;
+      },
+
+      "example-email": function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        if (scene.lede) wrap.appendChild(el("p", "scene-lede", scene.lede));
+        var e = scene.email;
+        var ex = el("div", "example");
+        var linesHtml = e.lines.map(function (l) { return '<p style="margin:0 0 10px">' + l + '</p>'; }).join("");
+        ex.innerHTML =
+          '<div class="ex-head">' + ICONS.mail + ' &nbsp;Email</div>' +
+          '<div class="ex-body">' +
+            '<div class="email-row"><span class="k">From:</span><span class="v"><mark class="flag" data-flag="from">' + e.from + '</mark></span></div>' +
+            '<div class="email-row"><span class="k">Subject:</span><span class="v"><mark class="flag" data-flag="subject">' + e.subject + '</mark></span></div>' +
+            '<div class="email-body"><p><mark class="flag" data-flag="greeting">' + e.greeting + '</mark></p>' + linesHtml + '</div>' +
+          '</div>';
+        wrap.appendChild(ex);
+
+        // Build the combined flag explanations map
+        var flagMap = {
+          from: e.fromFlag, subject: e.subjectFlag, greeting: e.greetingFlag
+        };
+        for (var k in e.flags) flagMap[k] = e.flags[k];
+        wireFlagReveals(wrap, ex, flagMap);
+
+        if (scene.tip) wrap.appendChild(tipCard(scene.tip));
+        return wrap;
+      },
+
+      "example-text": function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        if (scene.lede) wrap.appendChild(el("p", "scene-lede", scene.lede));
+        var s = scene.sms;
+        var ex = el("div", "example");
+        ex.innerHTML =
+          '<div class="ex-head">' + ICONS.chat + ' &nbsp;Text message</div>' +
+          '<div class="ex-body"><div class="sms"><div class="from">' + s.from + '</div>' +
+          '<div class="bubble">' + s.bubble + '</div></div></div>';
+        wrap.appendChild(ex);
+        wireFlagReveals(wrap, ex, { link: "This web address is not the real one. The real site is the company's own — short and without extra words." });
+
+        wrap.appendChild(el("h3", null, "What's wrong here"));
+        s.flags.forEach(function (f) {
+          var c = el("div", "flag-card");
+          c.innerHTML = '<span class="ic">!</span><div><b>' + f.t + '</b><p>' + f.d + '</p></div>';
+          wrap.appendChild(c);
+        });
+        if (scene.tip) wrap.appendChild(tipCard(scene.tip));
+        return wrap;
+      },
+
+      "example-call": function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        if (scene.lede) wrap.appendChild(el("p", "scene-lede", scene.lede));
+        var c = scene.call;
+        var ex = el("div", "example");
+        var script = c.script.map(function (line) {
+          return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--ink-100)">' +
+                 '<span style="font-weight:800;color:var(--red-600);flex:none;width:64px">' + line.who + '</span>' +
+                 '<span>“' + line.text + '”</span></div>';
+        }).join("");
+        ex.innerHTML = '<div class="ex-head">' + ICONS.phone + ' &nbsp;Incoming call</div><div class="ex-body">' + script + '</div>';
+        wrap.appendChild(ex);
+
+        wrap.appendChild(el("h3", null, "Why it's a scam"));
+        c.flags.forEach(function (f) {
+          var fc = el("div", "flag-card");
+          fc.innerHTML = '<span class="ic">!</span><div><b>' + f.t + '</b><p>' + f.d + '</p></div>';
+          wrap.appendChild(fc);
+        });
+        if (scene.tip) wrap.appendChild(tipCard(scene.tip));
+        return wrap;
+      },
+
+      sim: function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        if (scene.lede) wrap.appendChild(el("p", "scene-lede", scene.lede));
+        var host = el("div");
+        host.id = "simHost";
+        wrap.appendChild(host);
+        if (!state.sim[scene.simId]) state.sim[scene.simId] = { i: 0, answered: false };
+        renderSimItem(host, scene.simId);
+        return wrap;
+      },
+
+      quiz: function (scene) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, scene.heading));
+        var host = el("div");
+        host.id = "quizHost";
+        wrap.appendChild(host);
+        if (!state.quiz[scene.quizId]) state.quiz[scene.quizId] = { i: 0, correct: 0, answered: false };
+        renderQuizItem(host, scene.quizId);
+        return wrap;
+      },
+
+      recap: function (scene, lesson) {
+        var wrap = el("div");
+        wrap.appendChild(el("h2", null, "🎉 " + scene.heading));
+        wrap.appendChild(el("p", "scene-lede", "Here's what you learned in this lesson:"));
+        var ul = el("ul", "recap-list");
+        (scene.points || []).forEach(function (p) {
+          var li = el("li");
+          li.innerHTML = '<span class="chk">✓</span><span>' + p + '</span>';
+          ul.appendChild(li);
+        });
+        wrap.appendChild(ul);
+
+        // Suggest next lesson
+        var idx = LESSONS.indexOf(lesson);
+        if (idx < LESSONS.length - 1) {
+          var next = LESSONS[idx + 1];
+          var card = el("div", "card");
+          card.style.borderColor = "var(--blue-300)";
+          card.innerHTML = '<p style="margin:0 0 12px"><b>Ready for more?</b> Next up: <b>' + next.title + '</b></p>';
+          var btn = el("button", "btn btn-primary", "Start “" + next.title + "” →");
+          btn.addEventListener("click", function () { openLesson(next.id); });
+          card.appendChild(btn);
+          wrap.appendChild(card);
+        } else {
+          var done = el("div", "tip-card");
+          done.innerHTML = '<span class="ic">🏆</span><p><b>You finished every lesson!</b> You’re now far harder to fool than most people. Revisit any lesson anytime — and share what you learned with a friend.</p>';
+          wrap.appendChild(done);
+        }
+        return wrap;
+      }
+    };
+
+    function tipCard(text) {
+      var t = el("div", "tip-card");
+      t.innerHTML = '<span class="ic" aria-hidden="true">💡</span><p><b>Tip: </b>' + text + '</p>';
+      return t;
+    }
+
+    // Reveal a small explanation when a red-flagged word is clicked/hovered
+    function wireFlagReveals(wrap, scope, flagMap) {
+      var note = el("div", "feedback bad");
+      note.style.display = "none";
+      note.setAttribute("role", "status");
+      wrap.appendChild(note);
+      var marks = scope.querySelectorAll("mark.flag");
+      Array.prototype.forEach.call(marks, function (m) {
+        m.setAttribute("tabindex", "0");
+        m.setAttribute("role", "button");
+        var key = m.getAttribute("data-flag");
+        function reveal() {
+          if (!flagMap[key]) return;
+          note.style.display = "block";
+          note.innerHTML = '<b>🚩 Warning sign:</b>' + flagMap[key];
+          note.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        m.addEventListener("click", reveal);
+        m.addEventListener("mouseenter", reveal);
+        m.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reveal(); } });
+      });
+    }
+
+    // ============================================================
+    // Spot-the-Scam simulator
+    // ============================================================
+    function renderSimItem(host, simId) {
+      clear(host);
+      var items = SIMS[simId];
+      var prog = state.sim[simId];
+      if (prog.i >= items.length) { renderSimDone(host, simId); return; }
+
+      var item = items[prog.i];
+      host.appendChild(el("p", "sim-progress", "Message " + (prog.i + 1) + " of " + items.length));
+
+      // Render the message mockup
+      var msg = el("div", "sim-msg");
+      msg.appendChild(renderSimMockup(simId, item));
+      host.appendChild(msg);
+
+      // Verdict buttons
+      var row = el("div", "verdict-row");
+      var safeBtn = el("button", "btn-verdict btn-safe", "✓ Looks safe");
+      var scamBtn = el("button", "btn-verdict btn-scam", "🚩 Looks like a scam");
+      row.appendChild(safeBtn);
+      row.appendChild(scamBtn);
+      host.appendChild(row);
+
+      var reveal = el("div");
+      host.appendChild(reveal);
+
+      function choose(saidScam) {
+        safeBtn.disabled = true; scamBtn.disabled = true;
+        var correct = (saidScam === item.scam);
+        var banner = el("div", "verdict-banner " + (correct ? "right" : "wrong"));
+        var truth = item.scam ? "This one is a SCAM." : "This one is SAFE.";
+        banner.innerHTML = (correct ? '<span>✅</span> Correct! ' : '<span>👀</span> Good try — ') + truth;
+        reveal.appendChild(banner);
+
+        var card = el("div", "card");
+        card.innerHTML = '<p style="margin:0 0 10px">' + item.why + '</p>';
+        var ul = el("ul");
+        ul.style.margin = "0"; ul.style.paddingLeft = "22px";
+        item.flags.forEach(function (f) { var li = el("li"); li.style.marginBottom = "6px"; li.innerHTML = f; ul.appendChild(li); });
+        var lbl = el("p", null, '<b>' + (item.scam ? "Warning signs:" : "Why it's okay:") + '</b>');
+        lbl.style.margin = "0 0 6px";
+        card.appendChild(lbl); card.appendChild(ul);
+        reveal.appendChild(card);
+
+        var nextBtn = el("button", "btn btn-primary", prog.i + 1 >= items.length ? "See how you did →" : "Next message →");
+        nextBtn.addEventListener("click", function () { prog.i++; renderSimItem(host, simId); });
+        reveal.appendChild(nextBtn);
+        reveal.className = "verdict-reveal";
+      }
+
+      safeBtn.addEventListener("click", function () { choose(false); });
+      scamBtn.addEventListener("click", function () { choose(true); });
+    }
+
+    function renderSimMockup(simId, item) {
+      var r = item.render;
+      var ex = el("div", "example");
+      if (simId === "email") {
+        ex.innerHTML =
+          '<div class="ex-head">' + ICONS.mail + ' &nbsp;Email</div>' +
+          '<div class="ex-body">' +
+            '<div class="email-row"><span class="k">From:</span><span class="v">' + r.from + '</span></div>' +
+            '<div class="email-row"><span class="k">Subject:</span><span class="v">' + r.subject + '</span></div>' +
+            '<div class="email-body"><p style="margin:0">' + r.body + '</p></div>' +
+          '</div>';
+      } else if (simId === "text") {
+        ex.innerHTML =
+          '<div class="ex-head">' + ICONS.chat + ' &nbsp;Text message</div>' +
+          '<div class="ex-body"><div class="sms"><div class="from">' + r.from + '</div>' +
+          '<div class="bubble">' + r.body + '</div></div></div>';
+      } else { // call
+        ex.innerHTML =
+          '<div class="ex-head">' + ICONS.phone + ' &nbsp;Incoming call</div>' +
+          '<div class="ex-body"><p style="margin:0 0 8px;color:var(--ink-500);font-weight:700">Caller says they are: ' + r.caller + '</p>' +
+          '<p style="margin:0">' + r.body + '</p></div>';
+      }
+      return ex;
+    }
+
+    function renderSimDone(host, simId) {
+      clear(host);
+      var card = el("div", "card");
+      card.style.textAlign = "center";
+      card.innerHTML = '<div style="font-size:2.4rem">🎉</div><h3 style="color:var(--green-700)">Great practice!</h3>' +
+        '<p>You worked through all the examples. The more you practice, the faster you’ll spot the warning signs in real life.</p>';
+      var again = el("button", "btn btn-ghost", "Practice these again");
+      again.addEventListener("click", function () { state.sim[simId] = { i: 0, answered: false }; renderSimItem(host, simId); });
+      card.appendChild(again);
+      host.appendChild(card);
+    }
+
+    // ============================================================
+    // Quiz
+    // ============================================================
+    function renderQuizItem(host, quizId) {
+      clear(host);
+      var qs = QUIZZES[quizId];
+      var prog = state.quiz[quizId];
+      if (prog.i >= qs.length) { renderQuizResults(host, quizId); return; }
+
+      var item = qs[prog.i];
+      host.appendChild(el("p", "quiz-count", "Question " + (prog.i + 1) + " of " + qs.length));
+      host.appendChild(el("p", "quiz-q", item.q));
+
+      var opts = el("div", "options");
+      var keys = ["A", "B", "C", "D"];
+      item.options.forEach(function (text, idx) {
+        var b = el("button", "btn-answer");
+        b.innerHTML = '<span class="key">' + keys[idx] + '</span><span>' + text + '</span>';
+        b.addEventListener("click", function () { grade(idx, b); });
+        opts.appendChild(b);
+      });
+      host.appendChild(opts);
+
+      var fbHost = el("div");
+      host.appendChild(fbHost);
+
+      function grade(choice, btn) {
+        var btns = opts.querySelectorAll(".btn-answer");
+        Array.prototype.forEach.call(btns, function (x) { x.disabled = true; });
+        var correct = choice === item.answer;
+        btn.className = "btn-answer " + (correct ? "correct" : "incorrect");
+        if (!correct) {
+          btns[item.answer].className = "btn-answer correct";
+          btn.classList.add("shake");
+        }
+        if (correct) prog.correct++;
+
+        var fb = el("div", "feedback " + (correct ? "good" : "bad"));
+        fb.innerHTML = '<b>' + (correct ? "✅ That's right!" : "💡 Good to know:") + '</b>' + item.why;
+        fbHost.appendChild(fb);
+
+        var nextBtn = el("button", "btn btn-primary", prog.i + 1 >= qs.length ? "See results →" : "Next question →");
+        nextBtn.style.marginTop = "16px";
+        nextBtn.addEventListener("click", function () { prog.i++; renderQuizItem(host, quizId); });
+        fbHost.appendChild(nextBtn);
+      }
+    }
+
+    function renderQuizResults(host, quizId) {
+      clear(host);
+      var qs = QUIZZES[quizId];
+      var prog = state.quiz[quizId];
+      var res = el("div", "results");
+      res.innerHTML = '<div class="score">' + prog.correct + ' / ' + qs.length + '</div>';
+      var msg;
+      if (prog.correct === qs.length) msg = "Perfect! You really know your stuff.";
+      else if (prog.correct >= qs.length - 1) msg = "Excellent work — you've got this.";
+      else msg = "Nicely done. Reviewing the lesson once more will lock it in.";
+      res.appendChild(el("h2", null, msg));
+      res.appendChild(el("p", null, "Remember: in real life you can always slow down and check. There's no timer."));
+
+      var row = el("div");
+      row.style.cssText = "display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px";
+      var retry = el("button", "btn btn-ghost", "Try the quiz again");
+      retry.addEventListener("click", function () { state.quiz[quizId] = { i: 0, correct: 0, answered: false }; renderQuizItem(host, quizId); });
+      row.appendChild(retry);
+      res.appendChild(row);
+      host.appendChild(res);
+    }
+
+    // ============================================================
+    // Navigation between scenes
+    // ============================================================
+    function nextScene() {
+      var lesson = findLesson(state.lessonId);
+      if (state.sceneIndex < lesson.scenes.length - 1) {
+        state.sceneIndex++;
+        renderScene();
+      } else {
+        // Finished the lesson
+        state.completed[lesson.id] = true;
+        save();
+        goHome();
+      }
+    }
+    function prevScene() {
+      if (state.sceneIndex > 0) { state.sceneIndex--; renderScene(); }
+    }
+
+    // ============================================================
+    // Boot — wire events, restore from hash
+    // ============================================================
+    function boot() {
+      load();
+      applyTextSize();
+      renderLessonGrid();
+
+      byId("brandBtn").addEventListener("click", goHome);
+      byId("startBtn").addEventListener("click", function () {
+        document.querySelector("#lessonGrid").scrollIntoView({ behavior: "smooth" });
+      });
+      byId("practiceBtn").addEventListener("click", function () { openLesson("phishing"); });
+      byId("helpBtn").addEventListener("click", openHelp);
+      byId("helpCrumb").addEventListener("click", goHome);
+      byId("lessonCrumb").addEventListener("click", goHome);
+      byId("nextBtn").addEventListener("click", nextScene);
+      byId("prevBtn").addEventListener("click", prevScene);
+
+      byId("tsSm").addEventListener("click", function () { setTextSize("sm"); });
+      byId("tsMd").addEventListener("click", function () { setTextSize("md"); });
+      byId("tsLg").addEventListener("click", function () { setTextSize("lg"); });
+
+      window.addEventListener("popstate", function (e) {
+        var st = e.state;
+        if (!st || st.view === "landing") { showView("landing"); renderLessonGrid(); }
+        else if (st.view === "help") showView("help");
+        else if (st.view === "lesson" && st.id) openLesson(st.id, false);
+      });
+
+      // Restore from URL hash on first load
+      var hash = (location.hash || "").replace("#", "");
+      if (hash === "help") openHelp();
+      else if (hash && findLesson(hash)) openLesson(hash, false);
+      else goHome();
+    }
+
+    boot();
+  })();
+  </script>
+</body>
+</html>

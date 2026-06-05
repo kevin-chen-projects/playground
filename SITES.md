@@ -75,6 +75,7 @@ _Last updated: 2026-06-01 (corrected Bio Basics / NiHao module counts to match s
 | **Violin Sheet Helper** | Sheet-music image → beginner fingering guidance | [violin-sheet-helper-webapp/](violin-sheet-helper-webapp/) | FastAPI + HTML | MVP (mock OCR) |
 | **Slop Shield** | Chrome extension flagging AI-generated YouTube videos | [slop-shield/](slop-shield/) | Chrome MV3 | v0.1 (Layer 1) |
 | **YouTube Smart Skip** | Chrome extension auto-skipping in-video sponsor segments | [youtube-smart-skip/](youtube-smart-skip/) | Chrome MV3 | v0.1 |
+| **CodeSignal Prep** | 5-day Python interview prep kit — cheat-sheet, warm-up drills, four 4-level practice problems (+ tests & solutions), and a flashcard site | [codesignal-prep/](codesignal-prep/) | Python (stdlib) + HTML | Complete |
 
 ---
 

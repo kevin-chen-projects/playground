@@ -1801,6 +1801,36 @@ Mock OCR returns sample notes. Real OMR integration is the next major component.
 
 ---
 
+## 29. `codesignal-prep/` folder
+
+**A 5-day Python interview prep kit for a 90-minute CodeSignal Industry Coding (IMC) test.** Not a web app — it's a study bundle: a Python-idiom cheat-sheet, standalone warm-up drills, four full 4-level practice problems (each with an interface stub, a working starter, a reference solution, and a level-split test suite), and one supplementary flashcard site. Pure standard library; no third-party deps required to run the problems or warm-ups.
+
+- **Files:** `README.md` (kit guide + 5-day schedule), `cheatsheet.md`, `drill.html` (~430), `warmups/{syntax_drills,solutions_syntax_drills}.py`, `problems/0{1..4}-*/` each containing `prompt.md`, `interface.py`, `starter.py`, `solution.py`, `tests.py`
+- **Dependencies:** Python 3.10+ stdlib only (`collections`, `dataclasses`, `copy`); `pytest` optional (tests are plain `test_*` + `assert`, runnable without it). `drill.html` is vanilla HTML/CSS/JS, no build.
+
+### Practice problems
+
+| # | Class | Levels | Stdlib focus |
+|---|-------|--------|--------------|
+| 01 inventory | `InventoryManager` | add/get/remove → categories/totals → top-N/prefix → transfer/history | dicts, `min`, `sorted(key=)` |
+| 02 banking | `Bank` | accounts → transfer/top-spenders → scheduled payments → merge | lazy timestamped processing |
+| 03 cloud-storage | `CloudStorage` | files → largest/prefix → users/quota/merge → backup/restore | capacity accounting, `copy.deepcopy` |
+| 04 in-memory-db | `InMemoryDB` | set/get/scan → prefix scan → **TTL** → backup/restore | `(value, expiry)` model, `copy.deepcopy` |
+
+### Test convention
+
+Each `tests.py` does `importlib.import_module(os.environ.get("IMPL", "starter"))`, so it tests the learner's `starter.py` by default and the reference via `IMPL=solution pytest tests.py`. Tests are grouped `test_levelN_*` so `pytest -k levelN` runs one level. Reference solutions pass all 38 tests (10+9+8+11); the stub starters fail all of them by design (proves the exercise is real).
+
+### `drill.html` (supplement)
+
+Spaced-repetition flashcards for ~55 Python idioms across 14 categories (Slicing, Strings, Dicts, Sorting, collections, dataclasses, copy, Patterns, Gotchas, …). Two modes: **Flashcards** (flip + self-grade Again/Good/Easy) and **Code recall** (type the idiom, loose-match check). Leitner-style box scheduler floats weak cards to the front. Single-file vanilla HTML/CSS/JS, no deps.
+
+- **Palette:** slate `#0f172a/#1e293b` + python-blue `#4b8bbe` + amber `#ffd43b`
+- **Persistence:** `localStorage['csprep_drill_v1']` — per-card `{box, seen}`
+- **Key JS:** `CARDS` (idiom deck), `buildOrder()` (box-sorted scheduler), `grade()`, `renderCard`/`renderRecall`, `normalize()` (loose answer match)
+
+---
+
 
 
 | Pattern | Where |

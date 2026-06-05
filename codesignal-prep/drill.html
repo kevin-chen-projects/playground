@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  CodeSignal Drill — Python Idiom Flashcards (spaced repetition)
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step, no deps, no network.
+  Open in any modern browser (double-click the file).
+
+  WHAT IT IS
+  ==============================================================================
+  A spaced-repetition flashcard trainer for the Python idioms the CodeSignal
+  IMC test assumes you know cold. Each card is a task in plain English on the
+  front; flip it for the idiomatic Python + a runnable snippet. Self-grade
+  (Again / Good / Easy) reorders the deck so weak cards come back sooner.
+
+  Two modes:
+    Flashcards  — read task, recall the idiom in your head, flip, self-grade.
+    Code recall — type the one-liner; it checks against the answer (loose match)
+                  so you practice PRODUCING syntax, not just recognizing it.
+
+  This is the SUPPLEMENT to the kit — 15-min sessions to burn idioms into
+  muscle memory. The real work is the timed practice problems. See README.md.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD
+     1–40    Header comment (this block)
+    42–48    <head>: meta, title
+
+  STYLE  (~lines 49–250)
+    :root            palette (slate + python-blue + amber accent), radii
+    Reset + base     typography, monospace for code
+    .top-bar         brand + mode toggle + category filter
+    .stats           progress chips (seen / due / mastered)
+    .card            flashcard face, flip animation
+    code/pre         snippet styling
+    .grade-row       Again / Good / Easy buttons
+    .recall          code-recall input + check result
+    Responsive       narrow-screen tweaks
+
+  BODY  (~lines 251–300)
+    .top-bar
+    .stats
+    .stage          (card or recall view)
+    .footer-help
+
+  SCRIPT  (~lines 301–end, single IIFE)
+    CARDS            ~55 idiom cards { id, cat, front, back, code, answer }
+    State            { mode, category, order, idx, grades }
+    Persistence      localStorage['csprep_drill_v1'] (per-card box + counts)
+    Scheduler        Leitner-ish: grade sets a "box"; due cards float to front
+    Render           renderCard / renderRecall / renderStats
+    Events           flip, grade, mode toggle, category filter, check answer
+================================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeSignal Drill — Python Idiom Flashcards</title>
+<style>
+/* ============================================================
+   VARIABLES + RESET + BASE
+   ============================================================ */
+:root {
+  --bg: #0f172a;            /* slate-900 */
+  --panel: #1e293b;         /* slate-800 */
+  --panel-2: #273449;
+  --ink: #e2e8f0;           /* slate-200 */
+  --muted: #94a3b8;         /* slate-400 */
+  --blue: #4b8bbe;          /* python blue */
+  --blue-bright: #5fa8e0;
+  --amber: #ffd43b;         /* python yellow */
+  --green: #4ade80;
+  --red: #f87171;
+  --radius: 14px;
+  --shadow: 0 8px 24px rgba(0,0,0,.35);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: radial-gradient(1200px 600px at 50% -10%, #1b2a44, var(--bg));
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 20px 16px 60px;
+  line-height: 1.5;
+}
+.wrap { max-width: 760px; margin: 0 auto; }
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.top-bar {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 18px;
+}
+.brand { font-weight: 700; font-size: 1.15rem; letter-spacing: .3px; }
+.brand .py { color: var(--amber); }
+.brand .cs { color: var(--blue-bright); }
+.spacer { flex: 1 1 auto; }
+select, .mode-btn {
+  font-family: var(--sans); font-size: .85rem;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid #38476080; border-radius: 10px;
+  padding: 7px 11px; cursor: pointer;
+}
+.mode-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.mode-group { display: inline-flex; gap: 6px; }
+
+/* ============================================================
+   STATS CHIPS
+   ============================================================ */
+.stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.chip {
+  background: var(--panel); border: 1px solid #2c3a52;
+  border-radius: 999px; padding: 5px 13px; font-size: .8rem; color: var(--muted);
+}
+.chip b { color: var(--ink); }
+.chip.due b { color: var(--amber); }
+.chip.mastered b { color: var(--green); }
+
+/* ============================================================
+   CARD
+   ============================================================ */
+.stage { perspective: 1400px; }
+.card {
+  background: var(--panel); border: 1px solid #31415c;
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 26px 24px; min-height: 240px;
+  display: flex; flex-direction: column;
+}
+.card .cat-tag {
+  align-self: flex-start; font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--blue-bright);
+  background: #12203a; border: 1px solid #1e3a5f;
+  padding: 3px 9px; border-radius: 6px; margin-bottom: 16px;
+}
+.card .front-text { font-size: 1.18rem; font-weight: 600; }
+.card .hint { color: var(--muted); font-size: .85rem; margin-top: 10px; }
+.card .back { margin-top: 18px; border-top: 1px dashed #3a4a66; padding-top: 16px; }
+.card .back.hidden { display: none; }
+.card .back .label { font-size: .72rem; text-transform: uppercase; color: var(--muted); letter-spacing: .6px; }
+pre, code { font-family: var(--mono); }
+pre {
+  background: #0b1220; border: 1px solid #1e2c44; border-radius: 10px;
+  padding: 13px 15px; overflow-x: auto; margin-top: 7px;
+  font-size: .92rem; color: #e6edf3; white-space: pre-wrap; word-break: break-word;
+}
+.inline-code { color: var(--amber); }
+
+/* ============================================================
+   CONTROLS / GRADE ROW
+   ============================================================ */
+.controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  flex: 1 1 0; min-width: 90px;
+  font-family: var(--sans); font-size: .92rem; font-weight: 600;
+  border: none; border-radius: 11px; padding: 12px 10px; cursor: pointer;
+  color: #0b1220; transition: transform .05s ease, filter .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn:hover { filter: brightness(1.08); }
+.btn-flip { background: var(--blue); color: #fff; }
+.btn-again { background: var(--red); }
+.btn-good  { background: var(--amber); }
+.btn-easy  { background: var(--green); }
+.grade-row { margin-top: 14px; display: flex; gap: 10px; }
+.grade-row.hidden, .btn-flip.hidden { display: none; }
+
+/* ============================================================
+   CODE-RECALL MODE
+   ============================================================ */
+.recall textarea {
+  width: 100%; margin-top: 14px; min-height: 70px; resize: vertical;
+  font-family: var(--mono); font-size: .95rem;
+  background: #0b1220; color: #e6edf3;
+  border: 1px solid #2c3a52; border-radius: 10px; padding: 11px 13px;
+}
+.recall .verdict { margin-top: 12px; font-weight: 600; font-size: .95rem; }
+.recall .verdict.ok { color: var(--green); }
+.recall .verdict.no { color: var(--red); }
+.recall .reveal { margin-top: 10px; }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer-help { margin-top: 26px; color: var(--muted); font-size: .8rem; text-align: center; }
+.footer-help kbd {
+  background: var(--panel-2); border: 1px solid #3a4a66; border-radius: 5px;
+  padding: 1px 6px; font-family: var(--mono); font-size: .78rem;
+}
+.reset-link { color: var(--muted); text-decoration: underline; cursor: pointer; background: none; border: none; font-size: .8rem; }
+@media (max-width: 520px) {
+  .card .front-text { font-size: 1.05rem; }
+  .btn { font-size: .85rem; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- ============================ TOP BAR ============================ -->
+  <div class="top-bar">
+    <div class="brand"><span class="cs">CodeSignal</span> <span class="py">Drill</span></div>
+    <div class="spacer"></div>
+    <div class="mode-group">
+      <button class="mode-btn active" id="modeFlash">Flashcards</button>
+      <button class="mode-btn" id="modeRecall">Code recall</button>
+    </div>
+    <select id="catFilter" aria-label="Category filter"></select>
+  </div>
+
+  <!-- ============================ STATS ============================ -->
+  <div class="stats" id="stats"></div>
+
+  <!-- ============================ STAGE ============================ -->
+  <div class="stage" id="stage"></div>
+
+  <div class="footer-help">
+    <span id="helpText">Space = flip · 1 Again · 2 Good · 3 Easy</span>
+    &nbsp;·&nbsp; <button class="reset-link" id="resetBtn">reset progress</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CARDS — Python idioms for the CodeSignal IMC test
+   front: task in English · back: prose · code: snippet · answer: for recall mode
+   ============================================================ */
+const CARDS = [
+  // ---- Slicing ----
+  {id:"sl1", cat:"Slicing", front:"Last two elements of list a", code:"a[-2:]", answer:"a[-2:]"},
+  {id:"sl2", cat:"Slicing", front:"Reverse a list (new list)", code:"a[::-1]", answer:"a[::-1]"},
+  {id:"sl3", cat:"Slicing", front:"Every other element from index 0", code:"a[::2]", answer:"a[::2]"},
+  {id:"sl4", cat:"Slicing", front:"First 3 chars of string s", code:"s[:3]", answer:"s[:3]"},
+
+  // ---- Strings ----
+  {id:"st1", cat:"Strings", front:"Split 'a,b,c' on commas", code:'"a,b,c".split(",")  # -> ["a","b","c"]', answer:'s.split(",")'},
+  {id:"st2", cat:"Strings", front:"Join list of strings with '-'", code:'"-".join(parts)', answer:'"-".join(parts)'},
+  {id:"st3", cat:"Strings", front:"Zero-pad int n to width 3 ('7'->'007')", code:'f"{n:03d}"', answer:'f"{n:03d}"'},
+  {id:"st4", cat:"Strings", front:"Does s start with prefix?", code:"s.startswith(prefix)", answer:"s.startswith(prefix)"},
+  {id:"st5", cat:"Strings", front:"Format float x to 2 decimals", code:'f"{x:.2f}"', answer:'f"{x:.2f}"'},
+  {id:"st6", cat:"Strings", front:"Strip whitespace from both ends", code:"s.strip()", answer:"s.strip()"},
+
+  // ---- Numbers ----
+  {id:"nm1", cat:"Numbers", front:"Integer (floor) division of a by b", code:"a // b", answer:"a // b"},
+  {id:"nm2", cat:"Numbers", front:"Quotient AND remainder of a/b together", code:"divmod(a, b)  # (q, r)", answer:"divmod(a, b)"},
+  {id:"nm3", cat:"Numbers", front:"Remainder of a divided by b", code:"a % b", answer:"a % b"},
+
+  // ---- Lists ----
+  {id:"li1", cat:"Lists", front:"Squares of every number in nums", code:"[x*x for x in nums]", answer:"[x*x for x in nums]"},
+  {id:"li2", cat:"Lists", front:"Keep only even numbers", code:"[x for x in nums if x % 2 == 0]", answer:"[x for x in nums if x%2==0]"},
+  {id:"li3", cat:"Lists", front:"Replace negatives with 0 (keep rest)", code:"[x if x >= 0 else 0 for x in nums]", answer:"[x if x>=0 else 0 for x in nums]"},
+  {id:"li4", cat:"Lists", front:"Flatten list of lists one level", code:"[x for row in rows for x in row]", answer:"[x for row in rows for x in row]"},
+  {id:"li5", cat:"Lists", front:"Remove & return last element", code:"a.pop()", answer:"a.pop()"},
+  {id:"li6", cat:"Lists", front:"Make a copy of list a (not an alias)", code:"a[:]   # or list(a)", answer:"a[:]"},
+
+  // ---- Dicts ----
+  {id:"dc1", cat:"Dicts", front:"Get d[k], or 0 if key missing (no error)", code:"d.get(k, 0)", answer:"d.get(k, 0)"},
+  {id:"dc2", cat:"Dicts", front:"Append x to a list at key k, init if absent", code:"d.setdefault(k, []).append(x)", answer:"d.setdefault(k, []).append(x)"},
+  {id:"dc3", cat:"Dicts", front:"Iterate keys and values together", code:"for k, v in d.items(): ...", answer:"for k, v in d.items()"},
+  {id:"dc4", cat:"Dicts", front:"Merge d1 and d2 (d2 wins conflicts)", code:"{**d1, **d2}", answer:"{**d1, **d2}"},
+  {id:"dc5", cat:"Dicts", front:"Sum of all values in dict d", code:"sum(d.values())", answer:"sum(d.values())"},
+  {id:"dc6", cat:"Dicts", front:"Invert dict (swap keys/values)", code:"{v: k for k, v in d.items()}", answer:"{v:k for k,v in d.items()}"},
+  {id:"dc7", cat:"Dicts", front:"Remove key k, no error if absent", code:"d.pop(k, None)", answer:"d.pop(k, None)"},
+
+  // ---- Sets ----
+  {id:"se1", cat:"Sets", front:"Number of distinct items in list a", code:"len(set(a))", answer:"len(set(a))"},
+  {id:"se2", cat:"Sets", front:"Elements in BOTH a and b", code:"set(a) & set(b)", answer:"set(a) & set(b)"},
+  {id:"se3", cat:"Sets", front:"Elements in a but not b", code:"set(a) - set(b)", answer:"set(a) - set(b)"},
+
+  // ---- Sorting ----
+  {id:"so1", cat:"Sorting", front:"Sort words by length (shortest first)", code:"sorted(words, key=len)", answer:"sorted(words, key=len)"},
+  {id:"so2", cat:"Sorting", front:"Sort items by 2nd tuple field", code:"sorted(items, key=lambda x: x[1])", answer:"sorted(items, key=lambda x: x[1])"},
+  {id:"so3", cat:"Sorting", front:"Sort by count DESC, then name ASC (tie-break)", code:"sorted(items, key=lambda x: (-x[1], x[0]))", answer:"sorted(items, key=lambda x: (-x[1], x[0]))"},
+  {id:"so4", cat:"Sorting", front:"Dict key with the largest value", code:"max(d, key=d.get)", answer:"max(d, key=d.get)"},
+  {id:"so5", cat:"Sorting", front:"Sort dict keys by value, descending", code:"sorted(d, key=d.get, reverse=True)", answer:"sorted(d, key=d.get, reverse=True)"},
+
+  // ---- enumerate / zip ----
+  {id:"ez1", cat:"enumerate/zip", front:"Loop with index and value", code:"for i, x in enumerate(a): ...", answer:"for i, x in enumerate(a)"},
+  {id:"ez2", cat:"enumerate/zip", front:"Loop two lists in parallel", code:"for x, y in zip(a, b): ...", answer:"for x, y in zip(a, b)"},
+  {id:"ez3", cat:"enumerate/zip", front:"Enumerate starting at 1", code:"enumerate(a, start=1)", answer:"enumerate(a, start=1)"},
+  {id:"ez4", cat:"enumerate/zip", front:"Dot product of a and b", code:"sum(x*y for x, y in zip(a, b))", answer:"sum(x*y for x,y in zip(a,b))"},
+
+  // ---- collections ----
+  {id:"co1", cat:"collections", front:"Count occurrences of items in a list", code:"from collections import Counter\nCounter(items)", answer:"Counter(items)"},
+  {id:"co2", cat:"collections", front:"Top 3 most common items", code:"Counter(items).most_common(3)", answer:"Counter(items).most_common(3)"},
+  {id:"co3", cat:"collections", front:"Group: key -> list, auto-init the list", code:"from collections import defaultdict\ng = defaultdict(list); g[k].append(x)", answer:"defaultdict(list)"},
+  {id:"co4", cat:"collections", front:"Counter that auto-inits to 0", code:"from collections import defaultdict\nc = defaultdict(int); c[k] += 1", answer:"defaultdict(int)"},
+  {id:"co5", cat:"collections", front:"Queue with O(1) pops from the front", code:"from collections import deque\ndq = deque(); dq.popleft()", answer:"deque()"},
+
+  // ---- dataclasses ----
+  {id:"da1", cat:"dataclasses", front:"Define a record class with fields x, y", code:"from dataclasses import dataclass\n@dataclass\nclass P:\n    x: int\n    y: int", answer:"@dataclass"},
+  {id:"da2", cat:"dataclasses", front:"Dataclass field with a mutable default (list)", code:"from dataclasses import field\ntags: list = field(default_factory=list)", answer:"field(default_factory=list)"},
+  {id:"da3", cat:"dataclasses", front:"Make a dataclass hashable/immutable", code:"@dataclass(frozen=True)", answer:"@dataclass(frozen=True)"},
+
+  // ---- copy ----
+  {id:"cp1", cat:"copy", front:"Independent clone incl. nested lists/dicts", code:"import copy\ncopy.deepcopy(obj)", answer:"copy.deepcopy(obj)"},
+  {id:"cp2", cat:"copy", front:"Shallow copy (top level only)", code:"import copy\ncopy.copy(obj)", answer:"copy.copy(obj)"},
+  {id:"cp3", cat:"copy", front:"Safe snapshot of a dict-of-lists for backup", code:"import copy\nsnap = copy.deepcopy(state)", answer:"copy.deepcopy(state)"},
+
+  // ---- patterns ----
+  {id:"pt1", cat:"Patterns", front:"Names of items starting with a prefix", code:"[k for k in d if k.startswith(prefix)]", answer:"[k for k in d if k.startswith(prefix)]"},
+  {id:"pt2", cat:"Patterns", front:"Running total list ([1,2,3]->[1,3,6])", code:"from itertools import accumulate\nlist(accumulate(nums))", answer:"accumulate(nums)"},
+  {id:"pt3", cat:"Patterns", front:"True if ALL nums positive", code:"all(x > 0 for x in nums)", answer:"all(x > 0 for x in nums)"},
+  {id:"pt4", cat:"Patterns", front:"True if ANY num is negative", code:"any(x < 0 for x in nums)", answer:"any(x < 0 for x in nums)"},
+  {id:"pt5", cat:"Patterns", front:"TTL: store value with expiry time", code:"store[k] = (value, timestamp + ttl)", answer:"store[k] = (value, timestamp + ttl)"},
+  {id:"pt6", cat:"Patterns", front:"TTL: is entry still alive at query_ts?", code:"query_ts < expires_at", answer:"query_ts < expires_at"},
+
+  // ---- gotchas ----
+  {id:"go1", cat:"Gotchas", front:"Safe mutable default argument", code:"def f(x, acc=None):\n    if acc is None: acc = []", answer:"acc=None"},
+  {id:"go2", cat:"Gotchas", front:"2D grid of zeros, rows independent", code:"[[0]*cols for _ in range(rows)]", answer:"[[0]*cols for _ in range(rows)]"},
+  {id:"go3", cat:"Gotchas", front:"Compare to None (not ==)", code:"x is None", answer:"x is None"},
+];
+
+/* ============================================================
+   STATE + PERSISTENCE
+   ============================================================ */
+const LS_KEY = "csprep_drill_v1";
+const state = {
+  mode: "flash",        // "flash" | "recall"
+  category: "All",
+  order: [],
+  idx: 0,
+  flipped: false,
+  // progress: id -> { box: 0..4, seen: n }
+  prog: {},
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) state.prog = JSON.parse(raw) || {};
+  } catch (e) { state.prog = {}; }
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state.prog)); } catch (e) {}
+}
+function cardProg(id) {
+  if (!state.prog[id]) state.prog[id] = { box: 0, seen: 0 };
+  return state.prog[id];
+}
+
+/* ============================================================
+   SCHEDULER — Leitner-ish. Lower box = due sooner.
+   ============================================================ */
+function activeCards() {
+  return state.category === "All"
+    ? CARDS
+    : CARDS.filter(c => c.cat === state.category);
+}
+function buildOrder() {
+  const cards = activeCards().slice();
+  // Sort by box asc (weak/unseen first), stable so deck order breaks ties.
+  cards.sort((a, b) => cardProg(a.id).box - cardProg(b.id).box);
+  state.order = cards.map(c => c.id);
+  state.idx = 0;
+  state.flipped = false;
+}
+function currentCard() {
+  const id = state.order[state.idx];
+  return CARDS.find(c => c.id === id);
+}
+function grade(delta) {
+  const c = currentCard();
+  if (!c) return;
+  const p = cardProg(c.id);
+  p.seen += 1;
+  p.box = Math.max(0, Math.min(4, p.box + delta));
+  save();
+  advance();
+}
+function advance() {
+  state.idx += 1;
+  state.flipped = false;
+  if (state.idx >= state.order.length) buildOrder(); // reshuffle by box, loop
+  render();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const stage = document.getElementById("stage");
+const statsEl = document.getElementById("stats");
+
+function esc(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderStats() {
+  const cards = activeCards();
+  const seen = cards.filter(c => cardProg(c.id).seen > 0).length;
+  const mastered = cards.filter(c => cardProg(c.id).box >= 3).length;
+  const due = cards.filter(c => cardProg(c.id).box <= 1).length;
+  statsEl.innerHTML =
+    `<span class="chip">deck <b>${cards.length}</b></span>` +
+    `<span class="chip">seen <b>${seen}</b></span>` +
+    `<span class="chip due">to drill <b>${due}</b></span>` +
+    `<span class="chip mastered">mastered <b>${mastered}</b></span>`;
+}
+
+function renderCard() {
+  const c = currentCard();
+  if (!c) { stage.innerHTML = "<div class='card'>No cards in this category.</div>"; return; }
+  const back = state.flipped
+    ? `<div class="back"><div class="label">Idiom</div><pre>${esc(c.code)}</pre></div>`
+    : `<div class="back hidden"></div>`;
+  stage.innerHTML = `
+    <div class="card">
+      <span class="cat-tag">${esc(c.cat)}</span>
+      <div class="front-text">${esc(c.front)}</div>
+      ${state.flipped ? "" : '<div class="hint">Recall the Python idiom, then flip.</div>'}
+      ${back}
+      <div class="controls">
+        <button class="btn btn-flip ${state.flipped ? "hidden" : ""}" id="flipBtn">Flip</button>
+      </div>
+      <div class="grade-row ${state.flipped ? "" : "hidden"}">
+        <button class="btn btn-again" id="gAgain">Again</button>
+        <button class="btn btn-good" id="gGood">Good</button>
+        <button class="btn btn-easy" id="gEasy">Easy</button>
+      </div>
+    </div>`;
+  const flip = document.getElementById("flipBtn");
+  if (flip) flip.onclick = () => { state.flipped = true; render(); };
+  if (state.flipped) {
+    document.getElementById("gAgain").onclick = () => grade(-1);
+    document.getElementById("gGood").onclick  = () => grade(+1);
+    document.getElementById("gEasy").onclick  = () => grade(+2);
+  }
+}
+
+function normalize(s) {
+  // loose match: drop whitespace, normalize quotes, lowercase
+  return s.replace(/\s+/g, "").replace(/['"]/g, '"').toLowerCase();
+}
+
+function renderRecall() {
+  const c = currentCard();
+  if (!c) { stage.innerHTML = "<div class='card'>No cards in this category.</div>"; return; }
+  stage.innerHTML = `
+    <div class="card recall">
+      <span class="cat-tag">${esc(c.cat)}</span>
+      <div class="front-text">${esc(c.front)}</div>
+      <div class="hint">Type the Python idiom (one line is fine), then Check.</div>
+      <textarea id="answer" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="verdict" id="verdict"></div>
+      <div class="reveal" id="reveal"></div>
+      <div class="controls">
+        <button class="btn btn-flip" id="checkBtn">Check</button>
+        <button class="btn btn-good" id="skipBtn">Reveal / Next</button>
+      </div>
+    </div>`;
+  const ta = document.getElementById("answer");
+  ta.focus();
+  const reveal = () => {
+    document.getElementById("reveal").innerHTML =
+      `<div class="label" style="font-size:.72rem;color:var(--muted)">Answer</div><pre>${esc(c.code)}</pre>`;
+  };
+  document.getElementById("checkBtn").onclick = () => {
+    const ok = normalize(ta.value).includes(normalize(c.answer));
+    const v = document.getElementById("verdict");
+    if (ok) {
+      v.textContent = "✓ Match — nice."; v.className = "verdict ok";
+      cardProg(c.id).seen += 1; cardProg(c.id).box = Math.min(4, cardProg(c.id).box + 1);
+    } else {
+      v.textContent = "✗ Not quite — see the answer."; v.className = "verdict no";
+      cardProg(c.id).seen += 1; cardProg(c.id).box = Math.max(0, cardProg(c.id).box - 1);
+    }
+    save(); reveal(); renderStats();
+  };
+  document.getElementById("skipBtn").onclick = () => { reveal(); setTimeout(advance, 250); };
+  ta.onkeydown = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") document.getElementById("checkBtn").click();
+  };
+}
+
+function render() {
+  renderStats();
+  if (state.mode === "flash") renderCard(); else renderRecall();
+  document.getElementById("helpText").textContent =
+    state.mode === "flash" ? "Space = flip · 1 Again · 2 Good · 3 Easy"
+                           : "Cmd/Ctrl+Enter = check";
+}
+
+/* ============================================================
+   CATEGORY FILTER + MODE TOGGLE + EVENTS
+   ============================================================ */
+function initCategories() {
+  const cats = ["All", ...Array.from(new Set(CARDS.map(c => c.cat)))];
+  const sel = document.getElementById("catFilter");
+  sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join("");
+  sel.onchange = () => { state.category = sel.value; buildOrder(); render(); };
+}
+function setMode(m) {
+  state.mode = m;
+  document.getElementById("modeFlash").classList.toggle("active", m === "flash");
+  document.getElementById("modeRecall").classList.toggle("active", m === "recall");
+  state.flipped = false;
+  render();
+}
+document.getElementById("modeFlash").onclick = () => setMode("flash");
+document.getElementById("modeRecall").onclick = () => setMode("recall");
+document.getElementById("resetBtn").onclick = () => {
+  state.prog = {}; save(); buildOrder(); render();
+};
+document.addEventListener("keydown", (e) => {
+  if (state.mode !== "flash") return;
+  if (e.target.tagName === "TEXTAREA") return;
+  if (e.code === "Space") { e.preventDefault(); if (!state.flipped) { state.flipped = true; render(); } }
+  else if (state.flipped && e.key === "1") grade(-1);
+  else if (state.flipped && e.key === "2") grade(+1);
+  else if (state.flipped && e.key === "3") grade(+2);
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+load();
+initCategories();
+buildOrder();
+render();
+</script>
+</body>
+</html>

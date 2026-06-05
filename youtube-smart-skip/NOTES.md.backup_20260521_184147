@@ -1,0 +1,12 @@
+# Notes
+
+## 2026-05-21
+Reviewed the extension and normalized its project documentation to the same convention as the other playground projects. Updated `README.md` to be more explicit about the current implementation, added `STATE.md` for durable implementation decisions, and added this `NOTES.md` for append-only continuation context. The extension is a plain Manifest V3 Chrome extension with a content-script runtime plus popup settings UI. Caption-based sponsor detection is the current primary mechanism, while the visual progress-bar detector remains experimental. The implementation already accounts for YouTube’s SPA navigation model by tearing down and reattaching on URL changes.
+
+Open questions:
+- Should this remain a heuristic-only tool, or should it add SponsorBlock or another external source for higher reliability?
+- Is fixed-time skipping acceptable for the intended use case, or should segment-end tracking be prioritized next?
+- Does the project need channel-level allow/block rules before further polish?
+
+Next step:
+- Decide whether the next iteration should focus on reliability improvements to caption/skip behavior or on integrating a stronger third detection source such as SponsorBlock.

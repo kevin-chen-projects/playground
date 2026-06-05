@@ -1,0 +1,22 @@
+# State
+
+## Current implementation decisions
+- The project uses **Vite + React + TypeScript** and is currently built as a lightweight single-page prototype.
+- Core gameplay is modeled as simple data plus state-transition helpers instead of embedding all rules directly in React components.
+- Content is stored in `src/data/sampleContent.ts` and the UI currently renders one minimal playable demo using that data.
+- The app prioritizes static-host-friendly simplicity over backend features or heavy game-engine abstractions.
+
+## Important technical notes
+- `src/lib/types.ts` defines the room, item, puzzle, and game-state shapes.
+- `src/lib/gameEngine.ts` contains the current inspect / take / attempt-puzzle transitions.
+- `src/components/AppShell.tsx` owns most UI rendering and some room-navigation state updates.
+- The sample content currently has a prototype limitation: the `locker` puzzle both requires and rewards `keycard`, so the first playable scenario should be refined before expansion.
+
+## Open design questions
+- Whether to formalize a richer action/condition system before adding more rooms
+- How to represent locked exits and conditional room transitions consistently between content and engine
+- Whether inspect/take/use interactions should become explicit reusable commands rather than button-local handlers
+
+## Legacy docs
+- `DESIGN_GUIDE.md` and `PROJECT_RESUME.md` contain older planning detail that mostly overlaps with this state file.
+- Prefer this file plus `README.md` and `NOTES.md` for future continuation.

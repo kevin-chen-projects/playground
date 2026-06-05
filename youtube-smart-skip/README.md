@@ -1,55 +1,46 @@
 # YouTube Smart Skip
 
-A Manifest V3 Chrome extension that detects and auto-skips **in-video sponsor segments** on YouTube — the kind that escape regular ad-blockers because the creator bakes them straight into the video.
+Browser extension that detects likely in-video sponsor segments on YouTube and jumps forward automatically.
 
-## How it detects
+## Overview
+This is a Manifest V3 Chrome extension with two detection modes:
+- caption phrase matching against the live YouTube caption DOM
+- optional visual detection that samples the bottom of the playing video and looks for a stable, growing progress-bar-like overlay
 
-Two independent signals, each toggleable from the popup:
+When a detector fires, the extension skips ahead by a configurable number of seconds and can show a toast with an Undo button.
 
-| Signal | Default | How it works |
-|--------|---------|--------------|
-| **Caption / phrase match** | on  | Watches the YouTube caption DOM (`.ytp-caption-segment`). Maintains a rolling buffer of recent caption text; triggers when any sponsor phrase appears. |
-| **Visual progress bar**   | off | Every 500 ms draws the bottom 12% of the video to a hidden canvas, scans each row for a long run of near-constant-color pixels, and triggers when such a row is *stable across frames AND grows in width over time*. |
+## Current capabilities
+- Runs as a content script on `*.youtube.com/*`
+- Loads and persists settings through `chrome.storage.sync`
+- Handles YouTube SPA navigation by tearing down and reattaching when the URL changes
+- Supports toggleable caption detection, visual detection, toast display, skip duration, sensitivity, and sponsor phrase list
+- Provides a popup UI for settings and reset-to-default behavior
 
-When triggered, the extension jumps `currentTime` forward by `skipSeconds` (default 30) and shows a small dark toast at the bottom of the player with an **Undo** button (5 s).
+## Core files
+- `manifest.json` — MV3 extension manifest and content-script registration
+- `content.js` — detection logic, skip action, toast UI, and SPA lifecycle handling
+- `content.css` — toast styling
+- `popup.html` / `popup.css` / `popup.js` — settings UI backed by synced Chrome storage
 
-## Install (unpacked, dev)
+## Detection model
+### Caption detector
+The caption detector watches `.ytp-caption-segment`, keeps a rolling buffer of recent text, lowercases it, and checks whether configured sponsor phrases appear as substrings. This is the practical default because it is cheap, explainable, and easy to tune.
 
-1. Open `chrome://extensions`
-2. Toggle **Developer mode** (top right)
-3. Click **Load unpacked**
-4. Select this folder (`youtube-smart-skip/`)
-5. Open any YouTube video. The extension icon → settings popup.
+### Visual detector
+The visual detector is opt-in and more fragile. It samples frames from the lower portion of the video using an offscreen canvas, scans for long runs of near-constant-color pixels, and looks for stability plus width growth over time. This is meant to catch creator-added sponsor progress bars that do not rely on captions.
 
-> No icons are bundled — Chrome will use a generic puzzle-piece. Drop PNGs in `icons/` and reference them in `manifest.json` if you want a real one.
+## Limitations
+- Caption-based detection depends on captions being available and rendered in the DOM
+- Canvas-based detection may fail on tainted/cross-origin video frames
+- Skipping is currently a fixed jump, not a segment-start/segment-end tracker
+- No per-channel allowlist/blocklist yet
+- Shorts and live streams are effectively untested
 
-## Files
+## Next steps
+- Add segment-end detection so skips stop closer to the sponsor boundary
+- Add per-channel preferences and exclusions
+- Consider SponsorBlock integration as a stronger third detection mode
+- Add icons, packaging polish, and test notes for browser-store readiness
 
-| File | Role |
-|------|------|
-| `manifest.json` | MV3 declaration. Single content script on `*.youtube.com`. Permissions: `storage` + host. |
-| `content.js`    | Detection engine (caption observer + visual canvas sampler) and skip action. |
-| `content.css`   | Toast styles only. |
-| `popup.html` / `popup.css` / `popup.js` | Settings UI persisted to `chrome.storage.sync`. |
-
-## Tuning
-
-- **Sensitivity** (visual only): lower = looser (more skips, more false positives). Default 0.70 is conservative.
-- **Sponsor phrases**: edit in the popup, one per line. They are lowercased and matched as substrings against the caption buffer.
-- **Skip duration**: 5–120 s. The Undo button reverts to the moment before the skip.
-
-## Known limitations
-
-- **Captions must be on.** Detection is based on the caption DOM. Auto-generated captions work fine, but if captions are off entirely, the caption detector sees nothing.
-- **Cross-origin canvas.** YouTube serves video via MSE blobs that are usually same-origin, but in some cases drawing the `<video>` to a canvas throws a `SecurityError`. The visual detector catches that, disables itself for the session, and logs a warning to the console.
-- **No segment-end detection.** v0.1 always jumps a fixed `skipSeconds`. The next iteration could keep watching captions and stop when the buffer no longer matches sponsor phrases.
-- **No allow / block list per channel.** Useful next addition.
-- **Live streams / Shorts.** Untested. Probably best to add a guard.
-
-## Possible next features
-
-- **SponsorBlock API integration** (`sponsor.ajay.app`) as a third, crowd-sourced detection mode — by far the most reliable for already-watched videos.
-- **Segment-end detection** by continuing to read captions after the initial skip.
-- **Per-channel rules** ("never skip on this creator" / "always skip 60 s").
-- **Audio fingerprinting** of common sponsor jingles via `AnalyserNode`.
-- **Real icons** + Chrome Web Store listing.
+## Legacy docs
+The normalized continuation context now lives in `STATE.md` and `NOTES.md`; this README is the main overview.

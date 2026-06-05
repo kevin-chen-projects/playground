@@ -1,0 +1,12 @@
+# Notes
+
+## 2026-05-21
+Reviewed the project and normalized its context documentation to match the same convention used for the other playground projects. The folder already had a solid `README.md` plus deeper design/memory docs under `docs/`, so I added `STATE.md` and this `NOTES.md` rather than replacing the existing materials. The codebase is currently a working FastAPI vertical slice: uploads are accepted, files are saved to `artifacts/uploads/`, mocked OCR/parser stages return deterministic note data, and the fingering engine maps those notes to beginner first-position guidance. Tests cover the key baseline routes and mock analysis behavior.
+
+Open questions:
+- Which OCR/OMR tool should be tested first for real sheet-music extraction?
+- Should the next product milestone prioritize recognition quality, richer fingering pedagogy, or visual annotation output?
+- Should the project eventually consolidate the docs in `docs/` into root-level normalized files, or keep both layers?
+
+Next step:
+- Evaluate and document one realistic OMR/OCR candidate so the mock pipeline can be replaced incrementally without breaking the current API contract.

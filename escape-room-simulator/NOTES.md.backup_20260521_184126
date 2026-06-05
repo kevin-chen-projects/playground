@@ -1,0 +1,12 @@
+# Notes
+
+## 2026-05-21
+Reviewed the project to normalize its project-context docs to a consistent convention. Confirmed the folder already had `README.md`, `DESIGN_GUIDE.md`, and `PROJECT_RESUME.md`, then added `STATE.md` and this `NOTES.md` so future sessions have a standard overview, durable implementation decisions, and an append-only session log. The current codebase remains a lightweight Vite + React + TypeScript escape-room prototype with content/state separated reasonably well, though the sample `locker` puzzle logic appears inconsistent because it both requires and rewards `keycard`.
+
+Open questions:
+- Should legacy files (`DESIGN_GUIDE.md`, `PROJECT_RESUME.md`) be retained as-is, merged into the normalized set, or eventually deprecated?
+- Should the prototype first fix content/data modeling issues before any UI polish?
+- How much game-engine structure is desired before adding more rooms and puzzles?
+
+Next step:
+- Fix the sample room/puzzle content so the first playable scenario demonstrates the intended item-gating and unlock flow cleanly.

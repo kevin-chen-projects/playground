@@ -106,15 +106,25 @@ def notes_to_events(note_events, tuning: str) -> List[Dict]:
     return events
 
 
+# Map the UI "accuracy mode" to Basic Pitch detection sensitivity. Lower
+# thresholds and shorter minimum note length detect more notes (including
+# quieter chord tones) at the cost of more spurious detections.
+DETAIL_SETTINGS: Dict[str, Dict[str, float]] = {
+    'fast':     {'onset_threshold': 0.7, 'frame_threshold': 0.5, 'minimum_note_length': 130.0},
+    'balanced': {'onset_threshold': 0.5, 'frame_threshold': 0.3, 'minimum_note_length': 100.0},
+    'deep':     {'onset_threshold': 0.4, 'frame_threshold': 0.25, 'minimum_note_length': 60.0},
+}
+
+
 def transcribe_audio_to_outputs(audio_path: Path, output_dir: Path, tuning: str, detail: str, title: str) -> Dict:
-    model_output, midi_data, note_events = predict(str(audio_path))
+    params = DETAIL_SETTINGS.get(detail, DETAIL_SETTINGS['balanced'])
+    try:
+        model_output, midi_data, note_events = predict(str(audio_path), **params)
+    except TypeError:
+        # Older/newer Basic Pitch builds may not accept these kwargs; fall back
+        # to defaults rather than failing the whole transcription.
+        model_output, midi_data, note_events = predict(str(audio_path))
     events = notes_to_events(note_events, tuning)
-
-    if detail == 'fast':
-        events = events[:16]
-    elif detail == 'balanced':
-        events = events[:32]
-
     pdf_path = output_dir / f'{audio_path.stem}.pdf'
     json_path = output_dir / f'{audio_path.stem}.json'
     xml_path = output_dir / f'{audio_path.stem}.musicxml'

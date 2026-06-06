@@ -8,24 +8,39 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
-STAFF_LEFT = 72
-STAFF_RIGHT = 540
-TAB_TOP = 420
-STAFF_TOP = 700
-LINE_GAP = 10
+PAGE_MARGIN = 72
+LINE_GAP = 9                 # vertical gap between adjacent tab lines
+SYSTEM_GAP = 70              # vertical gap between stacked tab systems
+COLUMN_WIDTH = 34            # horizontal space per chord/note event
+FIRST_SYSTEM_TOP = 660       # y of the top line of the first system
+BOTTOM_LIMIT = 90            # don't draw a system below this y
+
+# Tab lines run high string (top) to low string (bottom). string_index 1 is the
+# low E (6th string), so it belongs on the BOTTOM line; string_index 6 is the
+# high E and belongs on the TOP line. This row-from-top order makes that mapping
+# explicit instead of the previous upside-down rendering.
+STRING_LABELS_TOP_DOWN = ['e', 'B', 'G', 'D', 'A', 'E']
 
 
-def draw_staff(c: canvas.Canvas, y_top: float, lines: int = 5, label: str | None = None):
-    if label:
-        c.setFont('Helvetica-Bold', 12)
-        c.drawString(STAFF_LEFT - 40, y_top - 2 * LINE_GAP, label)
-    for i in range(lines):
-        y = y_top - i * LINE_GAP
-        c.line(STAFF_LEFT, y, STAFF_RIGHT, y)
+def _line_y(top_y: float, string_index: int) -> float:
+    """y coordinate of a string's tab line. string_index 1 (low E) is bottom."""
+    row_from_top = 6 - string_index            # 1 -> 5 (bottom), 6 -> 0 (top)
+    return top_y - row_from_top * LINE_GAP
 
 
-def draw_tab(c: canvas.Canvas, y_top: float):
-    draw_staff(c, y_top, lines=6, label='TAB')
+def _draw_system(c: canvas.Canvas, top_y: float, left_x: float, right_x: float):
+    """Draw the six horizontal tab lines plus the 'TAB' clef labels."""
+    c.setFont('Helvetica-Bold', 7)
+    c.setFillColor(colors.grey)
+    for row, label in enumerate(STRING_LABELS_TOP_DOWN):
+        y = top_y - row * LINE_GAP
+        c.drawRightString(left_x - 6, y - 2, label)
+    c.setFillColor(colors.black)
+    for row in range(6):
+        y = top_y - row * LINE_GAP
+        c.line(left_x, y, right_x, y)
+    # Left-edge bracket so it reads as a tab staff.
+    c.line(left_x, top_y, left_x, top_y - 5 * LINE_GAP)
 
 
 def render_transcription_pdf(pdf_path: Path, title: str, tuning_label: str, events: List[Dict]):
@@ -33,54 +48,66 @@ def render_transcription_pdf(pdf_path: Path, title: str, tuning_label: str, even
     width, height = letter
     c.setTitle(title)
 
-    c.setFont('Helvetica-Bold', 18)
-    c.drawString(72, height - 56, title)
-    c.setFont('Helvetica', 10)
-    c.setFillColor(colors.grey)
-    c.drawString(72, height - 72, f'Tuning: {tuning_label}')
-    c.drawString(72, height - 86, 'Auto-generated guitar score/tab from MP3 transcription')
-    c.setFillColor(colors.black)
+    left_x = PAGE_MARGIN + 14          # leave room for string labels
+    right_x = width - PAGE_MARGIN
 
-    draw_staff(c, STAFF_TOP, lines=5, label='Std.')
-    draw_tab(c, TAB_TOP)
+    def header():
+        c.setFont('Helvetica-Bold', 18)
+        c.drawString(PAGE_MARGIN, height - 56, title)
+        c.setFont('Helvetica', 10)
+        c.setFillColor(colors.grey)
+        c.drawString(PAGE_MARGIN, height - 72, f'Tuning: {tuning_label}')
+        c.drawString(PAGE_MARGIN, height - 86, 'Auto-generated guitar tab from MP3 transcription')
+        c.setFillColor(colors.black)
+
+    header()
 
     if not events:
-      c.setFont('Helvetica', 12)
-      c.drawString(72, 360, 'No note events detected.')
-      c.save()
-      return
+        c.setFont('Helvetica', 12)
+        c.drawString(PAGE_MARGIN, height - 140, 'No note events detected.')
+        c.save()
+        return
 
-    start_x = 110
-    spacing = max(28, min(52, 420 / max(1, len(events))))
+    columns_per_system = max(1, int((right_x - left_x - COLUMN_WIDTH) // COLUMN_WIDTH))
+    top_y = FIRST_SYSTEM_TOP
+    col = 0
+    _draw_system(c, top_y, left_x, right_x)
 
-    for idx, event in enumerate(events[:12]):
-        x = start_x + idx * spacing
-        c.setFont('Helvetica-Bold', 9)
-        chord = event.get('chord_name', 'N.C.')
-        tw = stringWidth(chord, 'Helvetica-Bold', 9)
-        c.drawString(x - tw / 2, STAFF_TOP + 18, chord)
+    for event in events:
+        if col >= columns_per_system:
+            # Move to the next system, or a new page if we've run out of room.
+            top_y -= SYSTEM_GAP
+            col = 0
+            if top_y - 5 * LINE_GAP < BOTTOM_LIMIT:
+                c.showPage()
+                header()
+                top_y = FIRST_SYSTEM_TOP
+            _draw_system(c, top_y, left_x, right_x)
 
-        notes = event.get('note_names', [])[:6]
-        c.setFont('Helvetica', 8)
-        if notes:
-            c.drawString(x - 10, STAFF_TOP - 60, '/'.join(notes[:2]))
+        x = left_x + (col + 0.5) * COLUMN_WIDTH
 
-        placements = event.get('placements', [])
-        for p in placements:
-            string_index = p['string_index']
+        # Chord name above the system.
+        chord = event.get('chord_name', '')
+        if chord and chord != 'N.C.':
+            c.setFont('Helvetica-Bold', 8)
+            tw = stringWidth(chord, 'Helvetica-Bold', 8)
+            c.drawString(x - tw / 2, top_y + 8, chord)
+
+        # Fret numbers, each on its string's line, masked over the line.
+        for p in event.get('placements', []):
             fret = str(p['fret'])
-            y = TAB_TOP - (string_index - 1) * LINE_GAP
+            y = _line_y(top_y, p['string_index'])
+            fw = stringWidth(fret, 'Helvetica', 7)
             c.setFillColor(colors.white)
-            c.rect(x - 6, y - 5, 12, 10, fill=1, stroke=0)
+            c.rect(x - fw / 2 - 1, y - 3.5, fw + 2, 7, fill=1, stroke=0)
             c.setFillColor(colors.black)
             c.setFont('Helvetica', 7)
-            c.drawCentredString(x, y - 2, fret)
+            c.drawCentredString(x, y - 2.5, fret)
 
-        stem_y = STAFF_TOP - 20
-        c.line(x, stem_y, x, stem_y - 25)
-        c.circle(x, stem_y, 4, stroke=1, fill=0)
+        col += 1
 
     c.setFont('Helvetica-Oblique', 9)
     c.setFillColor(colors.grey)
-    c.drawString(72, 90, 'Note: This PDF is an automatically inferred guitar arrangement and may require musical review.')
+    c.drawString(PAGE_MARGIN, 60,
+                 'Note: This tab is automatically inferred from audio and may require musical review.')
     c.save()

@@ -118,6 +118,32 @@ Fix:
 - Backend updated to validate both extensions
 - Docs updated accordingly
 
+### 7) Output looked nothing like a guitar tab + chords mislabeled
+Symptoms:
+- Generated PDF didn't resemble tab; even simple chord MP3s came out wrong.
+Root causes found and fixed:
+- `guitar.py` fretboard mapping scored candidates by `abs(fret - 5)`, biasing
+  every note toward the 5th fret and sometimes dropping notes. Replaced with a
+  low-to-high assignment that prefers the lowest playable fret, so open chords
+  now come out as their textbook shapes (e.g. open E = `0 2 2 1 0 0`).
+- `guitar.py` chord naming used `pcs[0]` (numerically-lowest pitch class) as the
+  root, so G-B-D was labeled "Dadd11". Rewrote to try each pitch class as root
+  and pick the best triad match; bass note breaks ties. Now names G, Am, G7 etc.
+- `transcription.py` truncated the whole song to `events[:16]`/`[:32]` based on
+  the "accuracy mode". Removed the clipping; detail mode now maps to Basic Pitch
+  detection thresholds (`onset_threshold`/`frame_threshold`/`minimum_note_length`)
+  with a `TypeError` fallback for versions that don't accept those kwargs.
+- `pdf_render.py` drew the low E string on the TOP line (upside-down tab) and
+  rendered only `events[:12]` on a single non-wrapping row with fake floating
+  note stems. Rewrote as a proper 6-line tab with low E on the bottom, string
+  labels, chord names above, and multi-system/multi-page wrapping for full songs.
+- `musicxml_export.py` used a plain treble clef; switched to `Treble8vbClef`
+  (guitar sounds an octave below written pitch) so the engraved score isn't an
+  octave high.
+Note: `basic_pitch`/`reportlab`/`music21` weren't installable in the fix
+environment (no PyPI access), so the deterministic logic was verified with stub
+canvases and unit checks; re-run a real MP3 locally to confirm end to end.
+
 ## Dependency trimming work completed
 A leaner dependency set was created in `backend/requirements.txt`.
 Removed as unused from top-level requirements:

@@ -2,6 +2,8 @@
 
 A running list of everything we're building in this repo, grouped so it's easy to skim, share, and collect feedback on.
 
+**🔗 Live sites:** For direct clickable links to each site hosted on GitHub Pages, see [LIVE_SITES.md](LIVE_SITES.md).
+
 **How to view:** Every single-file site is a self-contained `.html` — open it directly in a browser, no build step. Folder projects have their own setup notes (see each row's path). For an engineering-level map of any file (structure, functions, palettes), see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 
 _Last updated: 2026-06-06 (NiHao tone trainer: user pitch curve now anchors to the target line + examples play at half speed)_

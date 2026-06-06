@@ -3042,7 +3042,7 @@
           speechSynthesis.cancel();
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'zh-CN';
-          u.rate = 0.85;
+          u.rate = 0.45;   // slow + exaggerated so the tone contour is obvious
           u.pitch = 1.0;
           const voice = getZhVoice();
           if (voice) u.voice = voice;
@@ -3059,6 +3059,13 @@
           return;
         }
         const audio = new Audio(item.file);
+        // Play at half speed (2× longer) so beginners can hear the tone contour
+        // clearly. preservesPitch keeps the pitch — and thus the tone — intact;
+        // without it, slowing down would drop the pitch and distort the tone.
+        audio.preservesPitch = true;
+        audio.mozPreservesPitch = true;        // older Firefox
+        audio.webkitPreservesPitch = true;     // older Safari
+        audio.playbackRate = 0.5;
         let fallbackFired = false;
         const fallback = () => {
           if (fallbackFired) return;
@@ -3259,23 +3266,48 @@
         now.setAttribute('cy', -10);
       }
 
-      function drawUserCurve(pitches) {
-        if (!pitches.length) return;
+      // Where a tone's *median* pitch should sit vertically so the drawn user
+      // curve lines up with the fixed target overlay (which encodes absolute
+      // register: tone 1 is high → near the top, the rest centre lower).
+      const TONE_ANCHOR_Y = { 1: 50, 2: 100, 3: 95, 4: 100, 5: 100 };
+
+      // Build an SVG path for a pitch track, anchored to the target band and
+      // drawn on a FIXED semitone scale (not stretched to fill height). This is
+      // the key to the visual matching the target: a flat tone stays flat and
+      // sits on its line, and ordinary vibrato moves the line only a few pixels
+      // instead of bouncing across the whole graph. Returns null if too short.
+      function buildUserPath(pitches, toneNum) {
         const clean = cleanPitchTrack(pitches);
-        if (!clean.length) return;
-        const xs = clean.map(p => (p.t / RECORD_MS) * 400);
-        const fs = clean.map(p => p.hz);
-        const fmin = Math.min(...fs);
-        // Normalize to a robust spread so a single stray frame can't stretch the
-        // axis and make a steady tone look jagged.
-        const range = Math.max(20, robustRange(fs));
-        const ys = fs.map(f => 180 - Math.max(0, Math.min(1, (f - fmin) / range)) * 160);
+        if (clean.length < 1) return null;
+        // Moving average (±2) so frame-to-frame jitter doesn't show as bounce —
+        // the drawn curve was previously raw while only the score was smoothed.
+        const sm = clean.map((p, i) => {
+          const lo = Math.max(0, i - 2), hi = Math.min(clean.length - 1, i + 2);
+          let s = 0, n = 0;
+          for (let j = lo; j <= hi; j++) { s += clean[j].hz; n++; }
+          return { t: p.t, hz: s / n };
+        });
+        const ref = median(sm.map(p => p.hz)) || 1;
+        const anchor = TONE_ANCHOR_Y[toneNum] ?? 100;
+        const PX_PER_SEMITONE = 10; // gentle: a half-octave glide ≈ 60px of travel
+        // X spans [40,360] to match the inset target paths (was the full [0,400]).
+        const xs = sm.map(p => 40 + Math.max(0, Math.min(1, p.t / RECORD_MS)) * 320);
+        const ys = sm.map(p => {
+          const semis = 12 * Math.log2(p.hz / ref);
+          return Math.max(20, Math.min(180, anchor - semis * PX_PER_SEMITONE));
+        });
         let d = `M ${xs[0]} ${ys[0]}`;
         for (let i = 1; i < xs.length; i++) d += ` L ${xs[i]} ${ys[i]}`;
-        $('#user-curve').setAttribute('d', d);
-        const last = pitches.length - 1;
-        $('#user-now').setAttribute('cx', xs[last]);
-        $('#user-now').setAttribute('cy', ys[last]);
+        return { d, lastX: xs[xs.length - 1], lastY: ys[ys.length - 1] };
+      }
+
+      function drawUserCurve(pitches) {
+        if (!pitches.length) return;
+        const path = buildUserPath(pitches, state.targetTone);
+        if (!path) return;
+        $('#user-curve').setAttribute('d', path.d);
+        $('#user-now').setAttribute('cx', path.lastX);
+        $('#user-now').setAttribute('cy', path.lastY);
       }
 
       // Target tone curves drawn into the same viewBox
@@ -3868,16 +3900,9 @@
 
       function quizDrawUserCurve(pitches) {
         if (!pitches.length) return;
-        const clean = cleanPitchTrack(pitches);
-        if (!clean.length) return;
-        const xs = clean.map(p => (p.t / RECORD_MS) * 400);
-        const fs = clean.map(p => p.hz);
-        const fmin = Math.min(...fs);
-        const range = Math.max(20, robustRange(fs));
-        const ys = fs.map(f => 180 - Math.max(0, Math.min(1, (f - fmin) / range)) * 160);
-        let d = `M ${xs[0]} ${ys[0]}`;
-        for (let i = 1; i < xs.length; i++) d += ` L ${xs[i]} ${ys[i]}`;
-        $('#quiz-user-curve').setAttribute('d', d);
+        const path = buildUserPath(pitches, quizMic.q && quizMic.q.tone);
+        if (!path) return;
+        $('#quiz-user-curve').setAttribute('d', path.d);
       }
 
       function quizScoreAndDisplay() {

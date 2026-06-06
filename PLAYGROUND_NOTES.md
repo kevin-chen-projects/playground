@@ -22,28 +22,28 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 1. [Glow Studio (Desktop)](#1-glow-studiohtml) — `glow-studio.html`
 2. [Glow Studio Mobile](#2-glow-studio-mobilehtml) — `glow-studio-mobile.html`
 3. [Glow Studio Easy](#3-glow-studio-easyhtml) — `glow-studio-easy.html` _(archived)_
-4. [Glow Studio Video](#4-glow-studio-videohtml) — `glow-studio-video.html`
-5. [Count Champ (Blackjack Trainer)](#5-count-champhtml) — `count-champ.html`
+4. [Glow Studio Video](#4-glow-studio-videohtml) — `glow-studio-video.html` _(moved private)_
+5. [Count Champ (Blackjack Trainer)](#5-count-champhtml) — `count-champ.html` _(moved private)_
 6. [Slot Machine](#6-slot-machinehtml) — `slot-machine.html` _(archived)_
 7. [Slot Machine Memes](#7-slot-machine-memeshtml) — `slot-machine-memes.html` _(archived)_
 8. [Spades](#8-spadeshtml) — `spades.html`
 9. [Bare DAW](#9-daw-folder) — `daw/{index.html, styles.css, app.js}`
 10. [YouTube Smart Skip](#10-youtube-smart-skip-folder) — `youtube-smart-skip/{manifest.json, content.{js,css}, popup.{html,css,js}}`
-11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html`
-12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html`
-13. [Bio Basics (Molecular Biology for Everyone)](#13-bio-basicshtml) — `bio-basics.html`
-14. [NiHao (Mandarin Learning Site)](#14-nihaohtml) — `nihao.html`
+11. [Math Ace (Kumon-style K–5 Tutor)](#11-math-acehtml) — `math-ace.html` _(moved private)_
+12. [Habla Clara (Pronunciation for Hispanic Learners)](#12-habla-clarahtml) — `habla-clara.html` _(moved private)_
+13. [Bio Basics (Molecular Biology for Everyone)](#13-bio-basicshtml) — `bio-basics.html` _(moved private)_
+14. [NiHao (Mandarin Learning Site)](#14-nihaohtml) — `nihao.html` _(moved private)_
 15. [Pawn Path (Chess Tactics Trainer)](#15-pawn-pathhtml) — `pawn-path.html`
-16. [Speak Sharp (Public Speaking Coach)](#16-speak-sharphtml) — `speak-sharp.html`
-17. [Mortgage Lab (Home Affordability Suite)](#17-mortgage-labhtml) — `mortgage-lab.html`
+16. [Speak Sharp (Public Speaking Coach)](#16-speak-sharphtml) — `speak-sharp.html` _(moved private)_
+17. [Mortgage Lab (Home Affordability Suite)](#17-mortgage-labhtml) — `mortgage-lab.html` _(moved private)_
 18. [SAT Reading Sprints (Test Prep)](#18-sat-readinghtml) — `sat-reading.html`
-19. [Interview Drill (Behavioral Practice)](#19-interview-drillhtml) — `interview-drill.html`
-20. [Fridge Feast (Cook From What You Have)](#20-fridge-feasthtml) — `fridge-feast.html`
+19. [Interview Drill (Behavioral Practice)](#19-interview-drillhtml) — `interview-drill.html` _(moved private)_
+20. [Fridge Feast (Cook From What You Have)](#20-fridge-feasthtml) — `fridge-feast.html` _(moved private)_
 21. [Violin Voyage (Beginner Violin Tutor)](#21-violin-voyagehtml) — `violin-voyage.html`
 22. [Money Smarts (Financial Literacy)](#22-money-smartshtml) — `money-smarts.html`
-23. [Hello! (English Pronunciation, L1-Aware)](#23-hellohtml) — `hello.html`
-24. [Slop Shield (AI YouTube Video Detector)](#24-slop-shield-folder) — `slop-shield/`
-25. [Stock Screener (Day-Trading Reference)](#25-stock-screener-folder) — `stock-screener/`
+23. [Hello! (English Pronunciation, L1-Aware)](#23-hellohtml) — `hello.html` _(moved private)_
+24. [Slop Shield (AI YouTube Video Detector)](#24-slop-shield-folder) — `slop-shield/` _(moved private)_
+25. [Stock Screener (Day-Trading Reference)](#25-stock-screener-folder) — `stock-screener/` _(moved private)_
 26. [Escape Room Simulator (React + Vite)](#26-escape-room-simulator-folder) — `escape-room-simulator/`
 27. [Guitar MP3 Transcription (Python + FastAPI)](#27-guitar-mp3-transcription-folder) — `guitar-mp3-transcription/`
 28. [Violin Sheet Helper (FastAPI + OCR)](#28-violin-sheet-helper-webapp-folder) — `violin-sheet-helper-webapp/`
@@ -202,7 +202,7 @@ Upload or sample → pick brush tool → paint with size/strength sliders → ap
 
 ---
 
-## 4. `glow-studio-video.html`
+## 4. `glow-studio-video.html`  _(Moved to private repo)_
 
 **Video face-smoothing tool.** Tone-safe skin smoothing with real-time preview, frame-by-frame export. Emphasizes preserving natural skin colors across all tones via educational badges and protect-features toggle. Upload and export are iOS-Safari-compatible.
 
@@ -281,7 +281,7 @@ End-to-end iOS Safari support (iPhone Photos-app uploads, H.264/AAC MP4 export):
 
 ---
 
-## 5. `count-champ.html`
+## 5. `count-champ.html`  _(Moved to private repo)_
 
 **Blackjack card-counting trainer + Monte Carlo simulator.** Configurable rules, bet spread, wong-in/out, Kelly fractional sizing, deviation toggles (Illustrious 18 + Fab 4), bankroll-trace charts. Three tabs: Simulator | Cheat Sheets | Practice Table.
 
@@ -657,7 +657,7 @@ Setup → choose 3 opponent difficulties + target score (200/300/500) → bid (0
 
 ---
 
-## 11. `math-ace.html`
+## 11. `math-ace.html`  _(Moved to private repo)_
 
 **Kumon-style math tutor for elementary students (K–5).** Each topic has a `Learn` pane (explanation + worked examples) and a `Practice` pane that generates 15 sequential problems with instant feedback, a running timer, a streak counter, and a results screen with 1–3 stars. Star earnings + best times persist per topic in `localStorage`.
 
@@ -770,7 +770,7 @@ Kumon worksheets drill a narrow skill repeatedly — each worksheet has ~15–30
 
 ---
 
-## 12. `habla-clara.html`
+## 12. `habla-clara.html`  _(Moved to private repo)_
 
 **English pronunciation tutor for Hispanic learners.** Hard-to-pronounce English words are embedded inside realistic everyday conversations (coffee order, doctor visit, job interview, directions, etc.) so they get practiced in context rather than drilled in isolation. Each target word has a simplified phonetic, IPA, and a Spanish-speaker-specific tip that names the Spanish habit creating the mistake and the mechanical fix. A secondary Word Gym groups the same material by difficulty category (TH, V/B, silent letters, SP/ST/SK clusters, H sound, tricky single words). Browser TTS models pronunciation; `SpeechRecognition` + Levenshtein fuzzy matching gives per-word and per-line feedback on the user's attempts.
 
@@ -911,7 +911,7 @@ Landing → today pill reads your quiet practice count → tap the featured "tod
 
 ---
 
-## 13. `bio-basics.html`
+## 13. `bio-basics.html`  _(Moved to private repo)_
 
 **Molecular biology learning site, middle-school-friendly.** A landing page lists 11 modules of a planned curriculum (cell → DNA → transcription → translation → gene regulation → mutations/evolution → cancer/disease → viruses → immune system → vaccines/pandemics → CRISPR). **Modules 1–6 are fully built** (the central-dogma core + mutations: cell, DNA, transcription, translation, gene regulation, mutations/evolution); modules 7–11 are locked placeholders for the disease/immune/vaccine/CRISPR arc. Each built module walks the learner through 6 sequential scenes with at least one interactive centerpiece. Tone target: friendly and curious, deliberately *not* college-level — closer to a kids' science museum than a textbook.
 
@@ -1044,7 +1044,7 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 
 ---
 
-## 14. `nihao.html`
+## 14. `nihao.html`  _(Moved to private repo)_
 
 **Mandarin learning site — modules 1–3 of a planned 11-module curriculum.** Same overall pattern as bio-basics (multi-module SPA, 6-scene narrative per module, vanilla single-file), but the centerpieces are audio + visual: live pitch-detection trainer (M1), interactive pinyin chart (M2), and a clickable radical table with character decomposition (M3). Tone target: friendly + interactive — when you sing the right tone, when you hear "qing" pronounced correctly for the first time, when you see 好 = 女 + 子, those are the dopamine moments.
 
@@ -1261,7 +1261,7 @@ Intentionally evocative of a real chess board (light/dark square colors match Li
 
 ---
 
-## 16. `speak-sharp.html`
+## 16. `speak-sharp.html`  _(Moved to private repo)_
 
 **Public speaking coach.** Pick a 60-second prompt (10 across 5 categories: elevator pitch, story, persuasive, explanation, toast). Hit mic. The browser captures speech via `webkitSpeechRecognition` + analyzes pitch via `AnalyserNode` + autocorrelation (the same algorithm as nihao). Real-time WPM / fillers / pitch HUD + post-run report with coach-style notes.
 
@@ -1314,7 +1314,7 @@ Sapphire reads "professional / corporate"; gold accents for the live pitch curve
 
 ---
 
-## 17. `mortgage-lab.html`
+## 17. `mortgage-lab.html`  _(Moved to private repo)_
 
 **Home affordability calculator suite.** Four linked calculators in a tab UI: Payment (PITI + amortization), Affordability (28/36-rule reverse-solve), Rent vs. Buy (cumulative cost curves with opportunity cost on down payment), Refinance (break-even + monthly savings). All inputs persist to `localStorage` so users can come back and tweak.
 
@@ -1427,7 +1427,7 @@ Editorial palette — paper-cream background, serif body for passages, navy chro
 
 ---
 
-## 19. `interview-drill.html`
+## 19. `interview-drill.html`  _(Moved to private repo)_
 
 **Behavioral interview practice with STAR scaffolding and mic feedback.** 20 questions across 6 categories (Leadership, Conflict, Failure, Initiative, Ambiguity, Career fit). Browser TTS reads the question; mic captures the answer; metrics + STAR-section coverage are graded after. Per-question STAR notes save automatically.
 
@@ -1494,7 +1494,7 @@ Forest green reads "career / growth"; gold accents for STAR letters and CTA butt
 
 ---
 
-## 20. `fridge-feast.html`
+## 20. `fridge-feast.html`  _(Moved to private repo)_
 
 **Recipe matcher from on-hand ingredients.** Pick what's in your fridge (emoji-grid picker + custom text input), set a cuisine bias and servings, and get a scored recipe ranking with limiting-ingredient proportional scaling. Optional AI mode uses a user-provided Anthropic Claude API key for novel recipe generation.
 
@@ -1625,7 +1625,7 @@ Serif body (Iowan Old Style → Palatino → Georgia) for editorial/classroom fe
 
 ---
 
-## 23. `hello.html`
+## 23. `hello.html`  _(Moved to private repo)_
 
 **American English pronunciation tutor for native Spanish & Mandarin speakers.** Single 6-scene module (with 9 more planned) teaching the 11 American-English monophthong vowels. The user picks their L1 on first load and every accent tip, contrast example, and "this is new" callout adapts accordingly.
 
@@ -1673,7 +1673,7 @@ Vowel-quadrant colors give each region its own consistent color across the chart
 
 ---
 
-## 24. `slop-shield/` folder
+## 24. `slop-shield/` folder  _(Moved to private repo)_
 
 **Chrome extension flagging AI-generated YouTube videos.** Layered detection (channel heuristics, voice, transcript, visual face) with per-signal breakdown rather than a binary verdict — users see the underlying scores and decide for themselves. v0.1 ships Layer 1 only (channel heuristics); other layers are scaffolded for future versions.
 
@@ -1710,7 +1710,7 @@ Composite score is a weighted average. Tier thresholds: `>= 0.65` high, `>= 0.35
 
 ---
 
-## 25. `stock-screener/` folder
+## 25. `stock-screener/` folder  _(Moved to private repo)_
 
 **Day-trading reference tool.** Aggregates Yahoo Finance gainers/losers, Russell 2000 earnings, low-float runners, and options flow into a single multi-tab dashboard. Manual verification required — this isn't a trading bot, just a pre-screen for human judgement.
 

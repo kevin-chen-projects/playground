@@ -65,7 +65,7 @@ untracked new site HTML). **Never `git add .` or `git commit -a`.**
 1. `git fetch origin` first — `origin/main` moves often (feature branches merge via PRs).
 2. Branch off the latest origin/main: `git checkout -b feat/... origin/main` — not
    whatever branch happens to be checked out.
-3. Stage only your files **by name** (`git add fluoro-match.html`), then verify with
+3. Stage only your files **by name** (`git add scam-shield.html`), then verify with
    `git diff --cached --name-only` and confirm `git status --short` shows others untouched.
 4. Push with `-u` and let the user open the PR. Commit/push only when asked.
 

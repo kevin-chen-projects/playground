@@ -51,6 +51,11 @@ jobs:
       - name: Run pytest
         working-directory: violin-sheet-helper-webapp
         run: pytest -q
+      - name: Run pytest (guitar-mp3-transcription guitar logic)
+        # Stdlib-only tests for fretboard mapping + chord naming; they don't
+        # need basic_pitch/reportlab/music21, so no backend deps are installed.
+        working-directory: guitar-mp3-transcription/backend
+        run: pytest -q tests
 
   security:
     name: Dependency audit (pip-audit, informational)

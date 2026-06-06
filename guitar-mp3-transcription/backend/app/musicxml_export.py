@@ -20,7 +20,9 @@ def build_music21_score(title: str, tuning: str, events: List[Dict]) -> stream.S
     part = stream.Part()
     part.append(tempo.MetronomeMark(number=96))
     part.append(meter.TimeSignature('4/4'))
-    part.append(clef.TrebleClef())
+    # Guitar music is written with a treble clef that sounds an octave lower
+    # than notated; a plain treble clef would render everything an octave high.
+    part.append(clef.Treble8vbClef())
 
     for event in events:
         ql = _quarter_length_from_event(event)

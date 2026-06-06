@@ -6,7 +6,7 @@ A running list of everything we're building in this repo, grouped so it's easy t
 
 **How to view:** Every single-file site is a self-contained `.html` — open it directly in a browser, no build step. Folder projects have their own setup notes (see each row's path). For an engineering-level map of any file (structure, functions, palettes), see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 
-_Last updated: 2026-06-06 (NiHao tone trainer: user pitch curve now anchors to the target line + examples play at half speed)_
+_Last updated: 2026-06-06 (archived the two Birthday Slots toys + Glow Studio Easy to archive/)_
 
 ---
 
@@ -39,8 +39,6 @@ _Last updated: 2026-06-06 (NiHao tone trainer: user pitch curve now anchors to t
 | **Holdem Coach** | Texas Hold'em trainer (NLHE + LHE) | [holdem-coach.html](holdem-coach.html) | Complete |
 | **Pawn Path** | Chess tactics trainer — forks, pins, skewers, mate-in-N | [pawn-path.html](pawn-path.html) | Complete |
 | **Spades** | 4-player Spades vs. AI bots with tunable difficulty | [spades.html](spades.html) | Complete |
-| **Birthday Slots** | 3-reel slot machine, procedurally-synthesized audio | [slot-machine.html](slot-machine.html) | Complete |
-| **Birthday Slots (Memes)** | Slots variant with meme sound effects | [slot-machine-memes.html](slot-machine-memes.html) | Complete |
 
 ## Fun & curiosities
 
@@ -63,7 +61,6 @@ _Last updated: 2026-06-06 (NiHao tone trainer: user pitch curve now anchors to t
 |------|------------|------|--------|
 | **Glow Studio** | Desktop portrait retouching — brush edits, presets, undo/redo | [glow-studio.html](glow-studio.html) | Complete |
 | **Glow Studio Mobile** | Mobile batch editor — auto face/skin detection, no painting | [glow-studio-mobile.html](glow-studio-mobile.html) | Complete |
-| **Glow Studio Easy** | One-tap simplified mobile variant | [glow-studio-easy.html](glow-studio-easy.html) | Complete |
 | **Glow Studio Video** | Tone-safe video face smoothing — iOS Safari upload + MP4 export | [glow-studio-video.html](glow-studio-video.html) | Complete |
 | **Bare DAW** | Browser music workstation — drum sequencer + piano roll, WAV/MIDI export | [daw/](daw/) | Functional |
 
@@ -78,6 +75,12 @@ _Last updated: 2026-06-06 (NiHao tone trainer: user pitch curve now anchors to t
 | **Slop Shield** | Chrome extension flagging AI-generated YouTube videos | [slop-shield/](slop-shield/) | Chrome MV3 | v0.1 (Layer 1) |
 | **YouTube Smart Skip** | Chrome extension auto-skipping in-video sponsor segments | [youtube-smart-skip/](youtube-smart-skip/) | Chrome MV3 | v0.1 |
 | **CodeSignal Prep** | 5-day Python interview prep kit — cheat-sheet, warm-up drills, four 4-level practice problems (+ tests & solutions), and a flashcard site | [codesignal-prep/](codesignal-prep/) | Python (stdlib) + HTML | Complete |
+
+## Archived
+
+Retired experiments, moved to [archive/](archive/) to keep this catalog focused. They still
+run if opened directly, but are no longer part of the active playground: **Birthday Slots**,
+**Birthday Slots (Memes)**, and **Glow Studio Easy** (redundant variant of Glow Studio Mobile).
 
 ---
 

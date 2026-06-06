@@ -12,11 +12,11 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 
 1. [Glow Studio (Desktop)](#1-glow-studiohtml) — `glow-studio.html`
 2. [Glow Studio Mobile](#2-glow-studio-mobilehtml) — `glow-studio-mobile.html`
-3. [Glow Studio Easy](#3-glow-studio-easyhtml) — `glow-studio-easy.html`
+3. [Glow Studio Easy](#3-glow-studio-easyhtml) — `glow-studio-easy.html` _(archived)_
 4. [Glow Studio Video](#4-glow-studio-videohtml) — `glow-studio-video.html`
 5. [Count Champ (Blackjack Trainer)](#5-count-champhtml) — `count-champ.html`
-6. [Slot Machine](#6-slot-machinehtml) — `slot-machine.html`
-7. [Slot Machine Memes](#7-slot-machine-memeshtml) — `slot-machine-memes.html`
+6. [Slot Machine](#6-slot-machinehtml) — `slot-machine.html` _(archived)_
+7. [Slot Machine Memes](#7-slot-machine-memeshtml) — `slot-machine-memes.html` _(archived)_
 8. [Spades](#8-spadeshtml) — `spades.html`
 9. [Bare DAW](#9-daw-folder) — `daw/{index.html, styles.css, app.js}`
 10. [YouTube Smart Skip](#10-youtube-smart-skip-folder) — `youtube-smart-skip/{manifest.json, content.{js,css}, popup.{html,css,js}}`
@@ -167,7 +167,7 @@ Upload or sample → pick brush tool → paint with size/strength sliders → ap
 
 ---
 
-## 3. `glow-studio-easy.html`
+## 3. `glow-studio-easy.html`  _(Archived → `archive/glow-studio-easy.html`)_
 
 **Mobile-easy variant** — same engine as mobile, alternate visual presentation: prominent "One-Tap Easy" pill, numbered (1/2/3) feature dots, slightly different feature-list styling. Functional logic is otherwise identical.
 
@@ -330,7 +330,7 @@ EV, hourly SD, ROR, N0 (hands to overcome variance), win rate, bankroll percenti
 
 ---
 
-## 6. `slot-machine.html`
+## 6. `slot-machine.html`  _(Archived → `archive/slot-machine.html`)_
 
 **Three-reel birthday slot machine** with emoji symbols. Procedurally-generated audio (no MP3s) — beeps, ticking reels, win jingles, jackpot fanfare, 8s chiptune loop. Ticket-ejection modal on win.
 
@@ -384,7 +384,7 @@ Bg: radial gradient (purple → red → dark). Cabinet: brown gradient with `#ff
 
 ---
 
-## 7. `slot-machine-memes.html`
+## 7. `slot-machine-memes.html`  _(Archived → `archive/slot-machine-memes.html`)_
 
 **Slot machine + meme sound test panel.** Identical core gameplay to `slot-machine.html`. Adds three test buttons that try to load real MP3s from `./sounds/` and procedurally fall back if missing.
 

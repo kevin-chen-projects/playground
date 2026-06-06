@@ -10,7 +10,7 @@ engineering map see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 > `main`, root folder) for these links to resolve. Single-file `.html` sites work as-is;
 > folder projects that need a server or build step are listed separately at the bottom.
 
-_Last updated: 2026-06-06_
+_Last updated: 2026-06-06 (de-listed archived Birthday Slots + Glow Studio Easy)_
 
 ---
 
@@ -37,8 +37,6 @@ _Last updated: 2026-06-06_
 - [Holdem Coach](https://kevin-chen-projects.github.io/playground/holdem-coach.html) — Texas Hold'em trainer
 - [Pawn Path](https://kevin-chen-projects.github.io/playground/pawn-path.html) — chess tactics trainer
 - [Spades](https://kevin-chen-projects.github.io/playground/spades.html) — 4-player Spades vs. AI
-- [Birthday Slots](https://kevin-chen-projects.github.io/playground/slot-machine.html) — 3-reel slot machine
-- [Birthday Slots (Memes)](https://kevin-chen-projects.github.io/playground/slot-machine-memes.html) — slots with meme SFX
 
 ## Fun & curiosities
 
@@ -54,7 +52,6 @@ _Last updated: 2026-06-06_
 
 - [Glow Studio](https://kevin-chen-projects.github.io/playground/glow-studio.html) — desktop portrait retouching
 - [Glow Studio Mobile](https://kevin-chen-projects.github.io/playground/glow-studio-mobile.html) — mobile batch editor
-- [Glow Studio Easy](https://kevin-chen-projects.github.io/playground/glow-studio-easy.html) — one-tap mobile variant
 - [Glow Studio Video](https://kevin-chen-projects.github.io/playground/glow-studio-video.html) — video face smoothing
 - [Bare DAW](https://kevin-chen-projects.github.io/playground/daw/) — browser music workstation
 

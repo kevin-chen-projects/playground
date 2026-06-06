@@ -6,6 +6,15 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 
 > **Note on line numbers:** The section maps below were originally written against the pre-comment file state. Each file then got a TOC comment block prepended (varying lengths, +19 to +51 lines). For exact current line numbers, open the file and read its top comment. The relative ordering and structure remain accurate.
 
+> **Moved to a private repo (2026-06-06):** The Tier A+B monetization candidates below no
+> longer live in this repo — their files were moved to a separate **private** repo for
+> product development. Their reference sections are retained here for the record but the files
+> are gone: `glow-studio-video.html`, `count-champ.html`, `holdem-coach.html`, `math-ace.html`,
+> `habla-clara.html`, `bio-basics.html`, `nihao.html`, `speak-sharp.html`, `mortgage-lab.html`,
+> `interview-drill.html`, `fridge-feast.html`, `hello.html`, `slop-shield/`, `stock-screener/`.
+> Sections 6 (`slot-machine.html`), 7 (`slot-machine-memes.html`), and 3
+> (`glow-studio-easy.html`) are **archived** to [archive/](archive/) instead.
+
 ---
 
 ## Table of Contents

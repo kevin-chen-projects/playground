@@ -1068,7 +1068,7 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 |---|--------------|
 | 0 | "4 tones. 1 syllable. 4 different words." 4 character cards (妈麻马骂 / mom-hemp-horse-scold) — tap any to hear it. |
 | 1 | 4 tone-track SVGs (flat / rising / dipping / falling) — click to hear. Plus a callout for the 5th (neutral) tone. |
-| 2 | **Pitch trainer.** Pick a target tone, tap mic, say "ma". Real-time pitch curve drawn over a faded target curve. 0–100 score with shape-aware feedback. |
+| 2 | **Pitch trainer.** Pick a target tone, tap mic, say "ma". Real-time pitch curve drawn over a faded target curve — the user line is anchored to the target's register and drawn on a fixed semitone scale so a flat tone reads flat and sits on the line. 0–100 score with shape-aware feedback. |
 | 3 | 16-cell tone-pair grid with a real Chinese word in each cell. Sandhi callout (3+3 → 2+3) highlighted. 6 common 2-syllable words below. |
 | 4 | 5 questions: 3 ear-training + 2 production (mic-graded). |
 | 5 | Recap + Pinyin tease. |
@@ -1103,8 +1103,9 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 | **Module-section visibility** | `startModule(id)` sets `hidden` on each `.module-section` based on the active module ID. Cleanup of the outgoing scene runs first to stop active mics / animations. |
 | **Module switcher** | `SWITCHER_ENTRIES` controls the top-bar pill nav. Each pill has `{id, label, unlocked}`. Unlocked → button calls `startModule(id)`; locked → disabled visually but visible (hints at the curriculum). New modules unlock by adding to MODULES + setting `unlocked: true`. |
 | **Module-aware quiz engine** | `startQuiz(moduleId)` sets `state.quiz = {items, cardSel, moduleId}`. `renderQuizQuestion` picks the right card to render into. Questions support 3 kinds: `ear` (audio + 4 tone options), `production` (mic-graded with target curve), `mc` (4 generic multiple-choice options, with optional `audioKey` and `bigChar` for character-based questions). |
-| **Audio fallback chain** | Each clip in `AUDIO` has `{file, tts}`. `playAudio(key)` tries the MP3 first; on 404 (cached in `fileCache`) falls back to `speakTTS(text)` with zh-CN voice. Drop MP3s into `audio/` to auto-upgrade — no code change. |
+| **Audio fallback chain** | Each clip in `AUDIO` has `{file, tts}`. `playAudio(key)` tries the MP3 first; on 404 (cached in `fileCache`) falls back to `speakTTS(text)` with zh-CN voice. Drop MP3s into `audio/` to auto-upgrade — no code change. **Examples play at half speed for beginners:** MP3s at `playbackRate = 0.5` with `preservesPitch` (so the tone contour stays intact); TTS fallback at `rate = 0.45`. |
 | **Pitch detection** | `autoCorrelate(buf, sampleRate)` — autocorrelation with parabolic interpolation for sub-sample accuracy. ~50 lines. Used by both M1 trainer and M1 quiz. |
+| **Curve drawing (vs target overlay)** | `buildUserPath(pitches, toneNum)` draws the user's pitch on a **fixed semitone scale** (~10px/semitone), **anchored** to the target line's register via `TONE_ANCHOR_Y` (tone 1 high near the top, others lower). This is what makes the drawn line sit *on* the target — earlier code stretch-normalized each take to fill the full height, so a flat tone-1 got pinned to the bottom and ordinary vibrato bounced full-height. Also applies a ±2 moving average (matching the scorer's smoothing) and spans x∈[40,360] to align with the inset target paths. Scoring (`scorePitch`) is unchanged — this is purely the visual. |
 
 ### Module 2 Data
 
@@ -1137,7 +1138,7 @@ Landing hero → click any unlocked module card → `startModule(id)` resets sta
 | **Module 1 (Tones)** | |
 | `MA_DATA`, `TONE_TRACKS`, `PAIRS`, `TONES_QUIZ` | Content data |
 | `renderHook`, `renderBigIdea`, `renderTrainer`, `renderPairs` | Scene renderers |
-| `autoCorrelate`, `startMicRecording`, `stopMicRecording`, `tickPitch`, `drawUserCurve`, `scorePitch` | Pitch capture + analysis |
+| `autoCorrelate`, `startMicRecording`, `stopMicRecording`, `tickPitch`, `drawUserCurve`, `buildUserPath`, `scorePitch` | Pitch capture + analysis |
 | `quizMic`, `quizStartMic`, `quizStopMic`, `quizTickPitch`, `quizScoreAndDisplay` | Production-quiz mic (separate state) |
 | **Module 2 (Pinyin)** | |
 | `PINYIN_SYLLABLES`, `PINYIN_INITIALS_GRID`, `PINYIN_FINALS_GRID`, `PINYIN_NOTES`, `PINYIN_GOTCHAS`, `PINYIN_QUIZ` | Content data |

@@ -1,36 +1,36 @@
-GUITAR MP3/WAV TRANSCRIPTION - TESTER QUICK START
-=================================================
+GUITAR MP3/WAV TRANSCRIPTION - START HERE
+=========================================
 
-Goal:
-Open the website, upload an MP3 or WAV, and download a PDF + MusicXML.
+Goal: open the website, upload an MP3 or WAV, download a PDF + MusicXML.
 
-FASTEST WAY TO START
---------------------
-1. Open a terminal in this folder
-2. Run:
 
-   python3 start.py
+WINDOWS (easiest)
+-----------------
+1. Make sure Python is installed. If not, get it from:
+      https://www.python.org/downloads/
+   On the FIRST installer screen, tick "Add Python to PATH".
 
-3. Open your browser to:
+2. Double-click  start.bat
 
-   http://127.0.0.1:8000
+3. Wait. The first run installs components (a few minutes, needs internet).
+   Your browser will open to the app automatically when it's ready.
 
-4. Upload an MP3 or WAV
-5. Click "Generate Outputs"
-6. Download:
-   - PDF
-   - MusicXML
+4. In the website:
+   - Upload an MP3 or WAV
+   - Click "Generate Outputs"
+   - Download the PDF and MusicXML
 
-WHAT YOU NEED INSTALLED
------------------------
-- Python 3.10+ recommended
-- Internet access during first startup (so Python packages can install)
+5. To stop: close the browser tab, then press Ctrl+C in the black window
+   (or just close the window).
+
+
+MAC
+---
+Double-click  start.command  (or run  python3 start.py  in a terminal).
+
 
 IF SOMETHING GOES WRONG
 -----------------------
-Common issue: dependency install fails.
-If that happens, send the terminal error output back to the app sender.
-
-TO STOP THE APP
----------------
-Press Ctrl+C in the terminal.
+The most common issue is the first-run dependency install failing.
+If that happens, copy the text from the black terminal window and send it
+back to the person who shared this app.

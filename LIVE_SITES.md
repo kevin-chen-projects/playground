@@ -34,6 +34,7 @@ _Last updated: 2026-06-06 (moved Tier A+B candidates to a private repo; archived
 
 - [Glow Studio](https://kevin-chen-projects.github.io/playground/glow-studio.html) — desktop portrait retouching
 - [Glow Studio Mobile](https://kevin-chen-projects.github.io/playground/glow-studio-mobile.html) — mobile batch editor
+- [Glow Studio Video (demo)](https://kevin-chen-projects.github.io/playground/glow-studio-video-demo.html) — tone-safe video face smoothing, iOS-Safari MP4 export
 - [Bare DAW](https://kevin-chen-projects.github.io/playground/daw/) — browser music workstation
 
 ## Folder projects (static — work on Pages)

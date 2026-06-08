@@ -38,6 +38,7 @@ _Last updated: 2026-06-06 (moved Tier A+B candidates to a private dev repo; arch
 |------|------------|------|--------|
 | **Glow Studio** | Desktop portrait retouching — brush edits, presets, undo/redo | [glow-studio.html](glow-studio.html) | Complete |
 | **Glow Studio Mobile** | Mobile batch editor — auto face/skin detection, no painting | [glow-studio-mobile.html](glow-studio-mobile.html) | Complete |
+| **Glow Studio Video (demo)** | Tone-safe video face smoothing — real-time preview, iOS-Safari MP4 export | [glow-studio-video-demo.html](glow-studio-video-demo.html) | Complete |
 | **Bare DAW** | Browser music workstation — drum sequencer + piano roll, WAV/MIDI export | [daw/](daw/) | Functional |
 
 ## Folder projects (need setup)

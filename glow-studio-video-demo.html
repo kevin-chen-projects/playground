@@ -6,37 +6,40 @@
   Layout: 2-col grid (1fr canvas | 320 panel); stacks <900px
   Deps: none. Uses MediaRecorder for export.
 
-  FILE INDEX (post-comment line numbers; +37 from original)
-    45    <style>
-    80    Landing / upload view (video icon)
-    179   Editor view (2-col grid)
-    246   Canvas / player area + processing overlay
-    377   Player bar (scrubber, time, volume, play/pause)
-    484   Options panel (presets, sliders, toggles)
-    661   Mobile media queries (<900px and <520px)
-    733   </style>
-    735   <body>
-    737   Landing HTML
-    764   Editor HTML (header, canvas, player, options)
-    889   <script> — main IIFE
-    896     State (incl. Web Audio fallback slots for iOS export)
-    942     DOM refs
-    980     Toast
-    991     File upload — iOS-safe blob load (DOM-attached, no crossOrigin)
-    1051    Editor init
-    1092    Render loop (real-time preview)
-    1120    Frame processing — CORE PIPELINE
-    1160    Skin mask + frequency-separation smoothing (YCbCr)
-    1282    Color adjustments (tone-preserving — no whitening)
-    1336    Player controls (play/pause/scrub/volume)
-    1429    Slider bindings (strength/detail/sensitivity/blur/etc.)
-    1566    Keyboard shortcuts
-    1577    Process & download via MediaRecorder (WebM/MP4 + Web Audio iOS fallback)
-    1710  </script>
+  FILE INDEX (post-comment line numbers)
+    47    <style>
+    83    Landing / upload view (video icon)
+    182   Editor view (2-col grid)
+    249   Canvas / player area + processing & save overlays
+    404   Player bar (scrubber, time, volume, play/pause)
+    511   Options panel (presets, sliders, toggles)
+    688   Mobile media queries (<900px and <520px)
+    760   </style>
+    762   <body>
+    764   Landing HTML
+    791   Editor HTML (header, canvas, player, options)
+    930   <script> — main IIFE
+    935     State (incl. Web Audio fallback slots + pendingSave for iOS)
+    985     DOM refs
+    1027    Toast
+    1038    File upload — iOS-safe blob load (DOM-attached, no crossOrigin)
+    1098    Editor init
+    1139    Render loop (real-time preview)
+    1167    Frame processing — CORE PIPELINE
+    1207    Skin mask + frequency-separation smoothing (YCbCr)
+    1329    Color adjustments (tone-preserving — no whitening)
+    1383    Player controls (play/pause/scrub/volume)
+    1476    Slider bindings (strength/detail/sensitivity/blur/etc.)
+    1613    Keyboard shortcuts
+    1624    Video delivery — desktop download vs iOS share-sheet save
+    1691    Process & download via MediaRecorder (WebM/MP4 + Web Audio iOS fallback)
+    1820  </script>
 
   KEY FEATURES: real-time preview, tone-preserving algorithm,
   protect eyes/lips toggle, skin-mask debug overlay, presets.
-  iOS Safari: end-to-end supported (upload + MP4 export).
+  iOS Safari: end-to-end supported — upload, MP4 export, and a native
+  "Save video" share-sheet step so the result lands in Photos/Files
+  (a plain <a download> opens inline on iOS and never saves).
   ============================================================
 -->
 <head>
@@ -374,6 +377,30 @@
     margin-top: 8px;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Save-ready overlay (shown after rendering so the save runs on a fresh tap) */
+  .processing-overlay.save-ready { gap: 4px; }
+  .processing-overlay .done-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blush-400), var(--blush-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 16px rgba(236, 90, 124, 0.4);
+  }
+  .processing-overlay .done-icon svg { width: 28px; height: 28px; }
+  .processing-overlay.save-ready .btn-primary { margin-top: 18px; padding: 11px 22px; }
+  .processing-overlay .save-dismiss {
+    margin-top: 12px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: underline;
+    background: none;
+  }
+  .processing-overlay .save-dismiss:hover { color: white; }
 
   /* ============ PLAYER BAR ============ */
   .player-bar {
@@ -794,6 +821,20 @@
           <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
           <div class="progress-text" id="progress-text">0%</div>
         </div>
+        <!-- Shown after rendering on phones: a fresh tap is required so iOS lets
+             us open the native share sheet ("Save Video" / "Save to Files"). -->
+        <div class="processing-overlay save-ready" id="save-overlay">
+          <div class="done-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="label">Your video is ready</div>
+          <div class="progress-text" id="save-hint">Tap to save it to your phone</div>
+          <button class="btn btn-primary" id="save-btn">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Save video
+          </button>
+          <button class="save-dismiss" id="save-dismiss">Not now</button>
+        </div>
       </div>
     </div>
 
@@ -932,6 +973,10 @@
     audioCtx: null,
     audioSource: null,
     audioDest: null,
+
+    // Holds the finished export so the save overlay's button can deliver it on
+    // a fresh user tap (required by iOS for navigator.share()).
+    pendingSave: null,
   };
 
   // Maximum processing dimension — anything larger is downsampled for real-time
@@ -951,6 +996,10 @@
   const processingOverlay = document.getElementById('processing-overlay');
   const progressFill = document.getElementById('progress-fill');
   const progressText = document.getElementById('progress-text');
+  const saveOverlay = document.getElementById('save-overlay');
+  const saveBtn = document.getElementById('save-btn');
+  const saveHint = document.getElementById('save-hint');
+  const saveDismiss = document.getElementById('save-dismiss');
   const playBtn = document.getElementById('play-btn');
   const playIcon = document.getElementById('play-icon');
   const pauseIcon = document.getElementById('pause-icon');
@@ -1573,6 +1622,73 @@
   });
 
   // ============================================================
+  // VIDEO DELIVERY (download on desktop, native save sheet on phones)
+  // ============================================================
+  // The naive `<a download>` + click works on desktop but FAILS on iOS: Safari
+  // ignores the download attribute for blob: URLs, opening the clip inline in a
+  // tab with no save option — the file never lands in Photos/Files, so it
+  // "won't open" later. iOS instead saves via the native share sheet, but
+  // navigator.share() must be called from a user gesture. Since onstop fires
+  // seconds after the original click (gesture expired), we stash the blob and
+  // show a "Save video" button; the user's tap on it is a fresh gesture.
+  const isProbablyMobile = /iP(hone|ad|od)|Android/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); // iPadOS poses as Mac
+
+  function downloadViaAnchor(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  function deliverVideo(blob, filename, mimeType) {
+    const file = new File([blob], filename, { type: mimeType });
+    const canShareFile = typeof navigator.canShare === 'function'
+      && navigator.canShare({ files: [file] });
+
+    // On phones, prefer the native share sheet (Save Video / Save to Files).
+    // It must run from a tap, so surface the save overlay instead of acting now.
+    if (isProbablyMobile && canShareFile) {
+      state.pendingSave = { file, blob, filename };
+      saveOverlay.classList.add('show');
+      return;
+    }
+
+    // Desktop (and any browser without file-share): direct download.
+    downloadViaAnchor(blob, filename);
+    showToast('Saved! Check your downloads.');
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const pending = state.pendingSave;
+    if (!pending) { saveOverlay.classList.remove('show'); return; }
+    try {
+      await navigator.share({
+        files: [pending.file],
+        title: 'Glow Studio video',
+      });
+      // Shared/saved successfully (or the user dismissed the sheet).
+      saveOverlay.classList.remove('show');
+      state.pendingSave = null;
+    } catch (err) {
+      // AbortError = user closed the sheet; keep the overlay so they can retry.
+      if (err && err.name === 'AbortError') return;
+      // Share genuinely failed — fall back to a direct download.
+      downloadViaAnchor(pending.blob, pending.filename);
+      saveHint.textContent = 'Opened the file — use Share ▸ Save Video to keep it.';
+    }
+  });
+
+  saveDismiss.addEventListener('click', () => {
+    saveOverlay.classList.remove('show');
+    state.pendingSave = null;
+  });
+
+  // ============================================================
   // PROCESS & DOWNLOAD VIA MEDIARECORDER
   // ============================================================
   // We re-play the video from start, render each frame through the same
@@ -1674,20 +1790,14 @@
     recorder.onstop = () => {
       cancelAnimationFrame(renderRafId);
       const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
       const ts = new Date().toISOString().replace(/[:T.]/g, '-').slice(0, 19);
-      a.href = url;
-      a.download = `glow-video-${ts}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      const filename = `glow-video-${ts}.${ext}`;
 
       processingOverlay.classList.remove('show');
       state.isRecording = false;
       downloadBtn.disabled = false;
-      showToast('Saved! Check your downloads.');
+
+      deliverVideo(blob, filename, mimeType);
     };
 
     state.video.addEventListener('ended', () => {

@@ -622,3 +622,254 @@ class VoteCount:
         return sorted(self.tally.items(), key=lambda kv: (-kv[1], kv[0]))
 ```
 </details>
+
+---
+---
+
+<!--
+================================================================================
+CAPSTONE WEAK-SPOT DRILLS — built from the HelpDesk capstone (2026-06-08).
+Logic was strong; these target the 2 CONCEPTUAL gaps that actually cause silent
+bugs / crashes on hidden tests (not the typos, which the real editor catches):
+  G — `and` short-circuit ORDER: cheap/safe guard must come first.
+  H — "count per key" = explicit counter loop, NOT a comprehension.
+Plus 2 reinforcers (nested lookups, the filter->sort->slice pipeline).
+================================================================================
+-->
+
+# CAPSTONE WEAK-SPOT DRILLS (from HelpDesk, 2026-06-08)
+
+The capstone logic was solid. These hit the concepts that crash on a HIDDEN test
+even when the visible ones pass — the dangerous kind. Do the predict-output reps,
+then the blank-line write that forces the exact pattern.
+
+## Weak spot G — `and` short-circuits L→R: put the SAFE guard first
+
+> Capstone bug: `d[t]['assignee'] == x and d[t]['status'] == 'assigned'` crashed
+> `KeyError` on a record with no `'assignee'` key. `and` evaluates the LEFT side
+> first — if it raises, short-circuit never saves you. The cheap/safe check
+> (membership, status, not-None) must come FIRST to protect the risky lookup.
+
+**Predict — "value, or does it CRASH?":**
+```python
+d = {"a": {"status": "open"}}          # note: no "agent" key on this record
+
+# 1. order that CRASHES vs order that's SAFE — which is which?
+d["a"]["agent"] == "x" and d["a"]["status"] == "open"      # 1. ?
+d["a"]["status"] == "open" and d["a"]["agent"] == "x"      # 2. ?
+
+x = None
+x is not None and x.value > 0           # 3. ? (crash or False?)
+x.value > 0 and x is not None           # 4. ? (crash or False?)
+
+cfg = {"a": 1}
+"b" in cfg and cfg["b"] > 0              # 5. ? (crash or False?)
+cfg["b"] > 0 and "b" in cfg             # 6. ? (crash or False?)
+```
+Answers: 1. **CRASH** (`KeyError: 'agent'` — risky lookup ran first)  2. `False`
+(status check fails, short-circuits, never touches `'agent'`)  3. `False` (guard
+first)  4. **CRASH** (`None.value`)  5. `False` (membership guard first)
+6. **CRASH** (`KeyError: 'b'`). Rule: **guard on the LEFT, deref on the RIGHT.**
+
+**Blank-line write — `AccessLog`:** records may or may not have a `"role"` key.
+- `__init__(self)` — `self.users = {}`  (user_id -> record dict).
+- `add(self, user_id)` — create record `{"active": True}` (NO `"role"` key yet).
+- `set_role(self, user_id, role)` — set the record's `"role"`.
+- `admins(self)` — return list of user_ids that are BOTH `active` AND have role
+  `"admin"`. Must NOT crash on users who never got a role. Order doesn't matter.
+
+```
+a = AccessLog()
+a.add("u1"); a.add("u2"); a.add("u3")
+a.set_role("u1", "admin")
+a.set_role("u3", "user")
+# u2 has NO role key at all
+sorted(a.admins())     # ["u1"]   <- must not KeyError on u2
+```
+*Forces:* a guard (`"role" in rec` or `.get("role")`) BEFORE comparing the role.
+
+---
+
+## Weak spot H — "count per key" = counter LOOP, not a comprehension
+
+> Capstone thrash: tried to build agent->count with comprehensions
+> (`dict(agent, load)`, `self.items[:]`...). Comprehensions TRANSFORM/FILTER a
+> sequence (one-in, one-out). They CANNOT accumulate into buckets. The moment the
+> task is "how many X per key" or "group X by key", reach for the explicit loop.
+
+**Predict / spot-the-tool:**
+```python
+nums = [1, 1, 2, 3, 3, 3]
+
+# Which of these actually COUNTS occurrences? Which is the wrong tool?
+a = {n: n for n in nums}                       # 1. what is a? does it count?
+b = {}
+for n in nums:
+    b[n] = b.get(n, 0) + 1                     # 2. what is b?
+c = [n for n in nums if n == 3]                # 3. what is c? (count or list?)
+
+# Grouping: words by first letter
+words = ["ant", "bee", "ape"]
+g = {}
+for w in words:
+    g.setdefault(w[0], []).append(w)           # 4. what is g?
+```
+Answers: 1. `{1:1, 2:2, 3:3}` — a dict keyed by value, **does NOT count** (later
+dupes overwrite, value is just the number). Wrong tool.  2. `{1:2, 2:1, 3:3}` —
+the counter, correct.  3. `[3, 3, 3]` — a filtered LIST; `len(c)` would count but
+that's per-value, not all-at-once.  4. `{"a": ["ant","ape"], "b": ["bee"]}` — the
+grouping idiom. **Counting/grouping needs a loop that mutates a dict; a
+comprehension can't accumulate.**
+
+**Blank-line write — `OrderBook`:** count and group at once.
+- `__init__(self)` — set up state for per-symbol share totals AND per-trader fills.
+- `fill(self, trader, symbol, shares)` — record a fill: add `shares` to `symbol`'s
+  running total, AND append `(symbol, shares)` to that trader's fill list.
+- `volume(self, symbol)` — total shares filled for `symbol` (0 if none).
+- `fills_for(self, trader)` — list of `(symbol, shares)` for trader, in order (`[]` if none).
+- `top_symbols(self, n)` — top `n` symbols by volume as `(symbol, vol)` tuples,
+  **volume desc, then symbol asc** on ties.
+
+```
+ob = OrderBook()
+ob.fill("alice", "AAPL", 100)
+ob.fill("bob",   "AAPL", 50)
+ob.fill("alice", "MSFT", 150)
+ob.fill("carol", "TSLA", 90)
+ob.volume("AAPL")        # 150
+ob.volume("ZZZZ")        # 0
+ob.fills_for("alice")    # [("AAPL", 100), ("MSFT", 150)]
+ob.fills_for("nobody")   # []
+ob.top_symbols(2)        # [("AAPL", 150), ("MSFT", 150)]  (AAPL & MSFT tie 150 -> name asc; TSLA 90 out)
+```
+*Forces:* counter idiom (`vol[sym] = vol.get(sym,0)+shares`) for accumulation +
+the grouping idiom (`setdefault(trader, []).append(...)`) — NOT a comprehension —
+then the filter-free top-N sort `sorted(vol.items(), key=lambda kv:(-kv[1],kv[0]))[:n]`.
+
+---
+
+## Reinforcers — nested lookups & the filter→sort→slice pipeline
+
+> Two patterns the capstone got right but with hesitation. Keep them reflexive.
+
+**Predict — one `.get`/index per LEVEL of nesting:**
+```python
+db = {"u1": {"name": "al", "tags": ["x"]}}
+
+db["u1"]["name"]                 # 1. ?
+db.get("u9", {}).get("name")     # 2. ? (missing user — crash or None?)
+db["u9"]["name"]                 # 3. ? (crash or None?)
+db.get("u1", {}).get("name")     # 4. ?
+```
+Answers: 1. `"al"`  2. `None` (empty-dict default absorbs the miss — safe)
+3. **CRASH** (`KeyError: 'u9'`)  4. `"al"`. Nested state = **two moves**: get the
+record (with a `{}` default), then get the field. One `.get` per level.
+
+**Blank-line write — `Tournament` (the canonical filter→sort→slice shape):**
+- `__init__(self)` — `self.players = {}`  (name -> {"score": int, "active": bool}).
+- `join(self, name)` — record `{"score": 0, "active": True}`.
+- `award(self, name, pts)` — add `pts` to that player's score (ignore unknown names).
+- `eliminate(self, name)` — set `active` False (ignore unknown).
+- `standings(self, n)` — top `n` ACTIVE players as `(name, score)`,
+  **score desc, name asc**. Eliminated players excluded.
+
+```
+t = Tournament()
+t.join("a"); t.join("b"); t.join("c")
+t.award("a", 30); t.award("b", 30); t.award("c", 50)
+t.eliminate("c")
+t.award("zzz", 99)            # unknown -> ignored, no crash
+t.standings(5)                # [("a", 30), ("b", 30)]  (c eliminated; tie -> name asc)
+```
+*Forces:* the three stages — FILTER (active only), SORT (`(-score, name)` tuple
+key reaching into the record), SLICE (`[:n]`) — plus an unknown-name guard on award.
+
+---
+---
+
+# SOLUTIONS — Capstone weak-spot drills
+
+<details>
+<summary>Weak spot G — AccessLog</summary>
+
+```python
+class AccessLog:
+    def __init__(self):
+        self.users = {}
+
+    def add(self, user_id):
+        self.users[user_id] = {"active": True}
+
+    def set_role(self, user_id, role):
+        self.users[user_id]["role"] = role
+
+    def admins(self):
+        out = []
+        for uid in self.users:
+            rec = self.users[uid]
+            # guard FIRST: active and HAS a role, before comparing the role
+            if rec["active"] and rec.get("role") == "admin":
+                out.append(uid)
+        return out
+```
+Key: `rec.get("role") == "admin"` never raises on a roleless record (`.get` ->
+`None` -> `None == "admin"` is just `False`). If you used `rec["role"]` you'd need
+`"role" in rec and rec["role"] == "admin"` — guard on the left either way.
+</details>
+
+<details>
+<summary>Weak spot H — OrderBook</summary>
+
+```python
+class OrderBook:
+    def __init__(self):
+        self.vol = {}        # symbol -> total shares  (COUNTER)
+        self.by_trader = {}  # trader -> [(symbol, shares)]  (GROUPING)
+
+    def fill(self, trader, symbol, shares):
+        self.vol[symbol] = self.vol.get(symbol, 0) + shares
+        self.by_trader.setdefault(trader, []).append((symbol, shares))
+
+    def volume(self, symbol):
+        return self.vol.get(symbol, 0)
+
+    def fills_for(self, trader):
+        return self.by_trader.get(trader, [])
+
+    def top_symbols(self, n):
+        return sorted(self.vol.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+```
+Two accumulation idioms side by side: `.get(k,0)+x` to COUNT, `setdefault(k,[]).append`
+to GROUP. Neither is a comprehension — both need a statement that mutates the dict.
+</details>
+
+<details>
+<summary>Reinforcer — Tournament</summary>
+
+```python
+class Tournament:
+    def __init__(self):
+        self.players = {}
+
+    def join(self, name):
+        self.players[name] = {"score": 0, "active": True}
+
+    def award(self, name, pts):
+        if name not in self.players:      # guard unknown
+            return
+        self.players[name]["score"] += pts
+
+    def eliminate(self, name):
+        if name not in self.players:
+            return
+        self.players[name]["active"] = False
+
+    def standings(self, n):
+        active = [name for name in self.players if self.players[name]["active"]]   # FILTER
+        active.sort(key=lambda name: (-self.players[name]["score"], name))         # SORT
+        return [(name, self.players[name]["score"]) for name in active][:n]        # EXTRACT+SLICE
+```
+The filter→sort→slice pipeline. Note the final comprehension here is the RIGHT use
+of one: transforming a list of names into `(name, score)` pairs — one-in, one-out,
+no accumulation.
+</details>

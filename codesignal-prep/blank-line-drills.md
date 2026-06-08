@@ -30,6 +30,48 @@ Drills ramp in difficulty: 1 (warm-up) -> 7 (multi-dict, stateful).
 
 ---
 
+## For an AI generating NEW drills (read this first)
+
+If you've been handed this file to **generate fresh practice problems**, follow this
+spec so new drills match the genre, format, and — most importantly — target the
+current skill gaps rather than re-drilling mastered basics.
+
+**Genre (what every drill must be):** a single Python class whose state lives in
+dict(s) on the instance (`__init__` sets `self.x = {}`). Methods "look up / mutate a
+dict / return a value or bool." Toolbox to draw from: `dict.get(k, default)`, the
+counter idiom (`d[k] = d.get(k, 0) + 1`), grouping (`setdefault(k, []).append(x)`),
+`defaultdict`/`Counter`, tuple-key sorting (`sorted(..., key=lambda kv: (-kv[1], kv[0]))`),
+`copy.deepcopy` for snapshots, timestamp+ttl for expiry, guard clauses returning
+`False`/`None`. NOT graph/DP/parsing LeetCode — this is the stateful-class IMC genre.
+
+**Format contract (match exactly):**
+- Spec with numbered/bulleted methods, each stating its return value and edge behavior.
+- A test block written as `call   # expected` comment lines (see any drill below).
+- The solution in a `<details><summary>…</summary>` block at the BOTTOM, never inline.
+- ALWAYS include edge cases in the test block: missing key, empty state, tie-breaks,
+  `n > count`, the `<` vs `<=` boundary for expiry, no-overwrite-on-duplicate.
+- Optionally tier difficulty 1→7 like the main drills, or build a multi-level IMC
+  problem (one class grown across 3-4 levels) like the HelpDesk capstone.
+
+**Verify before presenting (non-negotiable):** RUN the solution and the test block in
+Python and confirm every expected value is correct before showing the drill. Expected-
+output bugs — especially tie-break ordering — are easy to introduce and corrosive to
+practice. If you can't execute code, say so and mark the expected outputs "unverified."
+
+**Current skill level (target accordingly):** Comfortable — counter & grouping idioms,
+tuple-key sorts, `deepcopy` snapshot/restore, ttl/expiry, guard clauses, multi-dict
+state machines. Don't waste reps on warm-up single-dict problems (Drills 1-3 tier).
+**Active gaps to keep forcing:**
+  1. `and` short-circuit ORDER — the safe guard (membership/status/not-None) must be
+     the LEFT operand, protecting a risky dict deref on the right.
+  2. "Count/group per key" = an explicit loop mutating a dict, NOT a comprehension
+     (comprehensions transform/filter; they can't accumulate into buckets).
+  3. Nested 2-level lookups — one `.get`/index per level of nesting; `.get(k, {}).get(field)`.
+  4. Dict iteration yields KEYS — use `.items()` when sorting by value or needing pairs.
+Aim new drills at these; a good drill makes at least one of them unavoidable.
+
+---
+
 ## Drill 1 — WordBank (warm-up: counter idiom)
 
 A frequency tracker built by hand (don't use `collections.Counter`).

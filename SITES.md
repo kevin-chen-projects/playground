@@ -50,7 +50,7 @@ _Last updated: 2026-06-06 (moved Tier A+B candidates to a private dev repo; arch
 | **Guitar MP3 Transcription** | MP3/WAV → PDF tabs + MusicXML | [guitar-mp3-transcription/](guitar-mp3-transcription/) | FastAPI + HTML | Tester (mock pipeline) |
 | **Violin Sheet Helper** | Sheet-music image → beginner fingering guidance | [violin-sheet-helper-webapp/](violin-sheet-helper-webapp/) | FastAPI + HTML | MVP (mock OCR) |
 | **YouTube Smart Skip** | Chrome extension auto-skipping in-video sponsor segments | [youtube-smart-skip/](youtube-smart-skip/) | Chrome MV3 | v0.1 |
-| **CodeSignal Prep** | 5-day Python interview prep kit — cheat-sheet, warm-up drills, four 4-level practice problems (+ tests & solutions), and a flashcard site | [codesignal-prep/](codesignal-prep/) | Python (stdlib) + HTML | Complete |
+| **CodeSignal Prep** | 5-day Python interview prep kit — cheat-sheet, warm-up drills, four 4-level practice problems (+ tests & solutions), blank-line recall drills, a flashcard site, and a CodeSignal-IDE simulator that runs your Python in-browser (Pyodide + CodeMirror) — split-pane layout, count-up timer, level tabs, plus 40 pattern/IMC drills | [codesignal-prep/](codesignal-prep/) | Python (stdlib) + HTML | Complete |
 
 ## Moved to private development
 

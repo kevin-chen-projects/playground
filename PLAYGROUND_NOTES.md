@@ -1813,10 +1813,10 @@ Mock OCR returns sample notes. Real OMR integration is the next major component.
 
 ## 29. `codesignal-prep/` folder
 
-**A 5-day Python interview prep kit for a 90-minute CodeSignal Industry Coding (IMC) test.** Not a web app — it's a study bundle: a Python-idiom cheat-sheet, standalone warm-up drills, four full 4-level practice problems (each with an interface stub, a working starter, a reference solution, and a level-split test suite), and one supplementary flashcard site. Pure standard library; no third-party deps required to run the problems or warm-ups.
+**A 5-day Python interview prep kit for a 90-minute CodeSignal Industry Coding (IMC) test.** Not a web app — it's a study bundle: a Python-idiom cheat-sheet, standalone warm-up drills, four full 4-level practice problems (each with an interface stub, a working starter, a reference solution, and a level-split test suite), a blank-line recall-drill doc, and two supplementary practice sites (an idiom flashcard deck and a CodeSignal-IDE simulator that runs your Python in-browser). Pure standard library; no third-party deps required to run the problems or warm-ups.
 
-- **Files:** `README.md` (kit guide + 5-day schedule), `cheatsheet.md`, `drill.html` (~430), `warmups/{syntax_drills,solutions_syntax_drills}.py`, `problems/0{1..4}-*/` each containing `prompt.md`, `interface.py`, `starter.py`, `solution.py`, `tests.py`
-- **Dependencies:** Python 3.10+ stdlib only (`collections`, `dataclasses`, `copy`); `pytest` optional (tests are plain `test_*` + `assert`, runnable without it). `drill.html` is vanilla HTML/CSS/JS, no build.
+- **Files:** `README.md` (kit guide + 5-day schedule), `cheatsheet.md`, `blank-line-drills.md` (recall drills + AI drill-gen spec), `drill.html` (~530), `codesignal-ide.html` (~generated), `warmups/{syntax_drills,solutions_syntax_drills}.py`, `problems/0{1..4}-*/` each containing `prompt.md`, `interface.py`, `starter.py`, `solution.py`, `tests.py`
+- **Dependencies:** Python 3.10+ stdlib only (`collections`, `dataclasses`, `copy`); `pytest` optional (tests are plain `test_*` + `assert`, runnable without it). `drill.html` is vanilla HTML/CSS/JS, no build. `codesignal-ide.html` is vanilla HTML/CSS/JS but loads **Pyodide + CodeMirror from CDNs** (the kit's only networked file) so submitted code actually executes — first open needs network, then cached.
 
 ### Practice problems
 
@@ -1838,6 +1838,20 @@ Spaced-repetition flashcards for ~55 Python idioms across 14 categories (Slicing
 - **Palette:** slate `#0f172a/#1e293b` + python-blue `#4b8bbe` + amber `#ffd43b`
 - **Persistence:** `localStorage['csprep_drill_v1']` — per-card `{box, seen}`
 - **Key JS:** `CARDS` (idiom deck), `buildOrder()` (box-sorted scheduler), `grade()`, `renderCard`/`renderRecall`, `normalize()` (loose answer match)
+
+### `codesignal-ide.html` (supplement — CodeSignal IDE simulator, in-browser execution)
+
+A faithful-ish clone of the **CodeSignal Industry Coding (IMC) test environment**, built to rehearse the *format*, not just the problems: a split-pane IDE (problem statement left, code editor top-right, test-results panel bottom-right), a count-up stopwatch in the header, an interface class to fill in, cumulative **Level 1→4 tabs**, and a **Run Tests** button that runs the learner's Python **in-browser via Pyodide** against named test cases (green/red per case, click a case to expand its source + failure trace). Two modes via the header toggle:
+- **4-Level Problems** — the four real problems from `problems/01..04`, loaded live: statement rendered from each `prompt.md`, editor seeded from `interface.py`, graded against that problem's authoritative `tests.py` (parsed into per-level named cases; a level shows ✓ when all its cases pass).
+- **Drills** — the same 40 single-shot pattern/IMC-class problems the old `leetcode-grind.html` held (grouped by category in the picker, `check()`-style assertions).
+
+Replaced `leetcode-grind.html` (the drills now live in this richer IDE). Editor is **CodeMirror 5** (Python mode, line numbers, bracket matching) with a plain-textarea fallback if the CDN is unavailable.
+
+- **Palette:** slate `#0f172a/#1e293b` + python-blue `#4b8bbe` + amber `#ffd43b` (+ green/orange/red difficulty chips); CodeMirror `material-darker` theme
+- **Dependencies:** Pyodide v0.26.2 (jsDelivr) + CodeMirror 5.65 (cdnjs), both lazy/CDN-loaded on first use (cached after). Offline once cached. These two files (this + DAW) are the only networked sites in the repo.
+- **Persistence:** `localStorage['csprep_ide_v1']` — `{code: {itemKey: src}, solvedLevels: {probId: {level: true}}, solvedDrills: {id: true}}`
+- **Key JS:** `DATA` (injected `{problems, drills}`, all verified), `renderMarkdown()` (tiny prompt.md renderer), `initEditor()` (CodeMirror w/ textarea fallback), `harnessProblems()` (execs user class then each test fn, AssertionError = fail) + `harnessDrill()` (`check()` collector), `runTests()`, `renderProblemResults`/`renderDrillResults`, `renderLevelTabs`/`renderPicker`, count-up timer (`startTimer`/`toggleTimer`)
+- **Generation/verification:** `/tmp/gen_ide.py` (not committed) **reads the real `problems/*` files**, parses each `tests.py` via `ast` into per-level cases, and **executes every reference solution against them in CPython** (reusing `gen_grind.py`'s 40 verified drills) before emitting — no unverified expected values ship. The HTML is the build artifact; re-run the generator to rebuild.
 
 ---
 
@@ -1861,7 +1875,7 @@ Spaced-repetition flashcards for ~55 Python idioms across 14 categories (Slicing
 | **No build step / no framework** | Every vanilla HTML project (count: 19) |
 | **Build step required** | escape-room-simulator (React + Vite + TypeScript) |
 | **Python backend required** | stock-screener (data fetch script), guitar-mp3-transcription (FastAPI), violin-sheet-helper-webapp (FastAPI) |
-| **External CDNs** | DAW only (Tone.js + VexFlow) |
+| **External CDNs** | DAW (Tone.js + VexFlow); codesignal-prep `codesignal-ide.html` (Pyodide + CodeMirror, for in-browser Python execution + editor) |
 | **Chrome extension (MV3) / content script** | youtube-smart-skip, slop-shield |
 | **`chrome.storage` for settings** | youtube-smart-skip (`.sync`), slop-shield (`.local`) |
 | **Tabbed multi-calculator/multi-view UI** | mortgage-lab (4 calculators), stock-screener (5 data tabs) |

@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  CodeSignal IDE Simulator — Python IMC practice (in-browser execution)
+================================================================================
+
+  A faithful-ish clone of the CodeSignal Industry Coding (IMC) test environment,
+  built to rehearse the FORMAT, not just the problems: split-pane IDE (statement
+  left, code editor top-right, test panel bottom-right), a count-up stopwatch, an
+  interface class to fill in, level tabs (L1->L4 cumulative), and a "Run Tests"
+  button that runs your Python against named test cases — green/red per case.
+
+  Two dependencies, both from CDNs (this + leetcode-grind are the only networked
+  files in the repo; the rest of the kit is offline):
+    - Pyodide  — CPython in WASM, so your code actually executes and is graded.
+    - CodeMirror 5 — the real syntax-highlighted Python editor (line numbers,
+      bracket matching), matching the look/feel of the CodeSignal editor.
+  First open needs network to fetch both (then cached). After that, offline.
+
+  CONTENT (two modes, switched in the header):
+    - PROBLEMS: the four real 4-level practice problems (problems/01..04), each
+      an interface class grown across four cumulative levels, with the kit's
+      authoritative pytest cases shown as a clickable per-level test list.
+    - DRILLS:   the 40 single-shot pattern/IMC-class problems (same set as
+      leetcode-grind.html), for quick muscle-memory reps.
+
+  All solutions + expected outputs were executed in CPython by the generator
+  (gen_ide.py, reading the real problems/ files) before shipping.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD        this comment, <head>, Pyodide + CodeMirror CDN tags
+  STYLE       palette (slate+python-blue+amber), .ide split layout, header,
+              statement pane, editor pane, test/console pane, level tabs,
+              problem picker drawer, responsive
+  BODY        .header (mode toggle, problem picker, timer, Run) +
+              .ide (.pane-statement | .pane-right(.editor, .tests))
+  SCRIPT
+    DATA            injected: { problems:[4-level...], drills:[40...] }
+    State           mode, current problem/drill, level, per-item saved code,
+                    solved-levels, timer
+    Persistence     localStorage['csprep_ide_v1']
+    Pyodide         lazy boot; harness execs user class then each test fn,
+                    collecting per-case pass/fail (AssertionError = fail)
+    CodeMirror      one editor instance, swapped doc per problem
+    Render          statement (markdown-ish), level tabs, test list, console,
+                    problem picker
+    Timer           count-up stopwatch, start on first run / manual
+    Events          run, mode switch, level switch, pick problem, reset, reveal
+================================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeSignal IDE Simulator — Python IMC Practice</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --panel: #1e293b; --panel-2: #273449; --panel-3: #2c3a52;
+  --ink: #e2e8f0; --muted: #94a3b8;
+  --blue: #4b8bbe; --blue-bright: #5fa8e0; --amber: #ffd43b;
+  --green: #4ade80; --red: #f87171; --orange: #fb923c;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--sans); background: var(--bg); color: var(--ink); overflow: hidden; line-height: 1.5; }
+
+/* ===== Header ===== */
+.header {
+  display: flex; align-items: center; gap: 14px; height: 52px;
+  padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--panel-3);
+}
+.brand { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+.brand .cs { color: var(--blue-bright); } .brand .ide { color: var(--amber); }
+.mode-group { display: inline-flex; gap: 4px; background: var(--panel-2); border-radius: 9px; padding: 3px; }
+.mode-btn {
+  font-family: var(--sans); font-size: .82rem; color: var(--muted);
+  background: none; border: none; border-radius: 7px; padding: 6px 13px; cursor: pointer;
+}
+.mode-btn.active { background: var(--blue); color: #fff; font-weight: 600; }
+.picker-btn {
+  font-family: var(--sans); font-size: .85rem; color: var(--ink); cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--panel-3); border-radius: 9px;
+  padding: 8px 14px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.picker-btn:hover { border-color: var(--blue); }
+.picker-btn .chev { color: var(--muted); margin-left: 6px; }
+.spacer { flex: 1 1 auto; }
+.timer {
+  font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums;
+  background: #0b1220; border: 1px solid var(--panel-3); border-radius: 9px;
+  padding: 7px 14px; color: var(--amber); cursor: pointer; user-select: none;
+}
+.timer.running { color: var(--green); }
+.timer .tlabel { color: var(--muted); font-size: .7rem; margin-right: 7px; }
+.run-btn {
+  font-family: var(--sans); font-size: .88rem; font-weight: 700; color: #06240f;
+  background: var(--green); border: none; border-radius: 9px; padding: 9px 20px; cursor: pointer;
+}
+.run-btn:hover { filter: brightness(1.08); }
+.run-btn:disabled { opacity: .55; cursor: default; }
+
+/* ===== IDE split ===== */
+.ide { display: flex; height: calc(100vh - 52px); }
+.pane-statement {
+  width: 42%; flex: 0 0 42%; overflow-y: auto; padding: 22px 26px;
+  border-right: 1px solid var(--panel-3); background: #131f33;
+}
+.pane-right { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+
+/* ===== Statement pane ===== */
+.stmt-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+.stmt-meta { display: flex; gap: 9px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.tag { font-size: .68rem; text-transform: uppercase; letter-spacing: .6px; padding: 3px 9px; border-radius: 6px; }
+.tag.cat { color: var(--blue-bright); background: #12203a; border: 1px solid #1e3a5f; }
+.tag.diff { font-weight: 700; }
+.tag.diff.Easy, .tag.diff.Warm-up { color: var(--green); background: #14361f; }
+.tag.diff.Medium, .tag.diff.Medium-hard { color: var(--orange); background: #3a2410; }
+.tag.diff.Hard { color: var(--red); background: #3a1414; }
+.stmt-body { font-size: .93rem; color: #d8e2f0; }
+.stmt-body h1 { font-size: 1.15rem; margin: 18px 0 8px; color: #fff; }
+.stmt-body h2 { font-size: 1.02rem; margin: 20px 0 7px; color: var(--amber); border-top: 1px solid var(--panel-3); padding-top: 14px; }
+.stmt-body h2:first-child { border-top: none; padding-top: 0; }
+.stmt-body p { margin: 8px 0; }
+.stmt-body ul { margin: 8px 0 8px 20px; }
+.stmt-body li { margin: 5px 0; }
+.stmt-body code { font-family: var(--mono); background: #0b1220; border: 1px solid #1e2c44; border-radius: 5px; padding: 1px 5px; font-size: .86em; color: var(--amber); }
+.stmt-body blockquote { border-left: 3px solid var(--blue); background: #15233c; padding: 9px 14px; margin: 12px 0; border-radius: 0 6px 6px 0; color: #c7d4e6; font-size: .9rem; }
+.stmt-body pre { background: #0b1220; border: 1px solid #1e2c44; border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+.stmt-body pre code { background: none; border: none; padding: 0; color: #e6edf3; white-space: pre; }
+.pattern-note { background: #15233c; border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0; padding: 10px 14px; margin-bottom: 16px; font-size: .9rem; }
+.pattern-note b { color: var(--amber); }
+
+/* ===== Editor pane ===== */
+.level-tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--panel-3); align-items: stretch; }
+.level-tab {
+  font-family: var(--sans); font-size: .82rem; color: var(--muted);
+  background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 11px 16px; cursor: pointer; position: relative;
+}
+.level-tab:hover { color: var(--ink); }
+.level-tab.active { color: var(--ink); border-bottom-color: var(--blue); font-weight: 600; }
+.level-tab .lcheck { color: var(--green); margin-left: 5px; }
+.level-tabs .tab-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.tool-btn { font-family: var(--sans); font-size: .76rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--panel-3); border-radius: 7px; padding: 5px 10px; cursor: pointer; }
+.tool-btn:hover { color: var(--ink); }
+.editor-host { flex: 1 1 58%; min-height: 0; position: relative; }
+.editor-host .CodeMirror { height: 100%; font-family: var(--mono); font-size: 13.5px; }
+.editor-fallback { width: 100%; height: 100%; resize: none; border: none; background: #0b1220; color: #e6edf3; font-family: var(--mono); font-size: 13.5px; padding: 12px 14px; white-space: pre; tab-size: 4; }
+
+/* ===== Test / console pane ===== */
+.tests { flex: 0 0 42%; min-height: 120px; max-height: 60%; display: flex; flex-direction: column; border-top: 1px solid var(--panel-3); background: var(--panel); }
+.tests-head { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--panel-3); }
+.tests-head .tt { font-size: .8rem; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
+.tests-summary { font-size: .82rem; font-weight: 700; }
+.tests-summary.pass { color: var(--green); } .tests-summary.fail { color: var(--red); } .tests-summary.idle { color: var(--muted); }
+.tests-body { flex: 1 1 auto; overflow-y: auto; padding: 6px 0; }
+.tcase { display: flex; align-items: baseline; gap: 9px; padding: 6px 14px; cursor: pointer; font-size: .85rem; border-left: 3px solid transparent; }
+.tcase:hover { background: var(--panel-2); }
+.tcase.sel { background: var(--panel-2); border-left-color: var(--blue); }
+.tcase .mark { flex: 0 0 16px; }
+.tcase.ok .mark { color: var(--green); } .tcase.no .mark { color: var(--red); } .tcase.pending .mark { color: var(--muted); }
+.tcase .cname { flex: 1 1 auto; }
+.tcase .clevel { font-size: .68rem; color: var(--muted); background: var(--panel-2); padding: 1px 7px; border-radius: 999px; }
+.tcase.no .cname { color: #fbc4c4; }
+.tdetail { padding: 10px 16px; margin: 0 14px 10px; background: #0b1220; border: 1px solid #1e2c44; border-radius: 8px; font-family: var(--mono); font-size: .8rem; white-space: pre-wrap; color: var(--muted); display: none; }
+.tdetail.show { display: block; }
+.tdetail .err { color: var(--red); }
+.tdetail .src { color: #cdd9ea; }
+.console-line { padding: 5px 14px; font-family: var(--mono); font-size: .82rem; color: var(--muted); }
+
+/* ===== Problem picker drawer ===== */
+.drawer-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 40; }
+.drawer-bg.open { display: block; }
+.drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 380px; max-width: 86vw; background: var(--panel); border-right: 1px solid var(--panel-3); z-index: 50; transform: translateX(-100%); transition: transform .18s ease; display: flex; flex-direction: column; }
+.drawer.open { transform: translateX(0); }
+.drawer-head { padding: 16px 18px; font-weight: 700; border-bottom: 1px solid var(--panel-3); display: flex; align-items: center; }
+.drawer-head .x { margin-left: auto; cursor: pointer; color: var(--muted); font-size: 1.3rem; background: none; border: none; }
+.drawer-list { overflow-y: auto; padding: 6px 0 24px; }
+.drawer-group { padding: 12px 18px 4px; font-size: .68rem; text-transform: uppercase; letter-spacing: .8px; color: var(--blue-bright); font-weight: 700; }
+.ditem { display: flex; align-items: center; gap: 9px; padding: 9px 18px; cursor: pointer; font-size: .87rem; border-left: 3px solid transparent; }
+.ditem:hover { background: var(--panel-2); }
+.ditem.active { background: var(--panel-2); border-left-color: var(--blue); }
+.ditem .dtick { width: 15px; flex: 0 0 15px; color: var(--green); font-size: .82rem; }
+.ditem .dtitle { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ditem .ddiff { font-size: .62rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.ddiff.Easy, .ddiff.Warm-up { color: var(--green); background: #14361f; }
+.ddiff.Medium, .ddiff.Medium-hard { color: var(--orange); background: #3a2410; }
+.ddiff.Hard { color: var(--red); background: #3a1414; }
+
+@media (max-width: 820px) {
+  body { overflow: auto; }
+  .ide { flex-direction: column; height: auto; }
+  .pane-statement { width: 100%; flex: none; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--panel-3); }
+  .pane-right { height: 80vh; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand"><span class="cs">CodeSignal</span> <span class="ide">IDE</span></div>
+  <div class="mode-group">
+    <button class="mode-btn active" id="modeProblems">4-Level Problems</button>
+    <button class="mode-btn" id="modeDrills">Drills</button>
+  </div>
+  <button class="picker-btn" id="pickerBtn"><span id="pickerLabel">—</span><span class="chev">▾</span></button>
+  <div class="spacer"></div>
+  <div class="timer" id="timer" title="Click to start / pause; double-click to reset"><span class="tlabel">TIME</span><span id="timerVal">00:00</span></div>
+  <button class="run-btn" id="runBtn">▶ Run Tests</button>
+</div>
+
+<div class="ide">
+  <div class="pane-statement" id="statement"></div>
+  <div class="pane-right">
+    <div class="level-tabs" id="levelTabs"></div>
+    <div class="editor-host" id="editorHost">
+      <textarea class="editor-fallback" id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+    </div>
+    <div class="tests">
+      <div class="tests-head">
+        <span class="tt">Tests</span>
+        <span class="tests-summary idle" id="testsSummary">Not run yet</span>
+      </div>
+      <div class="tests-body" id="testsBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem picker drawer -->
+<div class="drawer-bg" id="drawerBg"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head"><span id="drawerTitle">Problems</span><button class="x" id="drawerClose">×</button></div>
+  <div class="drawer-list" id="drawerList"></div>
+</aside>
+
+<script>
+/* ============================================================
+   DATA — injected by gen_ide.py (all solutions verified in CPython).
+   { problems: [ {id,title,difficulty,blurb,statement,starter,solution,cases:[{name,level,func,source}]} ],
+     drills:   [ {id,title,difficulty,category,pattern,description,starter,solution,explanation,tests} ] }
+   ============================================================ */
+const DATA = {"problems": [{"id": "01-inventory-system", "title": "Inventory System", "difficulty": "Warm-up", "blurb": "A toy warehouse inventory service. You implement the InventoryManager class. Four cumulative levels; each adds requirements on top of the last. The test suite i", "statement": "# Problem 01 \u2014 Inventory System\n\nA toy warehouse inventory service. You implement the `InventoryManager` class. Four\ncumulative levels; each adds requirements on top of the last. **The test suite is the real\nspec** \u2014 when this prompt is vague, `tests.py` decides.\n\n> Difficulty: **warm-up.** Aim to finish all four levels in ~40 min. This one trains the\n> core loop (copy interface \u2192 fill bodies \u2192 run tests) before the harder problems.\n\nHow to work it:\n1. Copy `interface.py`'s class into `starter.py` (already done for you) and fill bodies.\n2. Run one level at a time: `pytest tests.py -k level1`, then `level2`, etc.\n3. `tests.py` imports from `starter.py`. The finished reference is in `solution.py`.\n\n---\n\n## Level 1 \u2014 Add and query stock\n\n- `add_item(name, qty)` \u2014 add `qty` units of `name` to the warehouse. If the item already\n  exists, increase its quantity. Returns the item's new total quantity.\n- `get_quantity(name)` \u2014 return the current quantity of `name`, or `0` if never added.\n- `remove_item(name, qty)` \u2014 remove up to `qty` units. You cannot go below 0; if `qty`\n  exceeds what's on hand, remove everything (quantity becomes 0). Returns the quantity\n  actually removed.\n\n## Level 2 \u2014 Categories and totals\n\nItems now belong to a category, supplied at add time.\n\n- `add_item(name, qty, category)` \u2014 same as before, but records the item's category. An\n  item's category is set the first time it's added and does not change on later adds.\n- `total_quantity()` \u2014 return the summed quantity of all items.\n- `category_quantity(category)` \u2014 return the summed quantity of items in `category`\n  (`0` if the category has nothing).\n\n> Note: existing Level 1 tests still call `add_item(name, qty)` without a category. Support\n> both \u2014 make `category` optional (default to something like `\"general\"`).\n\n## Level 3 \u2014 Top items and search\n\n- `top_items(n)` \u2014 return the names of the `n` items with the highest quantity, most first.\n  Break ties by name in ascending (alphabetical) order. If fewer than `n` items exist,\n  return all of them.\n- `search(prefix)` \u2014 return all item names that start with `prefix`, sorted alphabetically.\n\n## Level 4 \u2014 Transfers and history\n\n- `transfer(name, qty, to_inventory)` \u2014 move up to `qty` units of `name` from this inventory\n  into another `InventoryManager` instance (`to_inventory`). Moves only what's available\n  (same cap rule as `remove_item`). The receiving inventory keeps the item's category.\n  Returns the quantity actually transferred.\n- `history(name)` \u2014 return the list of changes for `name`, in chronological order. Each\n  change is a tuple `(action, qty)` where `action` is one of `\"add\"`, `\"remove\"`,\n  `\"transfer_out\"`, `\"transfer_in\"` and `qty` is the (positive) amount involved.\n\n> Ambiguity warning: the prompt doesn't say whether a `remove_item` of 0 records history, or\n> what happens transferring an item that doesn't exist. **Don't guess \u2014 read the tests.** They\n> define the only behavior you must satisfy.\n", "starter": "class InventoryManager:\n    def __init__(self):\n        \"\"\"Set up empty inventory state.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 1 ----\n    def add_item(self, name, qty, category=\"general\"):\n        \"\"\"Add qty units of name (creating it if new). category is recorded the\n        first time an item is added and ignored on later adds. Return the item's\n        new total quantity.\"\"\"\n        raise NotImplementedError\n\n    def get_quantity(self, name):\n        \"\"\"Return current quantity of name, or 0 if it doesn't exist.\"\"\"\n        raise NotImplementedError\n\n    def remove_item(self, name, qty):\n        \"\"\"Remove up to qty units (never below 0). Return qty actually removed.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 2 ----\n    def total_quantity(self):\n        \"\"\"Return summed quantity across all items.\"\"\"\n        raise NotImplementedError\n\n    def category_quantity(self, category):\n        \"\"\"Return summed quantity of items in category (0 if none).\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 3 ----\n    def top_items(self, n):\n        \"\"\"Return names of the n highest-quantity items, most first; ties broken\n        by name ascending. Fewer than n items -> return all.\"\"\"\n        raise NotImplementedError\n\n    def search(self, prefix):\n        \"\"\"Return item names starting with prefix, sorted alphabetically.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 4 ----\n    def transfer(self, name, qty, to_inventory):\n        \"\"\"Move up to qty units of name into to_inventory (another\n        InventoryManager). Receiver keeps the category. Return qty transferred.\"\"\"\n        raise NotImplementedError\n\n    def history(self, name):\n        \"\"\"Return chronological list of (action, qty) for name. action is one of\n        'add', 'remove', 'transfer_out', 'transfer_in'.\"\"\"\n        raise NotImplementedError", "solution": "\"\"\"\nReference solution \u2014 Problem 01. Fast, plain code (the IMC style). Passes all\nlevels in tests.py. Study the diff against your starter after you attempt it.\n\"\"\"\n\n\nclass InventoryManager:\n    def __init__(self):\n        self.qty = {}        # name -> quantity\n        self.cat = {}        # name -> category\n        self.log = {}        # name -> list of (action, qty)\n\n    def _record(self, name, action, amount):\n        self.log.setdefault(name, []).append((action, amount))\n\n    # ---- Level 1 ----\n    def add_item(self, name, qty, category=\"general\"):\n        if name not in self.qty:\n            self.qty[name] = 0\n            self.cat[name] = category\n        self.qty[name] += qty\n        self._record(name, \"add\", qty)\n        return self.qty[name]\n\n    def get_quantity(self, name):\n        return self.qty.get(name, 0)\n\n    def remove_item(self, name, qty):\n        have = self.qty.get(name, 0)\n        removed = min(have, qty)\n        if name in self.qty:\n            self.qty[name] = have - removed\n        if removed > 0:\n            self._record(name, \"remove\", removed)\n        return removed\n\n    # ---- Level 2 ----\n    def total_quantity(self):\n        return sum(self.qty.values())\n\n    def category_quantity(self, category):\n        return sum(q for name, q in self.qty.items() if self.cat.get(name) == category)\n\n    # ---- Level 3 ----\n    def top_items(self, n):\n        ordered = sorted(self.qty.items(), key=lambda kv: (-kv[1], kv[0]))\n        return [name for name, _ in ordered[:n]]\n\n    def search(self, prefix):\n        return sorted(name for name in self.qty if name.startswith(prefix))\n\n    # ---- Level 4 ----\n    def transfer(self, name, qty, to_inventory):\n        have = self.qty.get(name, 0)\n        moved = min(have, qty)\n        if moved <= 0:\n            return 0\n        self.qty[name] = have - moved\n        self._record(name, \"transfer_out\", moved)\n        to_inventory.add_item(name, moved, self.cat.get(name, \"general\"))\n        # add_item logged an 'add' on the receiver; reclassify it as transfer_in\n        to_inventory.log[name][-1] = (\"transfer_in\", moved)\n        return moved\n\n    def history(self, name):\n        return list(self.log.get(name, []))\n", "cases": [{"name": "add and get", "level": "1", "func": "test_level1_add_and_get", "source": "def test_level1_add_and_get():\n    inv = InventoryManager()\n    assert inv.add_item(\"apple\", 5) == 5\n    assert inv.add_item(\"apple\", 3) == 8\n    assert inv.get_quantity(\"apple\") == 8\n    assert inv.get_quantity(\"missing\") == 0"}, {"name": "remove caps at zero", "level": "1", "func": "test_level1_remove_caps_at_zero", "source": "def test_level1_remove_caps_at_zero():\n    inv = InventoryManager()\n    inv.add_item(\"apple\", 5)\n    assert inv.remove_item(\"apple\", 2) == 2\n    assert inv.get_quantity(\"apple\") == 3\n    assert inv.remove_item(\"apple\", 100) == 3       # only 3 left to remove\n    assert inv.get_quantity(\"apple\") == 0\n    assert inv.remove_item(\"nope\", 5) == 0"}, {"name": "categories and totals", "level": "2", "func": "test_level2_categories_and_totals", "source": "def test_level2_categories_and_totals():\n    inv = InventoryManager()\n    inv.add_item(\"apple\", 5, \"fruit\")\n    inv.add_item(\"banana\", 2, \"fruit\")\n    inv.add_item(\"wrench\", 4, \"tools\")\n    assert inv.total_quantity() == 11\n    assert inv.category_quantity(\"fruit\") == 7\n    assert inv.category_quantity(\"tools\") == 4\n    assert inv.category_quantity(\"empty\") == 0"}, {"name": "category locked on first add", "level": "2", "func": "test_level2_category_locked_on_first_add", "source": "def test_level2_category_locked_on_first_add():\n    inv = InventoryManager()\n    inv.add_item(\"apple\", 5, \"fruit\")\n    inv.add_item(\"apple\", 1, \"tools\")     # category should NOT change\n    assert inv.category_quantity(\"fruit\") == 6\n    assert inv.category_quantity(\"tools\") == 0"}, {"name": "default category still works", "level": "2", "func": "test_level2_default_category_still_works", "source": "def test_level2_default_category_still_works():\n    inv = InventoryManager()\n    inv.add_item(\"apple\", 5)              # no category arg (Level 1 style)\n    assert inv.total_quantity() == 5"}, {"name": "top items with tiebreak", "level": "3", "func": "test_level3_top_items_with_tiebreak", "source": "def test_level3_top_items_with_tiebreak():\n    inv = InventoryManager()\n    inv.add_item(\"apple\", 5)\n    inv.add_item(\"banana\", 5)            # tie with apple -> alpha order\n    inv.add_item(\"cherry\", 9)\n    inv.add_item(\"date\", 1)\n    assert inv.top_items(2) == [\"cherry\", \"apple\"]\n    assert inv.top_items(3) == [\"cherry\", \"apple\", \"banana\"]\n    assert inv.top_items(99) == [\"cherry\", \"apple\", \"banana\", \"date\"]"}, {"name": "search prefix", "level": "3", "func": "test_level3_search_prefix", "source": "def test_level3_search_prefix():\n    inv = InventoryManager()\n    for n in [\"apple\", \"apricot\", \"banana\", \"avocado\"]:\n        inv.add_item(n, 1)\n    assert inv.search(\"ap\") == [\"apple\", \"apricot\"]\n    assert inv.search(\"a\") == [\"apple\", \"apricot\", \"avocado\"]\n    assert inv.search(\"z\") == []"}, {"name": "transfer moves available", "level": "4", "func": "test_level4_transfer_moves_available", "source": "def test_level4_transfer_moves_available():\n    src = InventoryManager()\n    dst = InventoryManager()\n    src.add_item(\"apple\", 10, \"fruit\")\n    assert src.transfer(\"apple\", 4, dst) == 4\n    assert src.get_quantity(\"apple\") == 6\n    assert dst.get_quantity(\"apple\") == 4\n    assert dst.category_quantity(\"fruit\") == 4"}, {"name": "transfer caps and missing", "level": "4", "func": "test_level4_transfer_caps_and_missing", "source": "def test_level4_transfer_caps_and_missing():\n    src = InventoryManager()\n    dst = InventoryManager()\n    src.add_item(\"apple\", 3)\n    assert src.transfer(\"apple\", 100, dst) == 3      # only 3 available\n    assert src.get_quantity(\"apple\") == 0\n    assert dst.get_quantity(\"apple\") == 3\n    assert src.transfer(\"ghost\", 5, dst) == 0"}, {"name": "history order and actions", "level": "4", "func": "test_level4_history_order_and_actions", "source": "def test_level4_history_order_and_actions():\n    src = InventoryManager()\n    dst = InventoryManager()\n    src.add_item(\"apple\", 5)\n    src.remove_item(\"apple\", 2)\n    src.transfer(\"apple\", 1, dst)\n    assert src.history(\"apple\") == [(\"add\", 5), (\"remove\", 2), (\"transfer_out\", 1)]\n    assert dst.history(\"apple\") == [(\"transfer_in\", 1)]\n    assert src.history(\"never\") == []"}]}, {"id": "02-banking-system", "title": "Banking System", "difficulty": "Medium", "blurb": "A toy bank backend. You implement the Bank class. Four cumulative levels. The test suite is the real spec. This is a classic IMC archetype: accounts, transfers,", "statement": "# Problem 02 \u2014 Banking System\n\nA toy bank backend. You implement the `Bank` class. Four cumulative levels. **The test\nsuite is the real spec.** This is a classic IMC archetype: accounts, transfers, ranking, and\nscheduled/payment operations with ordering rules.\n\n> Difficulty: **medium.** Treat this as your first full **90-minute timed mock** (Day 3).\n\nHow to work it:\n1. Fill in `starter.py` (copy of `interface.py`).\n2. `pytest tests.py -k level1` \u2192 `level2` \u2192 `level3` \u2192 `level4`.\n3. Reference in `solution.py`.\n\nAll amounts are non-negative integers. Timestamps are integers passed in by the caller\n(milliseconds since some epoch) and only ever increase across calls within a test.\n\n---\n\n## Level 1 \u2014 Accounts and balances\n\n- `create_account(timestamp, account_id)` \u2014 create an account with balance 0. Returns `True`\n  if created, `False` if an account with that id already exists.\n- `deposit(timestamp, account_id, amount)` \u2014 add `amount` to the account. Returns the new\n  balance, or `None` if the account does not exist.\n- `withdraw(timestamp, account_id, amount)` \u2014 subtract `amount` if funds are sufficient.\n  Returns the new balance, or `None` if the account doesn't exist **or** has insufficient\n  funds (no overdraft).\n\n## Level 2 \u2014 Transfers and transaction totals\n\n- `transfer(timestamp, source_id, target_id, amount)` \u2014 move `amount` from source to target.\n  Returns the source's new balance, or `None` if either account is missing, source equals\n  target, or source has insufficient funds.\n- `top_spenders(n)` \u2014 return the `n` account ids with the highest total **outgoing** money\n  (withdrawals + transfers out), most first. Break ties by `account_id` ascending. Returns\n  all accounts (those with 0 outgoing included) if fewer than `n` exist.\n\n## Level 3 \u2014 Scheduled payments\n\n- `schedule_payment(timestamp, account_id, amount, delay)` \u2014 schedule a withdrawal of\n  `amount` from `account_id` to occur at time `timestamp + delay`. Returns a payment id\n  string of the form `\"payment{ordinal}\"` where `ordinal` starts at 1 and increases by 1 for\n  every scheduled payment across the whole bank (`\"payment1\"`, `\"payment2\"`, ...). Returns\n  `None` if the account does not exist.\n- `cancel_payment(timestamp, account_id, payment_id)` \u2014 cancel a scheduled, not-yet-executed\n  payment. Returns `True` if cancelled, `False` if the payment id is unknown, already\n  executed, already cancelled, or does not belong to `account_id`.\n\nScheduled payments execute lazily: **before** processing any operation at a given\n`timestamp`, all payments whose execution time is `<= timestamp` run, in order of execution\ntime (ties broken by ordinal). A payment executes only if the account has sufficient funds at\nthat moment; if not, it is skipped (treated as executed \u2014 it does not retry) \u2014 **but check\nthe tests for the exact skip behavior.**\n\n## Level 4 \u2014 Merging accounts\n\n- `merge_accounts(timestamp, target_id, source_id)` \u2014 merge `source_id` into `target_id`:\n  source's balance is added to target, source's outgoing-total is added to target's outgoing\n  history (for `top_spenders`), source's pending scheduled payments are reassigned to target,\n  and the source account is removed. Returns `True` on success; `False` if either account is\n  missing or `target_id == source_id`.\n- `balance(timestamp, account_id)` \u2014 return the account balance after first running any\n  payments due at `timestamp`. Returns `None` if the account does not exist (and was not\n  merged \u2014 a merged-away id is gone).\n\n> Ambiguity warning: what happens to a payment scheduled on a since-merged account, or the\n> exact tie-break between same-time payments \u2014 **the tests are the only source of truth.**\n", "starter": "class Bank:\n    def __init__(self):\n        \"\"\"Set up empty bank state.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 1 ----\n    def create_account(self, timestamp, account_id):\n        \"\"\"Create account (balance 0). Return True if created, False if it exists.\"\"\"\n        raise NotImplementedError\n\n    def deposit(self, timestamp, account_id, amount):\n        \"\"\"Add amount. Return new balance, or None if account missing.\"\"\"\n        raise NotImplementedError\n\n    def withdraw(self, timestamp, account_id, amount):\n        \"\"\"Subtract amount if funds allow. Return new balance, or None if missing\n        or insufficient funds.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 2 ----\n    def transfer(self, timestamp, source_id, target_id, amount):\n        \"\"\"Move amount source->target. Return source's new balance, or None if an\n        account is missing, source==target, or insufficient funds.\"\"\"\n        raise NotImplementedError\n\n    def top_spenders(self, n):\n        \"\"\"Return n account ids with highest total outgoing, most first; ties by\n        id ascending. Fewer than n -> return all.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 3 ----\n    def schedule_payment(self, timestamp, account_id, amount, delay):\n        \"\"\"Schedule a withdrawal at timestamp+delay. Return 'payment{ordinal}'\n        (ordinal increments bank-wide from 1), or None if account missing.\"\"\"\n        raise NotImplementedError\n\n    def cancel_payment(self, timestamp, account_id, payment_id):\n        \"\"\"Cancel a pending payment owned by account_id. Return True if cancelled,\n        else False.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 4 ----\n    def merge_accounts(self, timestamp, target_id, source_id):\n        \"\"\"Merge source into target (balance, outgoing history, pending payments),\n        then remove source. Return True on success, False otherwise.\"\"\"\n        raise NotImplementedError\n\n    def balance(self, timestamp, account_id):\n        \"\"\"Return balance after running payments due at timestamp, or None if the\n        account doesn't exist.\"\"\"\n        raise NotImplementedError", "solution": "\"\"\"\nReference solution \u2014 Problem 02 (banking). Fast, plain IMC-style code.\nPasses all levels in tests.py.\n\"\"\"\n\n\nclass Bank:\n    def __init__(self):\n        self.bal = {}          # account_id -> balance\n        self.out = {}          # account_id -> total outgoing\n        self.payments = {}     # payment_id -> dict(acct, amount, exec, ordinal, status)\n        self.pcount = 0        # running payment ordinal\n\n    # ---- lazy scheduled-payment processing ----\n    def _process_due(self, timestamp):\n        due = [p for p in self.payments.values()\n               if p[\"status\"] == \"pending\" and p[\"exec\"] <= timestamp]\n        due.sort(key=lambda p: (p[\"exec\"], p[\"ordinal\"]))\n        for p in due:\n            acct = p[\"acct\"]\n            p[\"status\"] = \"executed\"     # runs once; no retry whether or not it pays\n            if acct in self.bal and self.bal[acct] >= p[\"amount\"]:\n                self.bal[acct] -= p[\"amount\"]\n                self.out[acct] = self.out.get(acct, 0) + p[\"amount\"]\n\n    # ---- Level 1 ----\n    def create_account(self, timestamp, account_id):\n        self._process_due(timestamp)\n        if account_id in self.bal:\n            return False\n        self.bal[account_id] = 0\n        self.out[account_id] = 0\n        return True\n\n    def deposit(self, timestamp, account_id, amount):\n        self._process_due(timestamp)\n        if account_id not in self.bal:\n            return None\n        self.bal[account_id] += amount\n        return self.bal[account_id]\n\n    def withdraw(self, timestamp, account_id, amount):\n        self._process_due(timestamp)\n        if account_id not in self.bal or self.bal[account_id] < amount:\n            return None\n        self.bal[account_id] -= amount\n        self.out[account_id] += amount\n        return self.bal[account_id]\n\n    # ---- Level 2 ----\n    def transfer(self, timestamp, source_id, target_id, amount):\n        self._process_due(timestamp)\n        if source_id not in self.bal or target_id not in self.bal:\n            return None\n        if source_id == target_id or self.bal[source_id] < amount:\n            return None\n        self.bal[source_id] -= amount\n        self.bal[target_id] += amount\n        self.out[source_id] += amount\n        return self.bal[source_id]\n\n    def top_spenders(self, n):\n        ordered = sorted(self.out.items(), key=lambda kv: (-kv[1], kv[0]))\n        return [acct for acct, _ in ordered[:n]]\n\n    # ---- Level 3 ----\n    def schedule_payment(self, timestamp, account_id, amount, delay):\n        self._process_due(timestamp)\n        if account_id not in self.bal:\n            return None\n        self.pcount += 1\n        pid = \"payment\" + str(self.pcount)\n        self.payments[pid] = {\n            \"acct\": account_id, \"amount\": amount,\n            \"exec\": timestamp + delay, \"ordinal\": self.pcount, \"status\": \"pending\",\n        }\n        return pid\n\n    def cancel_payment(self, timestamp, account_id, payment_id):\n        self._process_due(timestamp)\n        p = self.payments.get(payment_id)\n        if p is None or p[\"status\"] != \"pending\" or p[\"acct\"] != account_id:\n            return False\n        p[\"status\"] = \"cancelled\"\n        return True\n\n    # ---- Level 4 ----\n    def merge_accounts(self, timestamp, target_id, source_id):\n        self._process_due(timestamp)\n        if target_id not in self.bal or source_id not in self.bal:\n            return False\n        if target_id == source_id:\n            return False\n        self.bal[target_id] += self.bal[source_id]\n        self.out[target_id] += self.out[source_id]\n        for p in self.payments.values():\n            if p[\"status\"] == \"pending\" and p[\"acct\"] == source_id:\n                p[\"acct\"] = target_id\n        del self.bal[source_id]\n        del self.out[source_id]\n        return True\n\n    def balance(self, timestamp, account_id):\n        self._process_due(timestamp)\n        return self.bal.get(account_id)\n", "cases": [{"name": "create and deposit", "level": "1", "func": "test_level1_create_and_deposit", "source": "def test_level1_create_and_deposit():\n    b = Bank()\n    assert b.create_account(1, \"a\") is True\n    assert b.create_account(2, \"a\") is False        # duplicate\n    assert b.deposit(3, \"a\", 100) == 100\n    assert b.deposit(4, \"a\", 50) == 150\n    assert b.deposit(5, \"ghost\", 10) is None"}, {"name": "withdraw rules", "level": "1", "func": "test_level1_withdraw_rules", "source": "def test_level1_withdraw_rules():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.deposit(2, \"a\", 100)\n    assert b.withdraw(3, \"a\", 40) == 60\n    assert b.withdraw(4, \"a\", 1000) is None         # insufficient\n    assert b.withdraw(5, \"ghost\", 10) is None       # missing\n    assert b.deposit(6, \"a\", 0) == 60"}, {"name": "transfer", "level": "2", "func": "test_level2_transfer", "source": "def test_level2_transfer():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.create_account(1, \"b\")\n    b.deposit(2, \"a\", 100)\n    assert b.transfer(3, \"a\", \"b\", 30) == 70\n    assert b.deposit(4, \"b\", 0) == 30\n    assert b.transfer(5, \"a\", \"a\", 10) is None      # self-transfer\n    assert b.transfer(6, \"a\", \"ghost\", 10) is None  # missing target\n    assert b.transfer(7, \"a\", \"b\", 10_000) is None"}, {"name": "top spenders tiebreak", "level": "2", "func": "test_level2_top_spenders_tiebreak", "source": "def test_level2_top_spenders_tiebreak():\n    b = Bank()\n    for acct in [\"a\", \"b\", \"c\"]:\n        b.create_account(1, acct)\n        b.deposit(1, acct, 1000)\n    b.withdraw(2, \"a\", 100)\n    b.transfer(3, \"a\", \"b\", 100)        # a outgoing = 200\n    b.withdraw(4, \"b\", 200)             # b outgoing = 200 (tie with a -> alpha)\n    b.withdraw(5, \"c\", 50)              # c outgoing = 50\n    assert b.top_spenders(2) == [\"a\", \"b\"]\n    assert b.top_spenders(3) == [\"a\", \"b\", \"c\"]"}, {"name": "schedule ids and execution", "level": "3", "func": "test_level3_schedule_ids_and_execution", "source": "def test_level3_schedule_ids_and_execution():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.deposit(1, \"a\", 100)\n    assert b.schedule_payment(10, \"a\", 30, 5) == \"payment1\"   # exec at 15\n    assert b.schedule_payment(10, \"a\", 10, 20) == \"payment2\"  # exec at 30\n    assert b.schedule_payment(10, \"ghost\", 1, 1) is None\n    # nothing due yet at t=12\n    assert b.balance(12, \"a\") == 100\n    # payment1 due at 15\n    assert b.balance(15, \"a\") == 70\n    # payment2 due at 30\n    assert b.balance(30, \"a\") == 60"}, {"name": "cancel payment", "level": "3", "func": "test_level3_cancel_payment", "source": "def test_level3_cancel_payment():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.deposit(1, \"a\", 100)\n    pid = b.schedule_payment(10, \"a\", 40, 10)       # exec at 20\n    assert b.cancel_payment(12, \"a\", pid) is True\n    assert b.cancel_payment(13, \"a\", pid) is False  # already cancelled\n    assert b.cancel_payment(14, \"a\", \"payment999\") is False\n    assert b.balance(25, \"a\") == 100"}, {"name": "skipped when insufficient", "level": "3", "func": "test_level3_skipped_when_insufficient", "source": "def test_level3_skipped_when_insufficient():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.deposit(1, \"a\", 20)\n    b.schedule_payment(10, \"a\", 50, 5)              # needs 50, only 20 -> skipped at 15\n    assert b.balance(16, \"a\") == 20                 # untouched\n    b.deposit(17, \"a\", 100)\n    assert b.balance(18, \"a\") == 120"}, {"name": "merge balances and spending", "level": "4", "func": "test_level4_merge_balances_and_spending", "source": "def test_level4_merge_balances_and_spending():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.create_account(1, \"b\")\n    b.deposit(1, \"a\", 100)\n    b.deposit(1, \"b\", 50)\n    b.withdraw(2, \"b\", 20)                          # b outgoing = 20\n    assert b.merge_accounts(3, \"a\", \"b\") is True\n    assert b.balance(4, \"a\") == 130                 # 100 + (50-20)\n    assert b.balance(5, \"b\") is None                # b is gone\n    assert b.merge_accounts(6, \"a\", \"b\") is False"}, {"name": "merge moves pending payments", "level": "4", "func": "test_level4_merge_moves_pending_payments", "source": "def test_level4_merge_moves_pending_payments():\n    b = Bank()\n    b.create_account(1, \"a\")\n    b.create_account(1, \"b\")\n    b.deposit(1, \"a\", 100)\n    b.deposit(1, \"b\", 100)\n    b.schedule_payment(10, \"b\", 40, 20)             # exec at 30, owned by b\n    assert b.merge_accounts(11, \"a\", \"b\") is True\n    # payment now draws from a (merged target); a had 100+100=200, -40 = 160\n    assert b.balance(30, \"a\") == 160"}]}, {"id": "03-cloud-storage", "title": "Cloud Storage", "difficulty": "Medium-hard", "blurb": "A toy cloud file store. You implement the CloudStorage class. Four cumulative levels. The test suite is the real spec. This archetype tests string/prefix handli", "statement": "# Problem 03 \u2014 Cloud Storage\n\nA toy cloud file store. You implement the `CloudStorage` class. Four cumulative levels.\n**The test suite is the real spec.** This archetype tests string/prefix handling, per-user\ncapacity accounting, and ownership transfer \u2014 very common on IMC.\n\n> Difficulty: **medium-hard.** Use as a timed run (Day 4).\n\nHow to work it: fill `starter.py`, run `pytest tests.py -k level1` ... `level4`, reference in\n`solution.py`. File sizes and capacities are non-negative integers.\n\n---\n\n## Level 1 \u2014 Files\n\n- `add_file(name, size)` \u2014 create a file. Returns `True` if added, `False` if a file with\n  that `name` already exists (in which case nothing changes).\n- `get_file_size(name)` \u2014 return the file's size, or `None` if it doesn't exist.\n- `delete_file(name)` \u2014 delete the file. Returns the deleted file's size, or `None` if it\n  didn't exist.\n\n## Level 2 \u2014 Capacity and largest files\n\n- `get_total_size()` \u2014 return the summed size of all files currently stored.\n- `find_largest(n)` \u2014 return up to `n` file names with the largest sizes, biggest first.\n  Break ties by name in ascending (alphabetical) order. Returns fewer than `n` if there\n  aren't that many files.\n- `find_by_prefix(prefix)` \u2014 return all file names that start with `prefix`, sorted\n  alphabetically.\n\n## Level 3 \u2014 Users and quotas\n\nFiles can now be owned by users. Files added via `add_file` (Levels 1\u20132) belong to a default\n\"admin\" owner with unlimited capacity.\n\n- `add_user(user_id, capacity)` \u2014 register a user with a storage `capacity` (max total bytes\n  they may own). Returns `True` if added, `False` if the user already exists.\n- `add_file_by(user_id, name, size)` \u2014 add a file owned by `user_id`. Returns the user's\n  **remaining** capacity after the add, or `None` if: the user doesn't exist, the file name\n  already exists, or the add would exceed the user's capacity (in which case nothing is\n  stored).\n- `merge_user(user_id_1, user_id_2)` \u2014 merge `user_id_2` into `user_id_1`: all of user 2's\n  files become owned by user 1, user 1's capacity increases by user 2's **total capacity**,\n  and user 2 is removed. Returns user 1's remaining capacity, or `None` if either user is\n  missing or the two ids are equal.\n\n## Level 4 \u2014 Backup and restore\n\n- `backup_user(user_id)` \u2014 snapshot the current set of files owned by `user_id`. Returns the\n  number of files backed up, or `None` if the user doesn't exist. A new backup for a user\n  replaces any previous backup for that user.\n- `restore_user(user_id)` \u2014 restore that user's files from their latest backup. Files the\n  user owns that are **not** in the backup are deleted. Files in the backup that no longer\n  exist are recreated (owned by `user_id`). Files in the backup that still exist keep their\n  current state. Capacity is restored to reflect exactly the backed-up files. Returns the\n  number of files restored, or `None` if the user doesn't exist. If the user has no backup,\n  treat it as an empty backup.\n\n> Ambiguity warning: whether a restore re-adds a file whose name was later taken by another\n> user, and how capacity is recomputed \u2014 **the tests define it.** Use `copy.deepcopy` for the\n> snapshot so later mutations don't leak in.\n", "starter": "class CloudStorage:\n    def __init__(self):\n        \"\"\"Set up empty storage state.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 1 ----\n    def add_file(self, name, size):\n        \"\"\"Create a file. Return True if added, False if name already exists.\"\"\"\n        raise NotImplementedError\n\n    def get_file_size(self, name):\n        \"\"\"Return the file's size, or None if it doesn't exist.\"\"\"\n        raise NotImplementedError\n\n    def delete_file(self, name):\n        \"\"\"Delete the file. Return its size, or None if it didn't exist.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 2 ----\n    def get_total_size(self):\n        \"\"\"Return summed size of all files.\"\"\"\n        raise NotImplementedError\n\n    def find_largest(self, n):\n        \"\"\"Return up to n file names by size desc, ties by name asc.\"\"\"\n        raise NotImplementedError\n\n    def find_by_prefix(self, prefix):\n        \"\"\"Return file names starting with prefix, sorted alphabetically.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 3 ----\n    def add_user(self, user_id, capacity):\n        \"\"\"Register a user with a capacity. Return True if added, else False.\"\"\"\n        raise NotImplementedError\n\n    def add_file_by(self, user_id, name, size):\n        \"\"\"Add a file owned by user_id. Return remaining capacity, or None if the\n        user is missing, name exists, or it would exceed capacity.\"\"\"\n        raise NotImplementedError\n\n    def merge_user(self, user_id_1, user_id_2):\n        \"\"\"Merge user 2 into user 1 (files + capacity), remove user 2. Return\n        user 1's remaining capacity, or None on bad input.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 4 ----\n    def backup_user(self, user_id):\n        \"\"\"Snapshot user's current files (replacing any prior backup). Return the\n        count backed up, or None if user missing.\"\"\"\n        raise NotImplementedError\n\n    def restore_user(self, user_id):\n        \"\"\"Restore user's files from latest backup. Return count restored, or None\n        if user missing. No backup -> treat as empty.\"\"\"\n        raise NotImplementedError", "solution": "\"\"\"\nReference solution \u2014 Problem 03 (cloud storage). Fast, plain IMC-style code.\nPasses all levels in tests.py.\n\"\"\"\n\nimport copy\n\n\nclass CloudStorage:\n    def __init__(self):\n        self.files = {}      # name -> {\"size\": int, \"owner\": user_id}\n        self.users = {}      # user_id -> {\"cap\": int, \"used\": int}\n        self.backups = {}    # user_id -> {name: size}  (snapshot)\n        self.users[\"admin\"] = {\"cap\": float(\"inf\"), \"used\": 0}\n\n    # ---- Level 1 ----\n    def add_file(self, name, size):\n        if name in self.files:\n            return False\n        self.files[name] = {\"size\": size, \"owner\": \"admin\"}\n        self.users[\"admin\"][\"used\"] += size\n        return True\n\n    def get_file_size(self, name):\n        f = self.files.get(name)\n        return f[\"size\"] if f else None\n\n    def delete_file(self, name):\n        f = self.files.get(name)\n        if f is None:\n            return None\n        self.users[f[\"owner\"]][\"used\"] -= f[\"size\"]\n        del self.files[name]\n        return f[\"size\"]\n\n    # ---- Level 2 ----\n    def get_total_size(self):\n        return sum(f[\"size\"] for f in self.files.values())\n\n    def find_largest(self, n):\n        ordered = sorted(self.files.items(), key=lambda kv: (-kv[1][\"size\"], kv[0]))\n        return [name for name, _ in ordered[:n]]\n\n    def find_by_prefix(self, prefix):\n        return sorted(name for name in self.files if name.startswith(prefix))\n\n    # ---- Level 3 ----\n    def add_user(self, user_id, capacity):\n        if user_id in self.users:\n            return False\n        self.users[user_id] = {\"cap\": capacity, \"used\": 0}\n        return True\n\n    def add_file_by(self, user_id, name, size):\n        u = self.users.get(user_id)\n        if u is None or name in self.files:\n            return None\n        if u[\"used\"] + size > u[\"cap\"]:\n            return None\n        self.files[name] = {\"size\": size, \"owner\": user_id}\n        u[\"used\"] += size\n        return u[\"cap\"] - u[\"used\"]\n\n    def merge_user(self, user_id_1, user_id_2):\n        if user_id_1 not in self.users or user_id_2 not in self.users:\n            return None\n        if user_id_1 == user_id_2:\n            return None\n        u1 = self.users[user_id_1]\n        u2 = self.users[user_id_2]\n        for f in self.files.values():\n            if f[\"owner\"] == user_id_2:\n                f[\"owner\"] = user_id_1\n        u1[\"cap\"] += u2[\"cap\"]\n        u1[\"used\"] += u2[\"used\"]\n        del self.users[user_id_2]\n        self.backups.pop(user_id_2, None)\n        return u1[\"cap\"] - u1[\"used\"]\n\n    # ---- Level 4 ----\n    def backup_user(self, user_id):\n        if user_id not in self.users:\n            return None\n        snap = {name: f[\"size\"] for name, f in self.files.items()\n                if f[\"owner\"] == user_id}\n        self.backups[user_id] = copy.deepcopy(snap)\n        return len(snap)\n\n    def restore_user(self, user_id):\n        if user_id not in self.users:\n            return None\n        snap = self.backups.get(user_id, {})\n        # delete user's current files not in the backup\n        current = [name for name, f in self.files.items() if f[\"owner\"] == user_id]\n        for name in current:\n            if name not in snap:\n                self.delete_file(name)\n        # recreate backed-up files that no longer exist\n        for name, size in snap.items():\n            if name not in self.files:\n                self.files[name] = {\"size\": size, \"owner\": user_id}\n        # recompute the user's used capacity from exactly the files they now own\n        self.users[user_id][\"used\"] = sum(\n            f[\"size\"] for f in self.files.values() if f[\"owner\"] == user_id\n        )\n        return len(snap)\n", "cases": [{"name": "add get delete", "level": "1", "func": "test_level1_add_get_delete", "source": "def test_level1_add_get_delete():\n    cs = CloudStorage()\n    assert cs.add_file(\"a.txt\", 100) is True\n    assert cs.add_file(\"a.txt\", 50) is False        # duplicate name\n    assert cs.get_file_size(\"a.txt\") == 100\n    assert cs.get_file_size(\"missing\") is None\n    assert cs.delete_file(\"a.txt\") == 100\n    assert cs.get_file_size(\"a.txt\") is None\n    assert cs.delete_file(\"a.txt\") is None"}, {"name": "total and largest", "level": "2", "func": "test_level2_total_and_largest", "source": "def test_level2_total_and_largest():\n    cs = CloudStorage()\n    cs.add_file(\"a\", 30)\n    cs.add_file(\"b\", 30)             # tie with a\n    cs.add_file(\"c\", 50)\n    cs.add_file(\"d\", 10)\n    assert cs.get_total_size() == 120\n    assert cs.find_largest(2) == [\"c\", \"a\"]\n    assert cs.find_largest(3) == [\"c\", \"a\", \"b\"]\n    assert cs.find_largest(99) == [\"c\", \"a\", \"b\", \"d\"]"}, {"name": "prefix", "level": "2", "func": "test_level2_prefix", "source": "def test_level2_prefix():\n    cs = CloudStorage()\n    for n in [\"dir/a\", \"dir/b\", \"other\", \"dir/c\"]:\n        cs.add_file(n, 1)\n    assert cs.find_by_prefix(\"dir/\") == [\"dir/a\", \"dir/b\", \"dir/c\"]\n    assert cs.find_by_prefix(\"x\") == []"}, {"name": "user quota", "level": "3", "func": "test_level3_user_quota", "source": "def test_level3_user_quota():\n    cs = CloudStorage()\n    assert cs.add_user(\"u1\", 100) is True\n    assert cs.add_user(\"u1\", 200) is False          # duplicate\n    assert cs.add_file_by(\"u1\", \"f1\", 60) == 40      # remaining\n    assert cs.add_file_by(\"u1\", \"f2\", 60) is None    # would exceed capacity\n    assert cs.get_file_size(\"f2\") is None            # nothing stored on failure\n    assert cs.add_file_by(\"u1\", \"f1\", 10) is None    # name already exists\n    assert cs.add_file_by(\"ghost\", \"f3\", 1) is None"}, {"name": "merge user", "level": "3", "func": "test_level3_merge_user", "source": "def test_level3_merge_user():\n    cs = CloudStorage()\n    cs.add_user(\"u1\", 100)\n    cs.add_user(\"u2\", 100)\n    cs.add_file_by(\"u1\", \"a\", 30)\n    cs.add_file_by(\"u2\", \"b\", 40)\n    # merge u2 into u1: cap 100+100=200, used 30+40=70 -> remaining 130\n    assert cs.merge_user(\"u1\", \"u2\") == 130\n    assert cs.merge_user(\"u1\", \"u2\") is None         # u2 gone\n    assert cs.merge_user(\"u1\", \"u1\") is None\n    # u1 now owns both files; backing up reflects that\n    assert cs.backup_user(\"u1\") == 2"}, {"name": "backup restore deletes new files", "level": "4", "func": "test_level4_backup_restore_deletes_new_files", "source": "def test_level4_backup_restore_deletes_new_files():\n    cs = CloudStorage()\n    cs.add_user(\"u1\", 1000)\n    cs.add_file_by(\"u1\", \"a\", 10)\n    cs.add_file_by(\"u1\", \"b\", 20)\n    assert cs.backup_user(\"u1\") == 2\n    cs.add_file_by(\"u1\", \"c\", 30)         # added after backup\n    cs.delete_file(\"a\")                   # removed after backup\n    # restore: c (not in backup) deleted, a (in backup, missing) recreated, b kept\n    assert cs.restore_user(\"u1\") == 2\n    assert cs.get_file_size(\"a\") == 10\n    assert cs.get_file_size(\"b\") == 20\n    assert cs.get_file_size(\"c\") is None"}, {"name": "restore recomputes capacity", "level": "4", "func": "test_level4_restore_recomputes_capacity", "source": "def test_level4_restore_recomputes_capacity():\n    cs = CloudStorage()\n    cs.add_user(\"u1\", 100)\n    cs.add_file_by(\"u1\", \"a\", 40)\n    cs.backup_user(\"u1\")                  # snapshot: {a:40}, used 40\n    cs.delete_file(\"a\")                   # used 0\n    cs.add_file_by(\"u1\", \"b\", 90)         # used 90 (ok, under 100)\n    assert cs.restore_user(\"u1\") == 1     # restores a, deletes b\n    # used should now be exactly 40 -> room for 60 more\n    assert cs.add_file_by(\"u1\", \"c\", 60) == 0\n    assert cs.add_file_by(\"u1\", \"d\", 1) is None"}, {"name": "backup missing user", "level": "4", "func": "test_level4_backup_missing_user", "source": "def test_level4_backup_missing_user():\n    cs = CloudStorage()\n    assert cs.backup_user(\"ghost\") is None\n    assert cs.restore_user(\"ghost\") is None"}]}, {"id": "04-in-memory-db", "title": "In-Memory Database", "difficulty": "Hard", "blurb": "A toy key/field database (think a tiny Redis with hash records). You implement the InMemoryDB class. Four cumulative levels. The test suite is the real spec. Th", "statement": "# Problem 04 \u2014 In-Memory Database\n\nA toy key/field database (think a tiny Redis with hash records). You implement the\n`InMemoryDB` class. Four cumulative levels. **The test suite is the real spec.** This is the\ncanonical hard IMC problem: records with fields, filtering/scanning, **TTL via timestamps**,\nand **backup/restore with `copy.deepcopy`**.\n\n> Difficulty: **hard \u2014 the spec-reading stress test.** Time it (Day 4). Expect Levels 3\u20134 to\n> eat most of the clock. Bank partial credit aggressively.\n\nHow to work it: fill `starter.py`, run `pytest tests.py -k level1` ... `level4`, reference in\n`solution.py`. Timestamps are integers, non-decreasing across calls within a test.\n\nA \"record\" is identified by a `key` and holds named `field -> value` entries (values are\nintegers). `set` with TTL means the field lives only for a bounded window.\n\n---\n\n## Level 1 \u2014 Set / get / delete fields\n\n- `set(key, field, value)` \u2014 set `field` of record `key` to `value` (creating the record if\n  needed). Returns nothing meaningful (`None`).\n- `get(key, field)` \u2014 return the value, or `None` if the record or field doesn't exist.\n- `delete(key, field)` \u2014 delete a field from a record. Returns `True` if it existed and was\n  deleted, `False` otherwise. (If removing the last field leaves the record empty, the record\n  may stay or go \u2014 let the tests decide what's observable.)\n- `scan(key)` \u2014 return a list of `\"field(value)\"` strings for the record, sorted by field\n  name ascending. Empty list if the record doesn't exist.\n\n## Level 2 \u2014 Prefix scan\n\n- `scan_by_prefix(key, prefix)` \u2014 like `scan(key)` but only fields whose name starts with\n  `prefix`, sorted by field name ascending.\n\n## Level 3 \u2014 TTL (timestamped operations)\n\nNow operations carry a `timestamp`. The non-TTL operations from Levels 1\u20132 still exist; treat\ntheir fields as living forever. New timestamped variants:\n\n- `set_at(key, field, value, timestamp)` \u2014 set a field with no expiry, at `timestamp`.\n- `set_at_with_ttl(key, field, value, timestamp, ttl)` \u2014 set a field that **expires** at\n  `timestamp + ttl` (i.e. it is alive for queries with `query_ts < timestamp + ttl`, and gone\n  at `query_ts >= timestamp + ttl`).\n- `get_at(key, field, timestamp)` \u2014 like `get`, but a field that has expired by `timestamp`\n  is treated as absent (returns `None`).\n- `delete_at(key, field, timestamp)` \u2014 like `delete`, but operates as of `timestamp` (an\n  already-expired field counts as not present \u2192 returns `False`).\n- `scan_at(key, timestamp)` / `scan_by_prefix_at(key, prefix, timestamp)` \u2014 like the Level\n  1\u20132 scans, but exclude fields expired by `timestamp`.\n\nRe-`set`-ing an existing field overwrites its value **and** its expiry (a plain `set_at`\nclears any prior TTL on that field). **Confirm the exact overwrite semantics in the tests.**\n\n## Level 4 \u2014 Backup and restore\n\n- `backup(timestamp)` \u2014 snapshot the entire database state as of `timestamp`. Expiry\n  information is preserved **relative to the backup time**: a field that would expire at\n  `E` is stored with remaining ttl `E - timestamp` (fields already expired at `timestamp`\n  are not included). Returns the number of non-empty records backed up.\n- `restore(timestamp, timestamp_to_restore)` \u2014 replace the live database with the backup\n  taken at-or-before `timestamp_to_restore` (the most recent such backup). Each restored TTL\n  field's expiry is **recomputed relative to the restore `timestamp`**: a field that had\n  remaining ttl `r` in the backup now expires at `timestamp + r`. Non-expiring fields stay\n  non-expiring. Returns nothing meaningful.\n\n> Ambiguity warning: how empty records are reported by `scan`, whether `restore` picks the\n> nearest backup at-or-before the target, and the exact expiry-recompute math \u2014 **only the\n> tests are authoritative.** Use `copy.deepcopy` so a backup never shares mutable state with\n> the live database.\n", "starter": "class InMemoryDB:\n    def __init__(self):\n        \"\"\"Set up empty database state.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 1 ----\n    def set(self, key, field, value):\n        \"\"\"Set field of record key to value (create record if needed).\"\"\"\n        raise NotImplementedError\n\n    def get(self, key, field):\n        \"\"\"Return the field's value, or None if record/field absent.\"\"\"\n        raise NotImplementedError\n\n    def delete(self, key, field):\n        \"\"\"Delete a field. Return True if it existed, else False.\"\"\"\n        raise NotImplementedError\n\n    def scan(self, key):\n        \"\"\"Return ['field(value)', ...] for the record, sorted by field name.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 2 ----\n    def scan_by_prefix(self, key, prefix):\n        \"\"\"Like scan, but only fields whose name starts with prefix.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 3 (TTL) ----\n    def set_at(self, key, field, value, timestamp):\n        \"\"\"Set a non-expiring field at timestamp.\"\"\"\n        raise NotImplementedError\n\n    def set_at_with_ttl(self, key, field, value, timestamp, ttl):\n        \"\"\"Set a field expiring at timestamp + ttl.\"\"\"\n        raise NotImplementedError\n\n    def get_at(self, key, field, timestamp):\n        \"\"\"Like get, treating fields expired by timestamp as absent.\"\"\"\n        raise NotImplementedError\n\n    def delete_at(self, key, field, timestamp):\n        \"\"\"Like delete, as of timestamp (expired field counts as absent).\"\"\"\n        raise NotImplementedError\n\n    def scan_at(self, key, timestamp):\n        \"\"\"Like scan, excluding fields expired by timestamp.\"\"\"\n        raise NotImplementedError\n\n    def scan_by_prefix_at(self, key, prefix, timestamp):\n        \"\"\"Like scan_by_prefix, excluding fields expired by timestamp.\"\"\"\n        raise NotImplementedError\n\n    # ---- Level 4 (backup / restore) ----\n    def backup(self, timestamp):\n        \"\"\"Snapshot state at timestamp; store TTLs as remaining ttl. Return the\n        number of non-empty records backed up.\"\"\"\n        raise NotImplementedError\n\n    def restore(self, timestamp, timestamp_to_restore):\n        \"\"\"Replace live db with the most recent backup at-or-before\n        timestamp_to_restore, re-anchoring TTL expiries to timestamp.\"\"\"\n        raise NotImplementedError", "solution": "\"\"\"\nReference solution \u2014 Problem 04 (in-memory DB with TTL + backup/restore).\nFast, plain IMC-style code. Passes all levels in tests.py.\n\nState model: db[key][field] = (value, expiry)\n  expiry is None  -> never expires\n  expiry is an int -> field is alive while query_ts < expiry\n\"\"\"\n\nimport copy\n\n\nclass InMemoryDB:\n    def __init__(self):\n        self.db = {}             # key -> {field: (value, expiry_or_None)}\n        self.backups = []        # list of (timestamp, snapshot_dict)\n\n    # ---- helpers ----\n    def _alive(self, exp, ts):\n        return exp is None or ts < exp\n\n    def _live_fields(self, key, ts):\n        \"\"\"field -> value for fields of key alive at ts.\"\"\"\n        rec = self.db.get(key, {})\n        return {f: v for f, (v, exp) in rec.items() if self._alive(exp, ts)}\n\n    # ---- Level 1 (non-TTL == lives forever, queried at ts=inf) ----\n    INF = float(\"inf\")\n\n    def set(self, key, field, value):\n        self.db.setdefault(key, {})[field] = (value, None)\n\n    def get(self, key, field):\n        rec = self.db.get(key)\n        if not rec or field not in rec:\n            return None\n        return rec[field][0]\n\n    def delete(self, key, field):\n        rec = self.db.get(key)\n        if rec and field in rec:\n            del rec[field]\n            return True\n        return False\n\n    def scan(self, key):\n        return self._fmt(self._live_fields(key, self.INF))\n\n    # ---- Level 2 ----\n    def scan_by_prefix(self, key, prefix):\n        fields = self._live_fields(key, self.INF)\n        return self._fmt({f: v for f, v in fields.items() if f.startswith(prefix)})\n\n    def _fmt(self, fields):\n        return [f\"{f}({fields[f]})\" for f in sorted(fields)]\n\n    # ---- Level 3 (TTL) ----\n    def set_at(self, key, field, value, timestamp):\n        self.db.setdefault(key, {})[field] = (value, None)\n\n    def set_at_with_ttl(self, key, field, value, timestamp, ttl):\n        self.db.setdefault(key, {})[field] = (value, timestamp + ttl)\n\n    def get_at(self, key, field, timestamp):\n        rec = self.db.get(key)\n        if not rec or field not in rec:\n            return None\n        value, exp = rec[field]\n        return value if self._alive(exp, timestamp) else None\n\n    def delete_at(self, key, field, timestamp):\n        rec = self.db.get(key)\n        if not rec or field not in rec:\n            return False\n        _, exp = rec[field]\n        if not self._alive(exp, timestamp):\n            return False\n        del rec[field]\n        return True\n\n    def scan_at(self, key, timestamp):\n        return self._fmt(self._live_fields(key, timestamp))\n\n    def scan_by_prefix_at(self, key, prefix, timestamp):\n        fields = self._live_fields(key, timestamp)\n        return self._fmt({f: v for f, v in fields.items() if f.startswith(prefix)})\n\n    # ---- Level 4 (backup / restore) ----\n    def backup(self, timestamp):\n        snapshot = {}\n        count = 0\n        for key, rec in self.db.items():\n            saved = {}\n            for field, (value, exp) in rec.items():\n                if exp is None:\n                    saved[field] = (value, None)\n                elif timestamp < exp:\n                    saved[field] = (value, exp - timestamp)   # store REMAINING ttl\n                # already expired -> skip\n            if saved:\n                snapshot[key] = saved\n                count += 1\n        self.backups.append((timestamp, copy.deepcopy(snapshot)))\n        return count\n\n    def restore(self, timestamp, timestamp_to_restore):\n        chosen = None\n        for ts, snap in self.backups:\n            if ts <= timestamp_to_restore and (chosen is None or ts >= chosen[0]):\n                chosen = (ts, snap)\n        self.db = {}\n        if chosen is None:\n            return\n        for key, rec in copy.deepcopy(chosen[1]).items():\n            new_rec = {}\n            for field, (value, rem) in rec.items():\n                if rem is None:\n                    new_rec[field] = (value, None)\n                else:\n                    new_rec[field] = (value, timestamp + rem)   # re-anchor to restore time\n            self.db[key] = new_rec\n", "cases": [{"name": "set get delete", "level": "1", "func": "test_level1_set_get_delete", "source": "def test_level1_set_get_delete():\n    db = InMemoryDB()\n    db.set(\"u1\", \"name\", 5)\n    db.set(\"u1\", \"age\", 30)\n    assert db.get(\"u1\", \"name\") == 5\n    assert db.get(\"u1\", \"missing\") is None\n    assert db.get(\"ghost\", \"x\") is None\n    assert db.delete(\"u1\", \"age\") is True\n    assert db.delete(\"u1\", \"age\") is False\n    assert db.get(\"u1\", \"age\") is None"}, {"name": "scan sorted", "level": "1", "func": "test_level1_scan_sorted", "source": "def test_level1_scan_sorted():\n    db = InMemoryDB()\n    db.set(\"u1\", \"c\", 3)\n    db.set(\"u1\", \"a\", 1)\n    db.set(\"u1\", \"b\", 2)\n    assert db.scan(\"u1\") == [\"a(1)\", \"b(2)\", \"c(3)\"]\n    assert db.scan(\"ghost\") == []"}, {"name": "scan by prefix", "level": "2", "func": "test_level2_scan_by_prefix", "source": "def test_level2_scan_by_prefix():\n    db = InMemoryDB()\n    db.set(\"u1\", \"field_a\", 1)\n    db.set(\"u1\", \"field_b\", 2)\n    db.set(\"u1\", \"other\", 3)\n    assert db.scan_by_prefix(\"u1\", \"field_\") == [\"field_a(1)\", \"field_b(2)\"]\n    assert db.scan_by_prefix(\"u1\", \"z\") == []"}, {"name": "ttl expiry", "level": "3", "func": "test_level3_ttl_expiry", "source": "def test_level3_ttl_expiry():\n    db = InMemoryDB()\n    db.set_at_with_ttl(\"u1\", \"tmp\", 9, 100, 10)      # alive [100, 110)\n    assert db.get_at(\"u1\", \"tmp\", 105) == 9\n    assert db.get_at(\"u1\", \"tmp\", 109) == 9\n    assert db.get_at(\"u1\", \"tmp\", 110) is None       # expired at boundary\n    assert db.get_at(\"u1\", \"tmp\", 200) is None"}, {"name": "non expiring and overwrite", "level": "3", "func": "test_level3_non_expiring_and_overwrite", "source": "def test_level3_non_expiring_and_overwrite():\n    db = InMemoryDB()\n    db.set_at(\"u1\", \"perm\", 1, 100)\n    assert db.get_at(\"u1\", \"perm\", 10_000) == 1      # never expires\n    db.set_at_with_ttl(\"u1\", \"perm\", 2, 200, 50)     # overwrite + add TTL [200,250)\n    assert db.get_at(\"u1\", \"perm\", 240) == 2\n    assert db.get_at(\"u1\", \"perm\", 260) is None      # now it expires\n    db.set_at(\"u1\", \"perm\", 3, 300)                  # plain set clears the TTL\n    assert db.get_at(\"u1\", \"perm\", 10_000) == 3"}, {"name": "scan at excludes expired", "level": "3", "func": "test_level3_scan_at_excludes_expired", "source": "def test_level3_scan_at_excludes_expired():\n    db = InMemoryDB()\n    db.set_at(\"u1\", \"a\", 1, 100)\n    db.set_at_with_ttl(\"u1\", \"b\", 2, 100, 10)        # expires at 110\n    db.set_at_with_ttl(\"u1\", \"bb\", 3, 100, 100)      # expires at 200\n    assert db.scan_at(\"u1\", 105) == [\"a(1)\", \"b(2)\", \"bb(3)\"]\n    assert db.scan_at(\"u1\", 150) == [\"a(1)\", \"bb(3)\"]\n    assert db.scan_by_prefix_at(\"u1\", \"b\", 150) == [\"bb(3)\"]"}, {"name": "delete at expired is false", "level": "3", "func": "test_level3_delete_at_expired_is_false", "source": "def test_level3_delete_at_expired_is_false():\n    db = InMemoryDB()\n    db.set_at_with_ttl(\"u1\", \"tmp\", 1, 100, 10)      # expires at 110\n    assert db.delete_at(\"u1\", \"tmp\", 200) is False   # already expired\n    assert db.delete_at(\"u1\", \"tmp\", 105) is True"}, {"name": "backup count and basic restore", "level": "4", "func": "test_level4_backup_count_and_basic_restore", "source": "def test_level4_backup_count_and_basic_restore():\n    db = InMemoryDB()\n    db.set_at(\"u1\", \"a\", 1, 100)\n    db.set_at(\"u2\", \"b\", 2, 100)\n    assert db.backup(100) == 2                        # two non-empty records\n    db.set_at(\"u3\", \"c\", 3, 150)                      # added after backup\n    db.delete_at(\"u1\", \"a\", 160)                      # removed after backup\n    db.restore(200, 100)\n    assert db.get_at(\"u1\", \"a\", 250) == 1             # restored\n    assert db.get_at(\"u2\", \"b\", 250) == 2\n    assert db.get_at(\"u3\", \"c\", 250) is None"}, {"name": "ttl reanchored on restore", "level": "4", "func": "test_level4_ttl_reanchored_on_restore", "source": "def test_level4_ttl_reanchored_on_restore():\n    db = InMemoryDB()\n    db.set_at_with_ttl(\"u1\", \"tmp\", 7, 100, 50)       # expires at 150\n    db.backup(120)                                    # remaining ttl = 30\n    # restore much later: ttl re-anchors to restore time 1000 -> expires at 1030\n    db.restore(1000, 120)\n    assert db.get_at(\"u1\", \"tmp\", 1020) == 7          # still alive\n    assert db.get_at(\"u1\", \"tmp\", 1030) is None"}, {"name": "expired field not backed up", "level": "4", "func": "test_level4_expired_field_not_backed_up", "source": "def test_level4_expired_field_not_backed_up():\n    db = InMemoryDB()\n    db.set_at_with_ttl(\"u1\", \"gone\", 1, 100, 10)      # expires at 110\n    db.set_at(\"u1\", \"keep\", 2, 100)\n    # backup at 200: 'gone' already expired, only 'keep' survives\n    assert db.backup(200) == 1\n    db.set_at(\"u1\", \"extra\", 9, 210)\n    db.restore(300, 200)\n    assert db.get_at(\"u1\", \"keep\", 400) == 2\n    assert db.get_at(\"u1\", \"gone\", 400) is None\n    assert db.get_at(\"u1\", \"extra\", 400) is None"}, {"name": "restore picks nearest backup at or before", "level": "4", "func": "test_level4_restore_picks_nearest_backup_at_or_before", "source": "def test_level4_restore_picks_nearest_backup_at_or_before():\n    db = InMemoryDB()\n    db.set_at(\"u1\", \"v\", 1, 100)\n    db.backup(100)\n    db.set_at(\"u1\", \"v\", 2, 200)\n    db.backup(200)\n    db.set_at(\"u1\", \"v\", 3, 300)\n    db.backup(300)\n    db.restore(500, 250)              # nearest backup at-or-before 250 is the t=200 one\n    assert db.get_at(\"u1\", \"v\", 600) == 2"}]}], "drills": [{"id": "two-sum", "title": "Two Sum", "difficulty": "Easy", "category": "Hash Map", "pattern": "Remember what you've seen in a dict; look up the complement.", "description": "Given an array of integers `nums` and an integer `target`, return the indices of the two numbers that add up to `target`. Exactly one solution exists; you may not use the same element twice.\n\nExample:\n  two_sum([2,7,11,15], 9) -> [0, 1]   (2 + 7 = 9)\n  two_sum([3,2,4], 6)     -> [1, 2]", "starter": "def two_sum(nums, target):\n    # return the two indices\n    pass\n", "solution": "def two_sum(nums, target):\n    seen = {}                      # value -> index\n    for i, n in enumerate(nums):\n        if target - n in seen:\n            return [seen[target - n], i]\n        seen[n] = i\n    return []\n", "explanation": "One pass. For each number, check if its complement (target - n) was already seen; if so you have the pair. Store value->index as you go.\nTime O(n), space O(n). The brute-force double loop is O(n^2).", "tests": "check(\"ex1\", two_sum([2,7,11,15], 9), [0,1])\ncheck(\"ex2\", two_sum([3,2,4], 6), [1,2])\ncheck(\"dup\", two_sum([3,3], 6), [0,1])\n"}, {"id": "contains-duplicate", "title": "Contains Duplicate", "difficulty": "Easy", "category": "Hash Map", "pattern": "set() collapses duplicates; compare lengths.", "description": "Return True if any value appears at least twice in `nums`, False if every element is distinct.\n\nExample:\n  contains_duplicate([1,2,3,1]) -> True\n  contains_duplicate([1,2,3,4]) -> False", "starter": "def contains_duplicate(nums):\n    pass\n", "solution": "def contains_duplicate(nums):\n    return len(set(nums)) != len(nums)\n", "explanation": "A set drops duplicates, so if the set is smaller than the list a duplicate existed. Time O(n), space O(n).", "tests": "check(\"dup\", contains_duplicate([1,2,3,1]), True)\ncheck(\"nodup\", contains_duplicate([1,2,3,4]), False)\ncheck(\"empty\", contains_duplicate([]), False)\n"}, {"id": "valid-anagram", "title": "Valid Anagram", "difficulty": "Easy", "category": "Hash Map", "pattern": "Two strings are anagrams iff their char counts match.", "description": "Return True if `t` is an anagram of `s` (same characters, same counts, any order).\n\nExample:\n  is_anagram(\"anagram\", \"nagaram\") -> True\n  is_anagram(\"rat\", \"car\")         -> False", "starter": "def is_anagram(s, t):\n    pass\n", "solution": "from collections import Counter\n\ndef is_anagram(s, t):\n    return Counter(s) == Counter(t)\n", "explanation": "Counter builds char->count; two anagrams have identical Counters. Equivalent: sorted(s) == sorted(t). Time O(n).", "tests": "check(\"yes\", is_anagram(\"anagram\", \"nagaram\"), True)\ncheck(\"no\", is_anagram(\"rat\", \"car\"), False)\ncheck(\"len\", is_anagram(\"a\", \"ab\"), False)\n"}, {"id": "group-anagrams", "title": "Group Anagrams", "difficulty": "Medium", "category": "Hash Map", "pattern": "Bucket by a canonical key (sorted letters) \u2014 grouping idiom.", "description": "Group the strings that are anagrams of each other. Return a list of groups (order of groups and within groups doesn't matter).\n\nExample:\n  group_anagrams([\"eat\",\"tea\",\"tan\",\"ate\",\"nat\",\"bat\"])\n    -> [[\"eat\",\"tea\",\"ate\"], [\"tan\",\"nat\"], [\"bat\"]]", "starter": "def group_anagrams(strs):\n    pass\n", "solution": "def group_anagrams(strs):\n    groups = {}                       # sorted-key -> [words]\n    for s in strs:\n        key = \"\".join(sorted(s))\n        groups.setdefault(key, []).append(s)\n    return list(groups.values())\n", "explanation": "All anagrams share the same sorted-letters string, so use it as a dict key and append each word to its bucket. This is the grouping idiom (setdefault) \u2014 a comprehension can't accumulate buckets. Time O(n * k log k).", "tests": "def norm(res):\n    return sorted(sorted(g) for g in res)\ncheck(\"ex1\", norm(group_anagrams([\"eat\",\"tea\",\"tan\",\"ate\",\"nat\",\"bat\"])), norm([[\"eat\",\"tea\",\"ate\"],[\"tan\",\"nat\"],[\"bat\"]]))\ncheck(\"single\", norm(group_anagrams([\"abc\"])), [[\"abc\"]])\ncheck(\"empty\", group_anagrams([]), [])\n"}, {"id": "top-k-frequent", "title": "Top K Frequent Elements", "difficulty": "Medium", "category": "Hash Map", "pattern": "Counter.most_common(k) \u2014 count then take the top.", "description": "Return the `k` most frequent elements of `nums` (any order).\n\nExample:\n  top_k_frequent([1,1,1,2,2,3], 2) -> [1, 2]\n  top_k_frequent([1], 1)           -> [1]", "starter": "def top_k_frequent(nums, k):\n    pass\n", "solution": "from collections import Counter\n\ndef top_k_frequent(nums, k):\n    counts = Counter(nums)\n    return [n for n, _ in counts.most_common(k)]\n", "explanation": "Count frequencies, then most_common(k) returns the k highest-count (value, count) pairs; strip the value. Time O(n log k).", "tests": "check(\"ex1\", sorted(top_k_frequent([1,1,1,2,2,3], 2)), [1,2])\ncheck(\"one\", top_k_frequent([1], 1), [1])\ncheck(\"all\", sorted(top_k_frequent([4,4,5,5,6], 3)), [4,5,6])\n"}, {"id": "first-unique-char", "title": "First Unique Character", "difficulty": "Easy", "category": "Hash Map", "pattern": "Count first, then scan in order for the first count==1.", "description": "Return the index of the first non-repeating character in `s`, or -1 if there is none.\n\nExample:\n  first_uniq_char(\"leetcode\")   -> 0\n  first_uniq_char(\"loveleetcode\") -> 2\n  first_uniq_char(\"aabb\")       -> -1", "starter": "def first_uniq_char(s):\n    pass\n", "solution": "from collections import Counter\n\ndef first_uniq_char(s):\n    counts = Counter(s)\n    for i, c in enumerate(s):\n        if counts[c] == 1:\n            return i\n    return -1\n", "explanation": "First pass counts each char; second pass returns the index of the first char whose count is 1. Order matters, so scan the original string, not the dict. Time O(n).", "tests": "check(\"ex1\", first_uniq_char(\"leetcode\"), 0)\ncheck(\"ex2\", first_uniq_char(\"loveleetcode\"), 2)\ncheck(\"none\", first_uniq_char(\"aabb\"), -1)\n"}, {"id": "valid-palindrome", "title": "Valid Palindrome", "difficulty": "Easy", "category": "Two Pointers", "pattern": "Filter to alphanumerics, compare with its reverse.", "description": "Return True if `s` reads the same forwards and backwards, considering only alphanumeric characters and ignoring case.\n\nExample:\n  is_palindrome(\"A man, a plan, a canal: Panama\") -> True\n  is_palindrome(\"race a car\")                     -> False", "starter": "def is_palindrome(s):\n    pass\n", "solution": "def is_palindrome(s):\n    cleaned = [c.lower() for c in s if c.isalnum()]\n    return cleaned == cleaned[::-1]\n", "explanation": "Keep only alphanumerics (lowercased), then check it equals its reverse. cleaned[::-1] reverses. Time O(n). A two-pointer scan avoids building the reversed copy but the slice is simpler.", "tests": "check(\"yes\", is_palindrome(\"A man, a plan, a canal: Panama\"), True)\ncheck(\"no\", is_palindrome(\"race a car\"), False)\ncheck(\"empty\", is_palindrome(\" \"), True)\n"}, {"id": "two-sum-ii", "title": "Two Sum II (Sorted Input)", "difficulty": "Medium", "category": "Two Pointers", "pattern": "Sorted array -> converge two pointers by comparing the sum.", "description": "`numbers` is sorted ascending. Return the 1-indexed positions of the two numbers that add to `target` as [i, j] with i < j.\n\nExample:\n  two_sum_sorted([2,7,11,15], 9)  -> [1, 2]\n  two_sum_sorted([2,3,4], 6)      -> [1, 3]", "starter": "def two_sum_sorted(numbers, target):\n    pass\n", "solution": "def two_sum_sorted(numbers, target):\n    lo, hi = 0, len(numbers) - 1\n    while lo < hi:\n        s = numbers[lo] + numbers[hi]\n        if s == target:\n            return [lo + 1, hi + 1]\n        if s < target:\n            lo += 1\n        else:\n            hi -= 1\n    return []\n", "explanation": "Because the array is sorted, a too-small sum means move the left pointer up; too-big means move the right pointer down. Converge in one pass. Time O(n), space O(1).", "tests": "check(\"ex1\", two_sum_sorted([2,7,11,15], 9), [1,2])\ncheck(\"ex2\", two_sum_sorted([2,3,4], 6), [1,3])\ncheck(\"ex3\", two_sum_sorted([-1,0], -1), [1,2])\n"}, {"id": "move-zeroes", "title": "Move Zeroes", "difficulty": "Easy", "category": "Two Pointers", "pattern": "Write pointer packs non-zeros forward; fill the rest with zeros.", "description": "Move all 0's to the end of `nums` while keeping the order of the non-zero elements. Modify in place and return the list.\n\nExample:\n  move_zeroes([0,1,0,3,12]) -> [1,3,12,0,0]", "starter": "def move_zeroes(nums):\n    pass\n", "solution": "def move_zeroes(nums):\n    w = 0                          # next write slot\n    for n in nums:\n        if n != 0:\n            nums[w] = n\n            w += 1\n    for i in range(w, len(nums)):\n        nums[i] = 0\n    return nums\n", "explanation": "Two pointers: copy each non-zero to the front (write pointer w), then zero-fill the tail. Stable and in place. Time O(n), space O(1).", "tests": "check(\"ex1\", move_zeroes([0,1,0,3,12]), [1,3,12,0,0])\ncheck(\"nozeros\", move_zeroes([1,2,3]), [1,2,3])\ncheck(\"allzeros\", move_zeroes([0,0]), [0,0])\n"}, {"id": "remove-duplicates-sorted", "title": "Remove Duplicates from Sorted Array", "difficulty": "Easy", "category": "Two Pointers", "pattern": "Slow/fast pointers; write each new value once.", "description": "`nums` is sorted ascending. Remove duplicates in place so each value appears once, and return k = the number of unique elements. The first k slots of nums must hold the unique values in order.\n\nReturn k here (the harness checks both k and nums[:k]).\n\nExample:\n  remove_duplicates([1,1,2]) -> 2, nums[:2] == [1,2]", "starter": "def remove_duplicates(nums):\n    pass\n", "solution": "def remove_duplicates(nums):\n    if not nums:\n        return 0\n    w = 1                          # next write slot\n    for i in range(1, len(nums)):\n        if nums[i] != nums[w - 1]:\n            nums[w] = nums[i]\n            w += 1\n    return w\n", "explanation": "Sorted means duplicates are adjacent. Keep a write pointer; whenever the current value differs from the last written one, write it. Returns the unique count. Time O(n), space O(1).", "tests": "a = [1,1,2]\ncheck(\"k\", remove_duplicates(a), 2)\ncheck(\"front\", a[:2], [1,2])\nb = [0,0,1,1,1,2,2,3,3,4]\ncheck(\"k2\", remove_duplicates(b), 5)\ncheck(\"front2\", b[:5], [0,1,2,3,4])\n"}, {"id": "container-most-water", "title": "Container With Most Water", "difficulty": "Medium", "category": "Two Pointers", "pattern": "Move the shorter wall inward \u2014 it's the only way area can grow.", "description": "Each element of `height` is a vertical line. Pick two lines that with the x-axis form a container holding the most water; return that area (min height * width).\n\nExample:\n  max_area([1,8,6,2,5,4,8,3,7]) -> 49\n  max_area([1,1])               -> 1", "starter": "def max_area(height):\n    pass\n", "solution": "def max_area(height):\n    lo, hi = 0, len(height) - 1\n    best = 0\n    while lo < hi:\n        area = min(height[lo], height[hi]) * (hi - lo)\n        best = max(best, area)\n        if height[lo] < height[hi]:\n            lo += 1\n        else:\n            hi -= 1\n    return best\n", "explanation": "Start wide. Width only shrinks as pointers converge, so move the shorter line inward \u2014 keeping it could never beat the current area. Time O(n), space O(1).", "tests": "check(\"ex1\", max_area([1,8,6,2,5,4,8,3,7]), 49)\ncheck(\"ex2\", max_area([1,1]), 1)\ncheck(\"incr\", max_area([1,2,3,4,5]), 6)\n"}, {"id": "best-time-stock", "title": "Best Time to Buy and Sell Stock", "difficulty": "Easy", "category": "Sliding Window", "pattern": "Track the min price so far; best profit = price - min.", "description": "`prices[i]` is the price on day i. Buy on one day and sell on a later day. Return the max profit, or 0 if no profit is possible.\n\nExample:\n  max_profit([7,1,5,3,6,4]) -> 5   (buy at 1, sell at 6)\n  max_profit([7,6,4,3,1])   -> 0", "starter": "def max_profit(prices):\n    pass\n", "solution": "def max_profit(prices):\n    best = 0\n    cheapest = float('inf')\n    for p in prices:\n        cheapest = min(cheapest, p)\n        best = max(best, p - cheapest)\n    return best\n", "explanation": "One pass: keep the lowest price seen so far; the best sell-today profit is price - cheapest. Track the max. Time O(n), space O(1).", "tests": "check(\"ex1\", max_profit([7,1,5,3,6,4]), 5)\ncheck(\"none\", max_profit([7,6,4,3,1]), 0)\ncheck(\"empty\", max_profit([]), 0)\n"}, {"id": "max-subarray", "title": "Maximum Subarray", "difficulty": "Medium", "category": "Sliding Window", "pattern": "Kadane: drop the running sum the moment it goes negative.", "description": "Return the largest sum of any contiguous non-empty subarray of `nums`.\n\nExample:\n  max_sub_array([-2,1,-3,4,-1,2,1,-5,4]) -> 6   ([4,-1,2,1])\n  max_sub_array([-1])                    -> -1", "starter": "def max_sub_array(nums):\n    pass\n", "solution": "def max_sub_array(nums):\n    best = cur = nums[0]\n    for n in nums[1:]:\n        cur = max(n, cur + n)\n        best = max(best, cur)\n    return best\n", "explanation": "Kadane's algorithm. cur = best sum ending here: either extend the previous run or restart at n (whichever is larger). Track the global best. Time O(n), space O(1).", "tests": "check(\"ex1\", max_sub_array([-2,1,-3,4,-1,2,1,-5,4]), 6)\ncheck(\"neg\", max_sub_array([-1]), -1)\ncheck(\"allpos\", max_sub_array([1,2,3]), 6)\n"}, {"id": "longest-substring-no-repeat", "title": "Longest Substring Without Repeating Characters", "difficulty": "Medium", "category": "Sliding Window", "pattern": "Grow a window; on a repeat, jump the left edge past it.", "description": "Return the length of the longest substring of `s` with no repeating characters.\n\nExample:\n  length_of_longest(\"abcabcbb\") -> 3   (\"abc\")\n  length_of_longest(\"bbbbb\")    -> 1\n  length_of_longest(\"pwwkew\")   -> 3   (\"wke\")", "starter": "def length_of_longest(s):\n    pass\n", "solution": "def length_of_longest(s):\n    last = {}                      # char -> last index seen\n    start = 0\n    best = 0\n    for i, c in enumerate(s):\n        if c in last and last[c] >= start:\n            start = last[c] + 1\n        last[c] = i\n        best = max(best, i - start + 1)\n    return best\n", "explanation": "Sliding window [start, i]. Remember each char's last index; when you hit a repeat inside the window, move start just past that earlier occurrence. Window size i-start+1 tracks the answer. Time O(n).", "tests": "check(\"ex1\", length_of_longest(\"abcabcbb\"), 3)\ncheck(\"same\", length_of_longest(\"bbbbb\"), 1)\ncheck(\"ex3\", length_of_longest(\"pwwkew\"), 3)\ncheck(\"empty\", length_of_longest(\"\"), 0)\n"}, {"id": "valid-parentheses", "title": "Valid Parentheses", "difficulty": "Easy", "category": "Stack", "pattern": "Push openers; each closer must match the top of the stack.", "description": "Given a string of just the characters ()[]{}, return True if every bracket is closed by the same type in the correct order.\n\nExample:\n  is_valid(\"()[]{}\") -> True\n  is_valid(\"(]\")     -> False\n  is_valid(\"([)]\")   -> False", "starter": "def is_valid(s):\n    pass\n", "solution": "def is_valid(s):\n    pairs = {')': '(', ']': '[', '}': '{'}\n    stack = []\n    for c in s:\n        if c in pairs:\n            if not stack or stack.pop() != pairs[c]:\n                return False\n        else:\n            stack.append(c)\n    return not stack\n", "explanation": "Push every opener. On a closer, the top of the stack must be its matching opener (and the stack must be non-empty). Valid iff the stack is empty at the end. Time O(n).", "tests": "check(\"ok\", is_valid(\"()[]{}\"), True)\ncheck(\"mismatch\", is_valid(\"(]\"), False)\ncheck(\"order\", is_valid(\"([)]\"), False)\ncheck(\"nested\", is_valid(\"{[]}\"), True)\ncheck(\"openleft\", is_valid(\"(\"), False)\n"}, {"id": "daily-temperatures", "title": "Daily Temperatures", "difficulty": "Medium", "category": "Stack", "pattern": "Monotonic stack of indices waiting for a warmer day.", "description": "Given daily `temperatures`, return an array where answer[i] is how many days you wait for a warmer temperature, or 0 if none.\n\nExample:\n  daily_temperatures([73,74,75,71,69,72,76,73])\n    -> [1,1,4,2,1,1,0,0]", "starter": "def daily_temperatures(temperatures):\n    pass\n", "solution": "def daily_temperatures(temperatures):\n    ans = [0] * len(temperatures)\n    stack = []                     # indices of days awaiting warmth\n    for i, t in enumerate(temperatures):\n        while stack and temperatures[stack[-1]] < t:\n            j = stack.pop()\n            ans[j] = i - j\n        stack.append(i)\n    return ans\n", "explanation": "Keep a stack of indices with decreasing temps. Today resolves every stacked day it's warmer than; the wait is the index gap. Each index is pushed/popped once. Time O(n).", "tests": "check(\"ex1\", daily_temperatures([73,74,75,71,69,72,76,73]), [1,1,4,2,1,1,0,0])\ncheck(\"desc\", daily_temperatures([5,4,3,2,1]), [0,0,0,0,0])\ncheck(\"one\", daily_temperatures([30]), [0])\n"}, {"id": "binary-search", "title": "Binary Search", "difficulty": "Easy", "category": "Binary Search", "pattern": "Halve the range each step; mind lo<=hi and mid+/-1.", "description": "`nums` is sorted ascending and has unique values. Return the index of `target`, or -1 if it's not present.\n\nExample:\n  search([-1,0,3,5,9,12], 9) -> 4\n  search([-1,0,3,5,9,12], 2) -> -1", "starter": "def search(nums, target):\n    pass\n", "solution": "def search(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n", "explanation": "Classic binary search. Use lo <= hi (inclusive) and always move past mid (mid+1 / mid-1) so the range strictly shrinks. Time O(log n).", "tests": "check(\"found\", search([-1,0,3,5,9,12], 9), 4)\ncheck(\"missing\", search([-1,0,3,5,9,12], 2), -1)\ncheck(\"first\", search([1,2,3], 1), 0)\ncheck(\"last\", search([1,2,3], 3), 2)\n"}, {"id": "search-insert", "title": "Search Insert Position", "difficulty": "Easy", "category": "Binary Search", "pattern": "When not found, lo lands on the insertion index.", "description": "`nums` is sorted with distinct values. Return the index of `target`; if absent, return the index where it would be inserted to keep the array sorted.\n\nExample:\n  search_insert([1,3,5,6], 5) -> 2\n  search_insert([1,3,5,6], 2) -> 1\n  search_insert([1,3,5,6], 7) -> 4", "starter": "def search_insert(nums, target):\n    pass\n", "solution": "def search_insert(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return lo\n", "explanation": "Same search, but on a miss the loop exits with lo pointing at the first slot >= target \u2014 exactly the insertion index. Time O(log n).", "tests": "check(\"found\", search_insert([1,3,5,6], 5), 2)\ncheck(\"mid\", search_insert([1,3,5,6], 2), 1)\ncheck(\"end\", search_insert([1,3,5,6], 7), 4)\ncheck(\"front\", search_insert([1,3,5,6], 0), 0)\n"}, {"id": "search-rotated", "title": "Search in Rotated Sorted Array", "difficulty": "Medium", "category": "Binary Search", "pattern": "One half is always sorted; decide which, then which side to keep.", "description": "A sorted, distinct array was rotated at an unknown pivot (e.g. [0,1,2,4,5,6,7] -> [4,5,6,7,0,1,2]). Return the index of `target` or -1.\n\nExample:\n  search_rotated([4,5,6,7,0,1,2], 0) -> 4\n  search_rotated([4,5,6,7,0,1,2], 3) -> -1", "starter": "def search_rotated(nums, target):\n    pass\n", "solution": "def search_rotated(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[lo] <= nums[mid]:           # left half sorted\n            if nums[lo] <= target < nums[mid]:\n                hi = mid - 1\n            else:\n                lo = mid + 1\n        else:                               # right half sorted\n            if nums[mid] < target <= nums[hi]:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n    return -1\n", "explanation": "At each step one half is properly sorted. Detect which (compare nums[lo] and nums[mid]); if the target falls inside that sorted range, search it, else search the other half. Time O(log n).", "tests": "check(\"found\", search_rotated([4,5,6,7,0,1,2], 0), 4)\ncheck(\"missing\", search_rotated([4,5,6,7,0,1,2], 3), -1)\ncheck(\"pivot\", search_rotated([4,5,6,7,0,1,2], 4), 0)\ncheck(\"one\", search_rotated([1], 1), 0)\n"}, {"id": "reverse-string", "title": "Reverse String", "difficulty": "Easy", "category": "Strings", "pattern": "Two pointers swapping inward \u2014 in place.", "description": "Reverse a list of characters `s` in place and return it.\n\nExample:\n  reverse_string([\"h\",\"e\",\"l\",\"l\",\"o\"]) -> [\"o\",\"l\",\"l\",\"e\",\"h\"]", "starter": "def reverse_string(s):\n    pass\n", "solution": "def reverse_string(s):\n    lo, hi = 0, len(s) - 1\n    while lo < hi:\n        s[lo], s[hi] = s[hi], s[lo]\n        lo += 1\n        hi -= 1\n    return s\n", "explanation": "Swap the outermost pair, then move both pointers inward until they meet. In place, O(1) extra space, O(n) time.", "tests": "check(\"ex1\", reverse_string([\"h\",\"e\",\"l\",\"l\",\"o\"]), [\"o\",\"l\",\"l\",\"e\",\"h\"])\ncheck(\"even\", reverse_string([\"a\",\"b\"]), [\"b\",\"a\"])\ncheck(\"one\", reverse_string([\"x\"]), [\"x\"])\n"}, {"id": "longest-common-prefix", "title": "Longest Common Prefix", "difficulty": "Easy", "category": "Strings", "pattern": "Shrink a candidate prefix against each string.", "description": "Return the longest common prefix among an array of strings, or the empty string \"\" if there is none.\n\nExample:\n  longest_common_prefix([\"flower\",\"flow\",\"flight\"]) -> \"fl\"\n  longest_common_prefix([\"dog\",\"racecar\",\"car\"])    -> \"\"", "starter": "def longest_common_prefix(strs):\n    pass\n", "solution": "def longest_common_prefix(strs):\n    if not strs:\n        return \"\"\n    prefix = strs[0]\n    for s in strs[1:]:\n        while not s.startswith(prefix):\n            prefix = prefix[:-1]\n            if not prefix:\n                return \"\"\n    return prefix\n", "explanation": "Start with the first string as the candidate prefix; for each other string, trim the candidate from the right until it's a prefix. Time O(total chars).", "tests": "check(\"ex1\", longest_common_prefix([\"flower\",\"flow\",\"flight\"]), \"fl\")\ncheck(\"none\", longest_common_prefix([\"dog\",\"racecar\",\"car\"]), \"\")\ncheck(\"one\", longest_common_prefix([\"single\"]), \"single\")\n"}, {"id": "roman-to-int", "title": "Roman to Integer", "difficulty": "Easy", "category": "Strings", "pattern": "Subtract when a smaller numeral precedes a larger one.", "description": "Convert a Roman numeral string to an integer. Symbols: I=1 V=5 X=10 L=50 C=100 D=500 M=1000. A smaller value before a larger one is subtracted (IV=4, IX=9, XL=40 ...).\n\nExample:\n  roman_to_int(\"III\")     -> 3\n  roman_to_int(\"LVIII\")   -> 58\n  roman_to_int(\"MCMXCIV\") -> 1994", "starter": "def roman_to_int(s):\n    pass\n", "solution": "def roman_to_int(s):\n    val = {'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000}\n    total = 0\n    for i, c in enumerate(s):\n        if i + 1 < len(s) and val[c] < val[s[i + 1]]:\n            total -= val[c]\n        else:\n            total += val[c]\n    return total\n", "explanation": "Sum each numeral, but if a numeral is smaller than the one to its right, subtract it instead (that encodes the IV/IX form). Time O(n).", "tests": "check(\"three\", roman_to_int(\"III\"), 3)\ncheck(\"58\", roman_to_int(\"LVIII\"), 58)\ncheck(\"1994\", roman_to_int(\"MCMXCIV\"), 1994)\ncheck(\"four\", roman_to_int(\"IV\"), 4)\n"}, {"id": "reverse-words", "title": "Reverse Words in a String", "difficulty": "Medium", "category": "Strings", "pattern": "split() drops extra spaces; reverse; re-join with one space.", "description": "Reverse the order of words in `s`. A word is a maximal run of non-space chars. Collapse multiple spaces and trim leading/trailing space; words in the result are separated by a single space.\n\nExample:\n  reverse_words(\"the sky is blue\")     -> \"blue is sky the\"\n  reverse_words(\"  hello   world  \")   -> \"world hello\"", "starter": "def reverse_words(s):\n    pass\n", "solution": "def reverse_words(s):\n    return \" \".join(s.split()[::-1])\n", "explanation": "s.split() with no args splits on any whitespace and drops empties, so trimming/collapsing is free. Reverse the word list and join with one space. Time O(n).", "tests": "check(\"ex1\", reverse_words(\"the sky is blue\"), \"blue is sky the\")\ncheck(\"spaces\", reverse_words(\"  hello   world  \"), \"world hello\")\ncheck(\"one\", reverse_words(\"word\"), \"word\")\n"}, {"id": "is-subsequence", "title": "Is Subsequence", "difficulty": "Easy", "category": "Strings", "pattern": "Advance one pointer through t, ticking off chars of s in order.", "description": "Return True if `s` is a subsequence of `t` (the chars of s appear in t in order, not necessarily contiguously).\n\nExample:\n  is_subsequence(\"abc\", \"ahbgdc\") -> True\n  is_subsequence(\"axc\", \"ahbgdc\") -> False", "starter": "def is_subsequence(s, t):\n    pass\n", "solution": "def is_subsequence(s, t):\n    i = 0\n    for c in t:\n        if i < len(s) and s[i] == c:\n            i += 1\n    return i == len(s)\n", "explanation": "Walk through t once; each time the current char matches s[i], advance i. If i reaches the end of s, every char was matched in order. Time O(len(t)).", "tests": "check(\"yes\", is_subsequence(\"abc\", \"ahbgdc\"), True)\ncheck(\"no\", is_subsequence(\"axc\", \"ahbgdc\"), False)\ncheck(\"empty\", is_subsequence(\"\", \"anything\"), True)\n"}, {"id": "fizzbuzz", "title": "Fizz Buzz", "difficulty": "Easy", "category": "Math", "pattern": "Divisibility with %, build strings; check 15 first or concat.", "description": "Return a list of length `n` (1-indexed) where multiples of 3 are \"Fizz\", of 5 are \"Buzz\", of both are \"FizzBuzz\", else the number as a string.\n\nExample:\n  fizz_buzz(5) -> [\"1\",\"2\",\"Fizz\",\"4\",\"Buzz\"]", "starter": "def fizz_buzz(n):\n    pass\n", "solution": "def fizz_buzz(n):\n    out = []\n    for i in range(1, n + 1):\n        s = \"\"\n        if i % 3 == 0:\n            s += \"Fizz\"\n        if i % 5 == 0:\n            s += \"Buzz\"\n        out.append(s or str(i))\n    return out\n", "explanation": "Build the label by concatenation: \"Fizz\" for /3, \"Buzz\" for /5 (both gives \"FizzBuzz\" automatically). If the label is empty, fall back to the number. `s or str(i)` picks the number when s is falsy. Time O(n).", "tests": "check(\"ex5\", fizz_buzz(5), [\"1\",\"2\",\"Fizz\",\"4\",\"Buzz\"])\ncheck(\"fb\", fizz_buzz(15)[14], \"FizzBuzz\")\ncheck(\"one\", fizz_buzz(1), [\"1\"])\n"}, {"id": "palindrome-number", "title": "Palindrome Number", "difficulty": "Easy", "category": "Math", "pattern": "Negatives never qualify; reverse via %10 and //10 (no str).", "description": "Return True if integer `x` reads the same forwards and backwards. Negative numbers are never palindromes.\n\nExample:\n  is_palindrome_num(121)  -> True\n  is_palindrome_num(-121) -> False\n  is_palindrome_num(10)   -> False", "starter": "def is_palindrome_num(x):\n    pass\n", "solution": "def is_palindrome_num(x):\n    if x < 0:\n        return False\n    rev, n = 0, x\n    while n > 0:\n        rev = rev * 10 + n % 10\n        n //= 10\n    return rev == x\n", "explanation": "Build the reversed number digit by digit (n % 10 grabs the last digit, n //= 10 drops it) and compare. Negatives short-circuit to False. Time O(digits).", "tests": "check(\"yes\", is_palindrome_num(121), True)\ncheck(\"neg\", is_palindrome_num(-121), False)\ncheck(\"ten\", is_palindrome_num(10), False)\ncheck(\"zero\", is_palindrome_num(0), True)\n"}, {"id": "plus-one", "title": "Plus One", "difficulty": "Easy", "category": "Math", "pattern": "Carry from the right; a leading carry prepends a 1.", "description": "`digits` is a non-negative integer, one digit per element, most significant first. Add one and return the resulting digits.\n\nExample:\n  plus_one([1,2,3]) -> [1,2,4]\n  plus_one([9,9])   -> [1,0,0]", "starter": "def plus_one(digits):\n    pass\n", "solution": "def plus_one(digits):\n    for i in range(len(digits) - 1, -1, -1):\n        if digits[i] < 9:\n            digits[i] += 1\n            return digits\n        digits[i] = 0\n    return [1] + digits\n", "explanation": "Walk from the least significant digit. A digit < 9 just increments and you're done; a 9 becomes 0 and carries. If every digit was 9 the loop ends and you prepend a 1. Time O(n).", "tests": "check(\"simple\", plus_one([1,2,3]), [1,2,4])\ncheck(\"carry\", plus_one([9,9]), [1,0,0])\ncheck(\"mid\", plus_one([1,9,9]), [2,0,0])\n"}, {"id": "single-number", "title": "Single Number", "difficulty": "Easy", "category": "Math", "pattern": "XOR cancels pairs; the loner survives.", "description": "Every element of `nums` appears twice except one. Return the one that appears once. Aim for O(n) time and O(1) space.\n\nExample:\n  single_number([2,2,1])     -> 1\n  single_number([4,1,2,1,2]) -> 4", "starter": "def single_number(nums):\n    pass\n", "solution": "def single_number(nums):\n    result = 0\n    for n in nums:\n        result ^= n\n    return result\n", "explanation": "XOR of a number with itself is 0 and XOR with 0 is the number, so XOR-ing everything cancels all the pairs and leaves the unique value. Time O(n), space O(1).", "tests": "check(\"ex1\", single_number([2,2,1]), 1)\ncheck(\"ex2\", single_number([4,1,2,1,2]), 4)\ncheck(\"one\", single_number([7]), 7)\n"}, {"id": "majority-element", "title": "Majority Element", "difficulty": "Easy", "category": "Math", "pattern": "Boyer-Moore voting: a count that the majority can't lose.", "description": "An element appears more than n/2 times in `nums`. Return it. Aim for O(n) time, O(1) space.\n\nExample:\n  majority_element([3,2,3])         -> 3\n  majority_element([2,2,1,1,1,2,2]) -> 2", "starter": "def majority_element(nums):\n    pass\n", "solution": "def majority_element(nums):\n    count = 0\n    candidate = None\n    for n in nums:\n        if count == 0:\n            candidate = n\n        count += 1 if n == candidate else -1\n    return candidate\n", "explanation": "Boyer-Moore voting: pair off each occurrence of the candidate against a different value. The true majority (> n/2) can never be fully cancelled, so it's whatever the candidate is at the end. Time O(n), space O(1).", "tests": "check(\"ex1\", majority_element([3,2,3]), 3)\ncheck(\"ex2\", majority_element([2,2,1,1,1,2,2]), 2)\ncheck(\"one\", majority_element([1]), 1)\n"}, {"id": "merge-intervals", "title": "Merge Intervals", "difficulty": "Medium", "category": "Intervals", "pattern": "Sort by start; merge when the next start <= current end.", "description": "Given a list of [start, end] intervals, merge all overlapping ones and return the result sorted by start.\n\nExample:\n  merge([[1,3],[2,6],[8,10],[15,18]]) -> [[1,6],[8,10],[15,18]]\n  merge([[1,4],[4,5]])                -> [[1,5]]", "starter": "def merge(intervals):\n    pass\n", "solution": "def merge(intervals):\n    intervals.sort(key=lambda iv: iv[0])\n    out = []\n    for iv in intervals:\n        if out and iv[0] <= out[-1][1]:\n            out[-1][1] = max(out[-1][1], iv[1])\n        else:\n            out.append(iv[:])\n    return out\n", "explanation": "Sort by start so overlaps are adjacent. Walk through; if the current interval starts before the last merged one ends, extend that one's end, otherwise start a fresh interval. Time O(n log n).", "tests": "check(\"ex1\", merge([[1,3],[2,6],[8,10],[15,18]]), [[1,6],[8,10],[15,18]])\ncheck(\"touch\", merge([[1,4],[4,5]]), [[1,5]])\ncheck(\"one\", merge([[1,4]]), [[1,4]])\ncheck(\"unsorted\", merge([[2,3],[1,2]]), [[1,3]])\n"}, {"id": "min-stack", "title": "Min Stack", "difficulty": "Medium", "category": "Design", "pattern": "Carry the running min alongside each pushed value.", "description": "Design a stack supporting push, pop, top and get_min \u2014 all O(1).\n\n  MinStack()        # empty\n  push(val)         # push val\n  pop()             # remove top\n  top()             # return top value\n  get_min()         # return the minimum value in the stack\n\nExample:\n  s = MinStack(); s.push(-2); s.push(0); s.push(-3)\n  s.get_min() -> -3;  s.pop();  s.top() -> 0;  s.get_min() -> -2", "starter": "class MinStack:\n    def __init__(self):\n        pass\n\n    def push(self, val):\n        pass\n\n    def pop(self):\n        pass\n\n    def top(self):\n        pass\n\n    def get_min(self):\n        pass\n", "solution": "class MinStack:\n    def __init__(self):\n        self.stack = []            # (value, min-so-far)\n\n    def push(self, val):\n        cur_min = val if not self.stack else min(val, self.stack[-1][1])\n        self.stack.append((val, cur_min))\n\n    def pop(self):\n        self.stack.pop()\n\n    def top(self):\n        return self.stack[-1][0]\n\n    def get_min(self):\n        return self.stack[-1][1]\n", "explanation": "Store each element as a (value, min-of-stack-up-to-here) pair. The min is then always the top pair's second field, so get_min is O(1) and survives pops automatically.", "tests": "s = MinStack()\ns.push(-2); s.push(0); s.push(-3)\ncheck(\"min1\", s.get_min(), -3)\ns.pop()\ncheck(\"top\", s.top(), 0)\ncheck(\"min2\", s.get_min(), -2)\n"}, {"id": "word-bank", "title": "WordBank (frequency tracker)", "difficulty": "Easy", "category": "IMC: Stateful Class", "pattern": "The counter idiom: d[k] = d.get(k, 0) + 1.", "description": "A by-hand frequency tracker (no collections.Counter).\n\n  __init__()       # empty state\n  add(word)        # +1 to word's count (from 0 if new); return new count\n  count(word)      # current count (0 if never seen)\n  unique()         # number of distinct words seen", "starter": "class WordBank:\n    def __init__(self):\n        pass\n\n    def add(self, word):\n        pass\n\n    def count(self, word):\n        pass\n\n    def unique(self):\n        pass\n", "solution": "class WordBank:\n    def __init__(self):\n        self.counts = {}\n\n    def add(self, word):\n        self.counts[word] = self.counts.get(word, 0) + 1\n        return self.counts[word]\n\n    def count(self, word):\n        return self.counts.get(word, 0)\n\n    def unique(self):\n        return len(self.counts)\n", "explanation": "State is one dict word->count. The counter idiom .get(k, 0) + 1 handles the first-seen case without a branch; count() reuses .get with a 0 default so a missing word never raises.", "tests": "b = WordBank()\ncheck(\"a1\", b.add(\"a\"), 1)\ncheck(\"a2\", b.add(\"a\"), 2)\ncheck(\"b1\", b.add(\"b\"), 1)\ncheck(\"count_a\", b.count(\"a\"), 2)\ncheck(\"count_missing\", b.count(\"zzz\"), 0)\ncheck(\"unique\", b.unique(), 2)\n"}, {"id": "leaderboard", "title": "Leaderboard (top-N with tie-break)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "sorted(d.items(), key=lambda kv: (-kv[1], kv[0]))[:n].", "description": "The most common hard-ish IMC shape: accumulate then rank.\n\n  __init__()             # empty state\n  add_score(name, pts)   # add pts to name's total (from 0 if new)\n  top(n)                 # top n as (name, total) tuples, sorted by\n                         # total DESC, then name ASC on ties", "starter": "class Leaderboard:\n    def __init__(self):\n        pass\n\n    def add_score(self, name, points):\n        pass\n\n    def top(self, n):\n        pass\n", "solution": "class Leaderboard:\n    def __init__(self):\n        self.scores = {}\n\n    def add_score(self, name, points):\n        self.scores[name] = self.scores.get(name, 0) + points\n\n    def top(self, n):\n        return sorted(self.scores.items(),\n                      key=lambda kv: (-kv[1], kv[0]))[:n]\n", "explanation": "Counter idiom to accumulate totals. The tie-break is the tuple key (-count, name): negating the count sorts it descending while name stays ascending. Slice [:n] safely handles n > number of players. Sort .items() (pairs), not the dict (keys).", "tests": "L = Leaderboard()\nL.add_score(\"alice\", 50)\nL.add_score(\"bob\", 50)\nL.add_score(\"carol\", 30)\nL.add_score(\"alice\", 20)\ncheck(\"top2\", L.top(2), [(\"alice\", 70), (\"bob\", 50)])\ncheck(\"topall\", L.top(5), [(\"alice\", 70), (\"bob\", 50), (\"carol\", 30)])\n"}, {"id": "ttl-store", "title": "TTLStore (expiry by timestamp)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "Store (value, expires_at); alive while timestamp < expires_at.", "description": "A key/value store whose entries expire. Time is passed in as an int (no real clock).\n\n  __init__()\n  set(key, value, timestamp, ttl)  # expires at timestamp + ttl\n  get(key, timestamp)              # value if it exists AND\n                                   # timestamp < expires_at, else None", "starter": "class TTLStore:\n    def __init__(self):\n        pass\n\n    def set(self, key, value, timestamp, ttl):\n        pass\n\n    def get(self, key, timestamp):\n        pass\n", "solution": "class TTLStore:\n    def __init__(self):\n        self.store = {}            # key -> (value, expires_at)\n\n    def set(self, key, value, timestamp, ttl):\n        self.store[key] = (value, timestamp + ttl)\n\n    def get(self, key, timestamp):\n        if key not in self.store:\n            return None\n        value, expires_at = self.store[key]\n        if timestamp < expires_at:\n            return value\n        return None\n", "explanation": "Store the precomputed expiry (timestamp + ttl) next to the value. On get, guard membership FIRST (so a missing key returns None instead of raising), then compare with strict < \u2014 exactly at expiry counts as expired.", "tests": "s = TTLStore()\ns.set(\"a\", \"x\", 100, 50)\ncheck(\"alive\", s.get(\"a\", 120), \"x\")\ncheck(\"boundary\", s.get(\"a\", 150), None)\ncheck(\"expired\", s.get(\"a\", 200), None)\ncheck(\"missing\", s.get(\"missing\", 100), None)\n"}, {"id": "task-queue", "title": "TaskQueue (state machine + ordering)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "Two dicts; guard unknown ids; filter-then-sort with a tuple key.", "description": "Track each task's status and priority.\n\n  __init__()\n  submit(task_id, priority)  # register \"pending\" with a priority (int)\n  start(task_id)             # -> \"running\"; return False if unknown\n  complete(task_id)          # -> \"done\"; return False if unknown\n  status(task_id)            # status string, or None if unknown\n  pending()                  # ids still \"pending\", sorted by\n                             # priority DESC, then task_id ASC", "starter": "class TaskQueue:\n    def __init__(self):\n        pass\n\n    def submit(self, task_id, priority):\n        pass\n\n    def start(self, task_id):\n        pass\n\n    def complete(self, task_id):\n        pass\n\n    def status(self, task_id):\n        pass\n\n    def pending(self):\n        pass\n", "solution": "class TaskQueue:\n    def __init__(self):\n        self.status_of = {}        # task_id -> status string\n        self.priority = {}         # task_id -> int\n\n    def submit(self, task_id, priority):\n        self.status_of[task_id] = \"pending\"\n        self.priority[task_id] = priority\n\n    def start(self, task_id):\n        if task_id not in self.status_of:\n            return False\n        self.status_of[task_id] = \"running\"\n\n    def complete(self, task_id):\n        if task_id not in self.status_of:\n            return False\n        self.status_of[task_id] = \"done\"\n\n    def status(self, task_id):\n        return self.status_of.get(task_id)\n\n    def pending(self):\n        ids = [t for t in self.status_of if self.status_of[t] == \"pending\"]\n        return sorted(ids, key=lambda t: (-self.priority[t], t))\n", "explanation": "Two parallel dicts (status + priority). State transitions guard the id with `not in` and return False on unknown. pending() filters to just \"pending\" ids then sorts with the (-priority, id) tuple key.", "tests": "q = TaskQueue()\nq.submit(\"t1\", 5)\nq.submit(\"t2\", 5)\nq.submit(\"t3\", 9)\nq.start(\"t1\")\ncheck(\"running\", q.status(\"t1\"), \"running\")\ncheck(\"unknown_status\", q.status(\"nope\"), None)\ncheck(\"unknown_start\", q.start(\"nope\"), False)\ncheck(\"pending1\", q.pending(), [\"t3\", \"t2\"])\nq.complete(\"t2\")\ncheck(\"pending2\", q.pending(), [\"t3\"])\n"}, {"id": "order-book", "title": "OrderBook (count AND group at once)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "Counter idiom + grouping idiom side by side (NOT comprehensions).", "description": "Track per-symbol share totals and per-trader fills.\n\n  __init__()\n  fill(trader, symbol, shares)  # add shares to symbol's total AND\n                                # append (symbol, shares) to trader\n  volume(symbol)                # total shares for symbol (0 if none)\n  fills_for(trader)             # list of (symbol, shares), [] if none\n  top_symbols(n)                # top n (symbol, vol), vol DESC then\n                                # symbol ASC on ties", "starter": "class OrderBook:\n    def __init__(self):\n        pass\n\n    def fill(self, trader, symbol, shares):\n        pass\n\n    def volume(self, symbol):\n        pass\n\n    def fills_for(self, trader):\n        pass\n\n    def top_symbols(self, n):\n        pass\n", "solution": "class OrderBook:\n    def __init__(self):\n        self.vol = {}              # symbol -> total shares (COUNTER)\n        self.by_trader = {}        # trader -> [(symbol, shares)] (GROUP)\n\n    def fill(self, trader, symbol, shares):\n        self.vol[symbol] = self.vol.get(symbol, 0) + shares\n        self.by_trader.setdefault(trader, []).append((symbol, shares))\n\n    def volume(self, symbol):\n        return self.vol.get(symbol, 0)\n\n    def fills_for(self, trader):\n        return self.by_trader.get(trader, [])\n\n    def top_symbols(self, n):\n        return sorted(self.vol.items(),\n                      key=lambda kv: (-kv[1], kv[0]))[:n]\n", "explanation": "Two accumulation idioms together: .get(k, 0) + shares to COUNT volume, setdefault(k, []).append(...) to GROUP fills. Both need a statement that mutates a dict \u2014 a comprehension can't accumulate into buckets. Then the usual (-vol, symbol) top-N sort.", "tests": "ob = OrderBook()\nob.fill(\"alice\", \"AAPL\", 100)\nob.fill(\"bob\", \"AAPL\", 50)\nob.fill(\"alice\", \"MSFT\", 150)\nob.fill(\"carol\", \"TSLA\", 90)\ncheck(\"vol\", ob.volume(\"AAPL\"), 150)\ncheck(\"vol_missing\", ob.volume(\"ZZZZ\"), 0)\ncheck(\"fills\", ob.fills_for(\"alice\"), [(\"AAPL\", 100), (\"MSFT\", 150)])\ncheck(\"fills_missing\", ob.fills_for(\"nobody\"), [])\ncheck(\"top\", ob.top_symbols(2), [(\"AAPL\", 150), (\"MSFT\", 150)])\n"}, {"id": "tournament", "title": "Tournament (filter -> sort -> slice)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "Nested records; guard unknown names; the 3-stage standings pipeline.", "description": "Players each have a score and an active flag.\n\n  __init__()\n  join(name)         # record {score: 0, active: True}\n  award(name, pts)   # add pts to score (ignore unknown names)\n  eliminate(name)    # set active False (ignore unknown)\n  standings(n)       # top n ACTIVE players as (name, score),\n                     # score DESC then name ASC; eliminated excluded", "starter": "class Tournament:\n    def __init__(self):\n        pass\n\n    def join(self, name):\n        pass\n\n    def award(self, name, pts):\n        pass\n\n    def eliminate(self, name):\n        pass\n\n    def standings(self, n):\n        pass\n", "solution": "class Tournament:\n    def __init__(self):\n        self.players = {}          # name -> {score, active}\n\n    def join(self, name):\n        self.players[name] = {\"score\": 0, \"active\": True}\n\n    def award(self, name, pts):\n        if name not in self.players:\n            return\n        self.players[name][\"score\"] += pts\n\n    def eliminate(self, name):\n        if name not in self.players:\n            return\n        self.players[name][\"active\"] = False\n\n    def standings(self, n):\n        active = [name for name in self.players if self.players[name][\"active\"]]\n        active.sort(key=lambda name: (-self.players[name][\"score\"], name))\n        return [(name, self.players[name][\"score\"]) for name in active][:n]\n", "explanation": "Each player is a nested record dict. Mutating methods guard unknown names up front. standings is the canonical three stages: FILTER to active, SORT by (-score, name), then map to (name, score) and SLICE [:n]. The final comprehension is the RIGHT use of one \u2014 pure transform, no accumulation.", "tests": "t = Tournament()\nt.join(\"a\"); t.join(\"b\"); t.join(\"c\")\nt.award(\"a\", 30); t.award(\"b\", 30); t.award(\"c\", 50)\nt.eliminate(\"c\")\nt.award(\"zzz\", 99)\ncheck(\"standings\", t.standings(5), [(\"a\", 30), (\"b\", 30)])\n"}, {"id": "versioned-config", "title": "VersionedConfig (snapshot / restore)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "deepcopy on BOTH snapshot and restore so nested state can't leak.", "description": "A settings store with backup/restore. The deepcopy trap lives here.\n\n  __init__()\n  set(key, value)   # value may be a list/dict\n  get(key)          # value, or None\n  snapshot()        # save a backup of the ENTIRE current config\n  restore()         # replace config with the last snapshot, such that\n                    # future edits don't corrupt the saved snapshot", "starter": "class VersionedConfig:\n    def __init__(self):\n        pass\n\n    def set(self, key, value):\n        pass\n\n    def get(self, key):\n        pass\n\n    def snapshot(self):\n        pass\n\n    def restore(self):\n        pass\n", "solution": "import copy\n\nclass VersionedConfig:\n    def __init__(self):\n        self.config = {}\n        self.backup = {}\n\n    def set(self, key, value):\n        self.config[key] = value\n\n    def get(self, key):\n        return self.config.get(key)\n\n    def snapshot(self):\n        self.backup = copy.deepcopy(self.config)\n\n    def restore(self):\n        self.config = copy.deepcopy(self.backup)\n", "explanation": "deepcopy on BOTH sides. Snapshot deepcopy freezes the backup so later live mutations (appending to a stored list) don't leak in. Restore deepcopy means future edits to config don't reach back and corrupt the saved backup \u2014 a shallow copy would share the nested objects.", "tests": "c = VersionedConfig()\nc.set(\"tags\", [\"a\", \"b\"])\nc.snapshot()\nc.get(\"tags\").append(\"c\")\nc.set(\"extra\", 1)\nc.restore()\ncheck(\"frozen\", c.get(\"tags\"), [\"a\", \"b\"])\ncheck(\"gone\", c.get(\"extra\"), None)\n"}, {"id": "access-log", "title": "AccessLog (and short-circuit order)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "Guard on the LEFT, risky deref on the RIGHT \u2014 and is L->R.", "description": "Records may or may not have a role key.\n\n  __init__()           # self.users = {} (user_id -> record dict)\n  add(user_id)         # create {\"active\": True}  (NO role key yet)\n  set_role(uid, role)  # set the record's role\n  admins()             # user_ids that are BOTH active AND role=='admin';\n                       # must NOT crash on users with no role. Any order.", "starter": "class AccessLog:\n    def __init__(self):\n        pass\n\n    def add(self, user_id):\n        pass\n\n    def set_role(self, user_id, role):\n        pass\n\n    def admins(self):\n        pass\n", "solution": "class AccessLog:\n    def __init__(self):\n        self.users = {}\n\n    def add(self, user_id):\n        self.users[user_id] = {\"active\": True}\n\n    def set_role(self, user_id, role):\n        self.users[user_id][\"role\"] = role\n\n    def admins(self):\n        out = []\n        for uid in self.users:\n            rec = self.users[uid]\n            if rec[\"active\"] and rec.get(\"role\") == \"admin\":\n                out.append(uid)\n        return out\n", "explanation": "`and` evaluates left to right and short-circuits, but only AFTER the left side ran \u2014 so the safe check must be on the left. rec.get('role') returns None on a roleless record (None == 'admin' is just False), never KeyError. rec['role'] would crash, so you'd need \"role\" in rec on the left first.", "tests": "a = AccessLog()\na.add(\"u1\"); a.add(\"u2\"); a.add(\"u3\")\na.set_role(\"u1\", \"admin\")\na.set_role(\"u3\", \"user\")\ncheck(\"admins\", sorted(a.admins()), [\"u1\"])\n"}, {"id": "rate-limiter", "title": "RateLimiter (sliding window)", "difficulty": "Medium", "category": "IMC: Stateful Class", "pattern": "Per-key timestamp list; drop entries outside the window, then count.", "description": "Allow at most `limit` requests per user within any window of `window` time units. Time is passed in as a non-decreasing int.\n\n  __init__(limit, window)\n  allow(user, timestamp)   # record + return True if the request is\n                           # allowed, else return False (not recorded).\n                           # A request at t counts requests with\n                           # time > t - window (i.e. last `window` units).\n\nExample with limit=2, window=10:\n  allow(\"u\", 1) -> True;  allow(\"u\", 2) -> True;  allow(\"u\", 3) -> False\n  allow(\"u\", 12) -> True   (the t=1,2 requests fell out of the window)", "starter": "class RateLimiter:\n    def __init__(self, limit, window):\n        pass\n\n    def allow(self, user, timestamp):\n        pass\n", "solution": "class RateLimiter:\n    def __init__(self, limit, window):\n        self.limit = limit\n        self.window = window\n        self.hits = {}             # user -> [timestamps]\n\n    def allow(self, user, timestamp):\n        recent = self.hits.setdefault(user, [])\n        cutoff = timestamp - self.window\n        recent[:] = [t for t in recent if t > cutoff]\n        if len(recent) >= self.limit:\n            return False\n        recent.append(timestamp)\n        return True\n", "explanation": "Keep each user's recent request times. On a request, drop timestamps older than the window (t > timestamp - window keeps the live ones), then allow only if fewer than `limit` remain \u2014 and record it. recent[:] = [...] rewrites the list in place so the dict keeps the same list object.", "tests": "r = RateLimiter(2, 10)\ncheck(\"a1\", r.allow(\"u\", 1), True)\ncheck(\"a2\", r.allow(\"u\", 2), True)\ncheck(\"a3\", r.allow(\"u\", 3), False)\ncheck(\"a4\", r.allow(\"u\", 12), True)\ncheck(\"other_user\", r.allow(\"v\", 12), True)\n"}]};
+
+/* ============================================================
+   STATE + PERSISTENCE
+   ============================================================ */
+const LS_KEY = "csprep_ide_v1";
+const state = {
+  mode: "problems",          // "problems" | "drills"
+  probId: DATA.problems[0] ? DATA.problems[0].id : null,
+  drillId: DATA.drills[0] ? DATA.drills[0].id : null,
+  level: "1",                // active level tab (problems mode)
+  selCase: null,             // expanded test-case func name
+  lastResults: [],           // most recent run's results
+  // persisted: { code: {itemKey: src}, solved: {itemKey: true|levelMap}, timer: secs }
+  prog: { code: {}, solvedLevels: {}, solvedDrills: {} },
+  // timer
+  elapsed: 0, running: false, _tick: null,
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      state.prog = Object.assign(state.prog, p.prog || {});
+      if (!state.prog.code) state.prog.code = {};
+      if (!state.prog.solvedLevels) state.prog.solvedLevels = {};
+      if (!state.prog.solvedDrills) state.prog.solvedDrills = {};
+    }
+  } catch (e) {}
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ prog: state.prog })); } catch (e) {}
+}
+
+function curProblem() { return DATA.problems.find(p => p.id === state.probId); }
+function curDrill() { return DATA.drills.find(d => d.id === state.drillId); }
+function isProblems() { return state.mode === "problems"; }
+
+// a stable key for code storage: problems share one editor across levels,
+// drills are per-id.
+function codeKey() {
+  return isProblems() ? "p:" + state.probId : "d:" + state.drillId;
+}
+function savedCode() { return state.prog.code[codeKey()]; }
+function setSavedCode(src) { state.prog.code[codeKey()] = src; save(); }
+
+/* ============================================================
+   TINY MARKDOWN (statement rendering) — headings, lists, code,
+   blockquotes, inline `code`. Good enough for our prompt.md files.
+   ============================================================ */
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function inlineMd(s) {
+  // escape first, then re-introduce inline code spans
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  return s;
+}
+function renderMarkdown(md) {
+  const lines = md.split("\n");
+  let html = "", i = 0;
+  let inList = false, inCode = false, inQuote = false;
+  const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+  const closeQuote = () => { if (inQuote) { html += "</blockquote>"; inQuote = false; } };
+  while (i < lines.length) {
+    let line = lines[i];
+    if (line.trim().startsWith("```")) {
+      if (!inCode) { closeList(); closeQuote(); html += "<pre><code>"; inCode = true; }
+      else { html += "</code></pre>"; inCode = false; }
+      i++; continue;
+    }
+    if (inCode) { html += esc(line) + "\n"; i++; continue; }
+    if (/^#{1,6}\s/.test(line)) {
+      closeList(); closeQuote();
+      const level = line.match(/^#+/)[0].length;
+      const text = line.replace(/^#+\s/, "");
+      const tag = level <= 1 ? "h1" : "h2";
+      html += "<" + tag + ">" + inlineMd(text) + "</" + tag + ">";
+      i++; continue;
+    }
+    if (/^\s*[-*]\s/.test(line)) {
+      closeQuote();
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += "<li>" + inlineMd(line.replace(/^\s*[-*]\s/, "")) + "</li>";
+      i++; continue;
+    }
+    if (/^\s*>\s?/.test(line)) {
+      closeList();
+      if (!inQuote) { html += "<blockquote>"; inQuote = true; }
+      html += inlineMd(line.replace(/^\s*>\s?/, "")) + " ";
+      i++; continue;
+    }
+    if (line.trim() === "---") { closeList(); closeQuote(); i++; continue; }
+    if (line.trim() === "") { closeList(); closeQuote(); i++; continue; }
+    closeList(); closeQuote();
+    html += "<p>" + inlineMd(line) + "</p>";
+    i++;
+  }
+  closeList(); closeQuote();
+  if (inCode) html += "</code></pre>";
+  return html;
+}
+
+/* ============================================================
+   CODEMIRROR (with graceful textarea fallback)
+   ============================================================ */
+let cm = null;
+function initEditor() {
+  if (typeof CodeMirror !== "undefined") {
+    cm = CodeMirror.fromTextArea(document.getElementById("editor"), {
+      mode: "python", theme: "material-darker", lineNumbers: true,
+      indentUnit: 4, tabSize: 4, indentWithTabs: false,
+      matchBrackets: true, autoCloseBrackets: true,
+      extraKeys: {
+        "Cmd-Enter": runTests, "Ctrl-Enter": runTests,
+        Tab: (cmInst) => cmInst.replaceSelection("    ", "end"),
+      },
+    });
+    cm.on("change", () => { setSavedCode(getCode()); });
+  } else {
+    // fallback: plain textarea
+    const ta = document.getElementById("editor");
+    ta.style.display = "block";
+    ta.addEventListener("input", () => setSavedCode(ta.value));
+    ta.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runTests(); }
+      else if (e.key === "Tab") {
+        e.preventDefault();
+        const s = ta.selectionStart, en = ta.selectionEnd;
+        ta.value = ta.value.slice(0, s) + "    " + ta.value.slice(en);
+        ta.selectionStart = ta.selectionEnd = s + 4;
+      }
+    });
+  }
+}
+function getCode() { return cm ? cm.getValue() : document.getElementById("editor").value; }
+function setCode(src) {
+  if (cm) cm.setValue(src);
+  else document.getElementById("editor").value = src;
+}
+
+/* ============================================================
+   PYODIDE — lazy boot + per-mode harness
+   ============================================================ */
+let pyReady = null;
+function bootPyodide() { if (!pyReady) pyReady = loadPyodide(); return pyReady; }
+
+// Problems: exec user class, then exec each test fn and call it. An
+// AssertionError (or any exception) marks that case failed; capture a short
+// message. cases payload is base64-wrapped JSON to dodge all quoting issues.
+function harnessProblems(userCode, cases) {
+  const payload = btoa(unescape(encodeURIComponent(JSON.stringify({ user: userCode, cases: cases }))));
+  return [
+    "import json, base64, traceback",
+    "__p__ = json.loads(base64.b64decode('" + payload + "').decode('utf-8'))",
+    "__out__ = []",
+    "__base__ = {}",
+    "__load_err__ = None",
+    "try:",
+    "    exec(__p__['user'], __base__)",
+    "except Exception:",
+    "    __load_err__ = traceback.format_exc()",
+    "for __c__ in __p__['cases']:",
+    "    if __load_err__ is not None:",
+    "        __out__.append({'func': __c__['func'], 'ok': False, 'msg': 'code did not load:\\n' + __load_err__})",
+    "        continue",
+    "    __ns__ = dict(__base__)",
+    "    try:",
+    "        exec(__c__['source'], __ns__)",
+    "        __ns__[__c__['func']]()",
+    "        __out__.append({'func': __c__['func'], 'ok': True, 'msg': ''})",
+    "    except AssertionError:",
+    "        __out__.append({'func': __c__['func'], 'ok': False, 'msg': 'Assertion failed:\\n' + traceback.format_exc()})",
+    "    except Exception:",
+    "        __out__.append({'func': __c__['func'], 'ok': False, 'msg': traceback.format_exc()})",
+    "json.dumps({'results': __out__})",
+  ].join("\n");
+}
+
+// Drills: same check()-collecting harness as leetcode-grind.
+function harnessDrill(userCode, tests) {
+  const payload = btoa(unescape(encodeURIComponent(JSON.stringify({ user: userCode, tests: tests }))));
+  return [
+    "import json, base64, traceback",
+    "__p__ = json.loads(base64.b64decode('" + payload + "').decode('utf-8'))",
+    "__results__ = []",
+    "def check(name, got, expected):",
+    "    try: ok = (got == expected)",
+    "    except Exception: ok = False",
+    "    __results__.append({'name': name, 'ok': bool(ok), 'got': repr(got), 'expected': repr(expected)})",
+    "__ns__ = {'check': check, '__results__': __results__}",
+    "__error__ = None",
+    "try:",
+    "    exec(__p__['user'], __ns__)",
+    "    exec(__p__['tests'], __ns__)",
+    "except Exception:",
+    "    __error__ = traceback.format_exc()",
+    "json.dumps({'results': __ns__['__results__'], 'error': __error__})",
+  ].join("\n");
+}
+
+async function runTests() {
+  const summary = document.getElementById("testsSummary");
+  const body = document.getElementById("testsBody");
+  const runBtn = document.getElementById("runBtn");
+  const userCode = getCode();
+  setSavedCode(userCode);
+  if (!state.running && state.elapsed === 0) startTimer();   // auto-start clock
+
+  summary.className = "tests-summary idle";
+  summary.textContent = "Booting Python…";
+  body.innerHTML = '<div class="console-line">First run downloads Pyodide (~6 MB) + CodeMirror; cached after.</div>';
+  runBtn.disabled = true;
+  let py;
+  try { py = await bootPyodide(); }
+  catch (e) {
+    summary.className = "tests-summary fail"; summary.textContent = "Pyodide failed to load";
+    body.innerHTML = '<div class="tdetail show err">' + esc(String(e)) + '\n\nNeeds network on first run.</div>';
+    runBtn.disabled = false; return;
+  }
+  summary.textContent = "Running…";
+
+  try {
+    if (isProblems()) {
+      const p = curProblem();
+      const out = await py.runPythonAsync(harnessProblems(userCode, p.cases));
+      renderProblemResults(JSON.parse(out).results, p);
+    } else {
+      const d = curDrill();
+      const out = await py.runPythonAsync(harnessDrill(userCode, d.tests));
+      renderDrillResults(JSON.parse(out));
+    }
+  } catch (e) {
+    summary.className = "tests-summary fail"; summary.textContent = "Runtime error";
+    body.innerHTML = '<div class="tdetail show err">' + esc(String(e)) + '</div>';
+  }
+  runBtn.disabled = false;
+}
+
+/* ============================================================
+   RESULTS RENDERING
+   ============================================================ */
+function renderProblemResults(results, p) {
+  state.lastResults = results;
+  const byFunc = {};
+  results.forEach(r => { byFunc[r.func] = r; });
+
+  // mark per-level solved: a level passes if ALL its cases pass
+  const levelCases = {};
+  p.cases.forEach(c => { (levelCases[c.level] = levelCases[c.level] || []).push(c); });
+  const solved = state.prog.solvedLevels[p.id] = state.prog.solvedLevels[p.id] || {};
+  Object.keys(levelCases).forEach(lv => {
+    const all = levelCases[lv].every(c => byFunc[c.func] && byFunc[c.func].ok);
+    if (all) solved[lv] = true;
+  });
+  save();
+
+  const passed = results.filter(r => r.ok).length;
+  const summary = document.getElementById("testsSummary");
+  summary.className = "tests-summary " + (passed === results.length ? "pass" : "fail");
+  summary.textContent = "✓ " + passed + " / " + results.length + " test cases passed";
+  renderTestList(p.cases, byFunc);
+  renderLevelTabs();
+  renderPicker();
+}
+
+function renderDrillResults(parsed) {
+  const summary = document.getElementById("testsSummary");
+  const body = document.getElementById("testsBody");
+  if (parsed.error) {
+    summary.className = "tests-summary fail"; summary.textContent = "✗ Error";
+    body.innerHTML = '<div class="tdetail show err">' + esc(parsed.error) + '</div>';
+    return;
+  }
+  const results = parsed.results || [];
+  const passed = results.filter(r => r.ok).length;
+  const all = results.length > 0 && passed === results.length;
+  summary.className = "tests-summary " + (all ? "pass" : "fail");
+  summary.textContent = (all ? "✓ " : "✗ ") + passed + " / " + results.length + " tests passed";
+  let html = "";
+  results.forEach((r, idx) => {
+    html += '<div class="tcase ' + (r.ok ? "ok" : "no") + '" data-detail="d' + idx + '">' +
+      '<span class="mark">' + (r.ok ? "✓" : "✗") + '</span>' +
+      '<span class="cname">' + esc(r.name) + '</span></div>' +
+      '<div class="tdetail" id="d' + idx + '">' +
+        (r.ok ? '<span class="src">passed</span>'
+              : '<span class="err">got ' + esc(r.got) + '\nexpected ' + esc(r.expected) + '</span>') +
+      '</div>';
+  });
+  body.innerHTML = html;
+  if (all) { state.prog.solvedDrills[state.drillId] = true; save(); renderPicker(); }
+  wireCaseClicks();
+}
+
+function renderTestList(cases, byFunc) {
+  const body = document.getElementById("testsBody");
+  let html = "";
+  cases.forEach(c => {
+    const r = byFunc ? byFunc[c.func] : null;
+    const cls = !r ? "pending" : (r.ok ? "ok" : "no");
+    const mark = !r ? "○" : (r.ok ? "✓" : "✗");
+    html += '<div class="tcase ' + cls + '" data-detail="det_' + c.func + '">' +
+      '<span class="mark">' + mark + '</span>' +
+      '<span class="cname">' + esc(c.name) + '</span>' +
+      '<span class="clevel">L' + c.level + '</span></div>' +
+      '<div class="tdetail" id="det_' + c.func + '">' +
+        (r && !r.ok ? '<span class="err">' + esc(r.msg) + '</span>\n\n' : '') +
+        '<span class="src">' + esc(c.source) + '</span>' +
+      '</div>';
+  });
+  body.innerHTML = html;
+  wireCaseClicks();
+}
+
+function wireCaseClicks() {
+  document.querySelectorAll(".tcase").forEach(el => {
+    el.onclick = () => {
+      const d = document.getElementById(el.dataset.detail);
+      if (d) {
+        const open = d.classList.contains("show");
+        document.querySelectorAll(".tdetail").forEach(x => x.classList.remove("show"));
+        document.querySelectorAll(".tcase").forEach(x => x.classList.remove("sel"));
+        if (!open) { d.classList.add("show"); el.classList.add("sel"); }
+      }
+    };
+  });
+}
+
+/* ============================================================
+   STATEMENT / TABS / EDITOR RENDER
+   ============================================================ */
+function renderStatement() {
+  const el = document.getElementById("statement");
+  if (isProblems()) {
+    const p = curProblem();
+    el.innerHTML =
+      '<div class="stmt-title">' + esc(p.title) + '</div>' +
+      '<div class="stmt-meta"><span class="tag cat">4-Level IMC</span>' +
+        '<span class="tag diff ' + p.difficulty + '">' + esc(p.difficulty) + '</span></div>' +
+      '<div class="stmt-body">' + renderMarkdown(p.statement) + '</div>';
+  } else {
+    const d = curDrill();
+    el.innerHTML =
+      '<div class="stmt-title">' + esc(d.title) + '</div>' +
+      '<div class="stmt-meta"><span class="tag cat">' + esc(d.category) + '</span>' +
+        '<span class="tag diff ' + d.difficulty + '">' + esc(d.difficulty) + '</span></div>' +
+      '<div class="pattern-note"><b>Pattern:</b> ' + esc(d.pattern) + '</div>' +
+      '<div class="stmt-body"><pre><code>' + esc(d.description) + '</code></pre></div>';
+  }
+}
+
+function renderLevelTabs() {
+  const tabs = document.getElementById("levelTabs");
+  if (isProblems()) {
+    const p = curProblem();
+    const solved = state.prog.solvedLevels[p.id] || {};
+    const levels = Array.from(new Set(p.cases.map(c => c.level))).sort();
+    let html = "";
+    levels.forEach(lv => {
+      html += '<button class="level-tab ' + (lv === state.level ? "active" : "") + '" data-level="' + lv + '">' +
+        'Level ' + lv + (solved[lv] ? '<span class="lcheck">✓</span>' : '') + '</button>';
+    });
+    html += '<div class="tab-tools">' +
+      '<button class="tool-btn" id="revealBtn">Reference solution</button>' +
+      '<button class="tool-btn" id="resetBtn">Reset code</button></div>';
+    tabs.innerHTML = html;
+    tabs.querySelectorAll(".level-tab").forEach(t => {
+      t.onclick = () => { state.level = t.dataset.level; renderLevelTabs(); scrollToLevel(t.dataset.level); };
+    });
+  } else {
+    tabs.innerHTML = '<button class="level-tab active">Solve</button>' +
+      '<div class="tab-tools">' +
+      '<button class="tool-btn" id="revealBtn">Reference solution</button>' +
+      '<button class="tool-btn" id="resetBtn">Reset code</button></div>';
+  }
+  document.getElementById("revealBtn").onclick = revealSolution;
+  document.getElementById("resetBtn").onclick = resetCode;
+}
+
+// Scroll the statement pane to a level's heading when its tab is clicked.
+function scrollToLevel(lv) {
+  const headings = document.querySelectorAll("#statement .stmt-body h2");
+  for (const h of headings) {
+    if (h.textContent.toLowerCase().includes("level " + lv)) {
+      h.scrollIntoView({ behavior: "smooth", block: "start" });
+      break;
+    }
+  }
+}
+
+function revealSolution() {
+  const src = isProblems() ? curProblem().solution : curDrill().solution;
+  const explain = isProblems() ? "" : ("\n\n# --- Approach ---\n# " + curDrill().explanation.replace(/\n/g, "\n# "));
+  if (confirm("Load the reference solution into the editor? This replaces your current code (it's saved per-problem, so reset to get the stub back).")) {
+    setCode(src + explain);
+    setSavedCode(getCode());
+  }
+}
+function resetCode() {
+  const stub = isProblems() ? curProblem().starter : curDrill().starter;
+  setCode(stub);
+  setSavedCode(stub);
+}
+
+function loadEditor() {
+  const saved = savedCode();
+  const stub = isProblems() ? curProblem().starter : curDrill().starter;
+  setCode((saved !== undefined && saved !== null) ? saved : stub);
+}
+
+/* ============================================================
+   PICKER DRAWER
+   ============================================================ */
+function renderPickerLabel() {
+  const lbl = document.getElementById("pickerLabel");
+  if (isProblems()) { const p = curProblem(); lbl.textContent = p ? p.title : "—"; }
+  else { const d = curDrill(); lbl.textContent = d ? (d.category + " · " + d.title) : "—"; }
+}
+function renderPicker() {
+  const list = document.getElementById("drawerList");
+  document.getElementById("drawerTitle").textContent = isProblems() ? "4-Level Problems" : "Drills";
+  let html = "";
+  if (isProblems()) {
+    DATA.problems.forEach(p => {
+      const solved = state.prog.solvedLevels[p.id] || {};
+      const levels = Array.from(new Set(p.cases.map(c => c.level)));
+      const done = levels.every(lv => solved[lv]);
+      html += '<div class="ditem ' + (p.id === state.probId ? "active" : "") + '" data-id="' + p.id + '">' +
+        '<span class="dtick">' + (done ? "✓" : "") + '</span>' +
+        '<span class="dtitle">' + esc(p.title) + '</span>' +
+        '<span class="ddiff ' + p.difficulty + '">' + esc(p.difficulty) + '</span></div>';
+    });
+  } else {
+    const order = [], byCat = {};
+    DATA.drills.forEach(d => { if (!byCat[d.category]) { byCat[d.category] = []; order.push(d.category); } byCat[d.category].push(d); });
+    order.forEach(cat => {
+      html += '<div class="drawer-group">' + esc(cat) + '</div>';
+      byCat[cat].forEach(d => {
+        const solved = state.prog.solvedDrills[d.id];
+        html += '<div class="ditem ' + (d.id === state.drillId ? "active" : "") + '" data-id="' + d.id + '">' +
+          '<span class="dtick">' + (solved ? "✓" : "") + '</span>' +
+          '<span class="dtitle">' + esc(d.title) + '</span>' +
+          '<span class="ddiff ' + d.difficulty + '">' + esc(d.difficulty) + '</span></div>';
+      });
+    });
+  }
+  list.innerHTML = html;
+  list.querySelectorAll(".ditem").forEach(el => {
+    el.onclick = () => {
+      if (isProblems()) state.probId = el.dataset.id; else state.drillId = el.dataset.id;
+      state.level = "1";
+      closeDrawer();
+      selectCurrent();
+    };
+  });
+}
+function openDrawer() { renderPicker(); document.getElementById("drawer").classList.add("open"); document.getElementById("drawerBg").classList.add("open"); }
+function closeDrawer() { document.getElementById("drawer").classList.remove("open"); document.getElementById("drawerBg").classList.remove("open"); }
+
+/* ============================================================
+   TIMER (count-up stopwatch)
+   ============================================================ */
+function fmtTime(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  const h = Math.floor(m / 60), mm = m % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return (h > 0 ? pad(h) + ":" : "") + pad(h > 0 ? mm : m) + ":" + pad(sec);
+}
+function renderTimer() {
+  document.getElementById("timerVal").textContent = fmtTime(state.elapsed);
+  document.getElementById("timer").classList.toggle("running", state.running);
+}
+function startTimer() {
+  if (state.running) return;
+  state.running = true;
+  state._tick = setInterval(() => { state.elapsed += 1; renderTimer(); }, 1000);
+  renderTimer();
+}
+function pauseTimer() { state.running = false; if (state._tick) clearInterval(state._tick); state._tick = null; renderTimer(); }
+function toggleTimer() { state.running ? pauseTimer() : startTimer(); }
+function resetTimer() { pauseTimer(); state.elapsed = 0; renderTimer(); }
+
+/* ============================================================
+   MODE SWITCH + SELECT
+   ============================================================ */
+function selectCurrent() {
+  renderStatement();
+  renderLevelTabs();
+  loadEditor();
+  renderPickerLabel();
+  // reset test panel
+  document.getElementById("testsSummary").className = "tests-summary idle";
+  document.getElementById("testsSummary").textContent = "Not run yet";
+  if (isProblems()) {
+    renderTestList(curProblem().cases, null);
+  } else {
+    document.getElementById("testsBody").innerHTML =
+      '<div class="console-line">Press Run Tests (or Ctrl/Cmd+Enter) to check your solution.</div>';
+  }
+}
+function setMode(m) {
+  state.mode = m;
+  document.getElementById("modeProblems").classList.toggle("active", m === "problems");
+  document.getElementById("modeDrills").classList.toggle("active", m === "drills");
+  selectCurrent();
+}
+
+/* ============================================================
+   EVENTS + BOOT
+   ============================================================ */
+document.getElementById("modeProblems").onclick = () => setMode("problems");
+document.getElementById("modeDrills").onclick = () => setMode("drills");
+document.getElementById("runBtn").onclick = runTests;
+document.getElementById("pickerBtn").onclick = openDrawer;
+document.getElementById("drawerClose").onclick = closeDrawer;
+document.getElementById("drawerBg").onclick = closeDrawer;
+document.getElementById("timer").onclick = toggleTimer;
+document.getElementById("timer").ondblclick = resetTimer;
+
+load();
+initEditor();
+renderTimer();
+setMode("problems");
+</script>
+</body>
+</html>

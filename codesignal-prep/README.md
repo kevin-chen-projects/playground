@@ -21,7 +21,9 @@ completion**, not elegant code.
 | [cheatsheet.md](cheatsheet.md) | Python idiom reference — the "fundamentals" you'll lean on. Skim Day 1, re-skim Day 5. |
 | [warmups/](warmups/) | ~30 tiny "write one idiom" drills to rebuild syntax reflexes. |
 | [problems/](problems/) | Four full 4-level practice problems (the main event). |
-| [drill.html](drill.html) | Spaced-repetition flashcard site for idioms — the **supplement**. Open in a browser. |
+| [blank-line-drills.md](blank-line-drills.md) | Recall drills — write a whole stateful class from a blank line; targets logged weak spots. |
+| [drill.html](drill.html) | Spaced-repetition flashcard site for idioms — a **supplement**. Open in a browser. |
+| [codesignal-ide.html](codesignal-ide.html) | **CodeSignal IDE simulator** — runs your Python in-browser (Pyodide + CodeMirror) with a split-pane layout, count-up timer, and Level 1→4 tabs. Holds the four 4-level problems *and* 40 pattern/IMC drills. Open in a browser. |
 
 ### The four problems (increasing difficulty)
 
@@ -73,6 +75,16 @@ python solutions_syntax_drills.py   # the answer key -> "all 30 drills pass"
 
 **The drill site:** open `drill.html` in any browser (double-click). No server. Progress
 saves to `localStorage` under `csprep_*`.
+
+**The CodeSignal IDE simulator:** open `codesignal-ide.html` in any browser. It mimics the real
+IMC test environment — statement on the left, code editor top-right, test-results panel
+bottom-right, a count-up stopwatch, and **Level 1→4** tabs. Pick **4-Level Problems** to work the
+four `problems/` problems with the real layout (your code is graded against that problem's actual
+`tests.py`, shown as a clickable per-level case list), or **Drills** for 40 quick pattern/IMC reps.
+Hit **Run Tests** (or Ctrl/Cmd+Enter) to execute your Python in the browser. Like the rest of the
+kit it's a single file, but it loads Pyodide + CodeMirror from CDNs, so the **first** run needs
+network (then cached); after that it works offline. Progress + per-problem code save to
+`localStorage`.
 
 ---
 

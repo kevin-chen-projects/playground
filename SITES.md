@@ -6,7 +6,7 @@ A running list of everything we're building in this repo, grouped so it's easy t
 
 **How to view:** Every single-file site is a self-contained `.html` — open it directly in a browser, no build step. Folder projects have their own setup notes (see each row's path). For an engineering-level map of any file (structure, functions, palettes), see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 
-_Last updated: 2026-06-06 (moved Tier A+B candidates to a private dev repo; archived sites still browsable)_
+_Last updated: 2026-07-26 (added Immune Circuit; archived sites still browsable)_
 
 ---
 
@@ -14,6 +14,7 @@ _Last updated: 2026-06-06 (moved Tier A+B candidates to a private dev repo; arch
 
 | Site | What it is | Open | Status |
 |------|------------|------|--------|
+| **Immune Circuit** | Interactive immunology study guide — receptor wiring atlas, marker lab, phenotype decoder, four case circuits, quizzes, and recall cards grounded in Shilts et al. (Nature 2022) | [immunology-wiring.html](immunology-wiring.html) | Complete |
 | **SAT Reading Sprints** | Timed SAT reading practice — 5 passages, 22 questions, per-answer explanations | [sat-reading.html](sat-reading.html) | Complete |
 | **Money Smarts** | Friendly personal-finance literacy site | [money-smarts.html](money-smarts.html) | Complete |
 | **Violin Voyage** | Beginner violin + sheet-music reading tutor | [violin-voyage.html](violin-voyage.html) | Complete |

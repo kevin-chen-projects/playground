@@ -1,0 +1,3235 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  Immune Circuit — interactive immunology study guide
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. No build step. Open in any modern browser.
+
+  A conversation-focused guide to immune cell communication, grounded in:
+  Shilts et al., "A physical wiring diagram for the human immune system"
+  (Nature 608, 397–404, 2022; doi:10.1038/s41586-022-05028-x).
+
+  FILE INDEX
+  ==============================================================================
+  HEAD       Header comment and metadata
+  STYLE      Tokens, shell, dashboard, atlas, cell lab, phenotypes, cases,
+             drill, modal, responsive and iPhone-safe-area rules
+  BODY       App shell, six views, pathway modal, toast, footer
+  SCRIPT     Content data, renderers, navigation, case/quiz/flash engines,
+             local progress persistence
+
+  APP VIEWS
+    dashboard   Daily mission, paper snapshot, learning path
+    atlas       Interactive pathway explorer + receptor–ligand wiring visual
+    cells       Cell identity and flow-cytometry marker combinations
+    phenotypes  Activation-state decoder + conversation vocabulary
+    cases       Stepwise vaccine, viral, tumour, and allergy circuit challenges
+    drill       Five-question quiz missions + recall flashcards
+================================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="A playful, interactive guide to immune pathways, surface markers, cell phenotypes, and the human immune surface interactome." />
+  <title>Immune Circuit — learn the language of immunology</title>
+  <style>
+    :root {
+      --navy-950: #07151d;
+      --navy-900: #0b202a;
+      --navy-800: #12313d;
+      --navy-700: #1b4654;
+      --teal-700: #087f75;
+      --teal-600: #0c9a8b;
+      --teal-500: #1db4a1;
+      --teal-200: #9ce1d8;
+      --teal-100: #d8f4ef;
+      --coral-700: #bd4e3a;
+      --coral-600: #d45d45;
+      --coral-500: #eb7459;
+      --coral-200: #ffc2b4;
+      --coral-100: #ffe8e2;
+      --gold-600: #b77b17;
+      --gold-500: #daa23d;
+      --gold-200: #f3d894;
+      --gold-100: #fff1c9;
+      --plum-600: #77569a;
+      --plum-100: #eee5f7;
+      --blue-600: #3f6fa2;
+      --blue-100: #e4eff9;
+      --green-700: #367357;
+      --green-100: #e1f2e9;
+      --red-700: #af4050;
+      --red-100: #fde5e8;
+      --cream: #f4efe4;
+      --paper: #fffdf7;
+      --white: #ffffff;
+      --ink: #13272d;
+      --ink-2: #435961;
+      --ink-3: #708288;
+      --line: #d9d7ce;
+      --line-dark: rgba(255,255,255,.12);
+      --shadow-sm: 0 2px 8px rgba(10, 35, 43, .07);
+      --shadow: 0 14px 38px rgba(10, 35, 43, .11);
+      --shadow-lg: 0 28px 70px rgba(10, 35, 43, .18);
+      --radius-sm: 10px;
+      --radius: 16px;
+      --radius-lg: 26px;
+      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.5;
+    }
+    button, input { font: inherit; }
+    button {
+      color: inherit;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--gold-500); outline-offset: 3px; }
+    .hidden { display: none !important; }
+
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 72px;
+      padding:
+        calc(10px + env(safe-area-inset-top, 0px))
+        calc(clamp(18px, 4vw, 58px) + env(safe-area-inset-right, 0px))
+        10px
+        calc(clamp(18px, 4vw, 58px) + env(safe-area-inset-left, 0px));
+      color: white;
+      background: rgba(7, 21, 29, .96);
+      border-bottom: 1px solid var(--line-dark);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      border: 0;
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .brand-mark {
+      position: relative;
+      width: 37px;
+      height: 37px;
+      border: 2px solid var(--teal-200);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 31%, var(--coral-500) 0 4px, transparent 5px),
+        radial-gradient(circle at 67% 60%, var(--gold-500) 0 3px, transparent 4px),
+        radial-gradient(circle at center, var(--navy-700), var(--navy-950));
+      box-shadow: inset 0 0 0 5px rgba(255,255,255,.04);
+    }
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border: 2px solid var(--teal-200);
+      border-radius: 50%;
+      background: var(--navy-900);
+    }
+    .brand-mark::before { top: -5px; right: 2px; }
+    .brand-mark::after { bottom: -4px; left: 1px; }
+    .brand-text { text-align: left; }
+    .brand-name {
+      display: block;
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+    .brand-sub {
+      display: block;
+      margin-top: 3px;
+      color: var(--teal-200);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .nav-tabs { display: flex; align-items: center; gap: 3px; }
+    .nav-tab {
+      min-height: 44px;
+      padding: 9px 13px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: rgba(255,255,255,.68);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background .2s, color .2s;
+    }
+    .nav-tab:hover { color: white; background: rgba(255,255,255,.07); }
+    .nav-tab.active { color: var(--navy-950); background: var(--teal-200); }
+    .streak-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid var(--line-dark);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .streak-flame { color: var(--gold-200); font-size: 16px; }
+
+    .view { display: none; animation: view-in .32s ease; }
+    .view.active { display: block; }
+    @keyframes view-in {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: none; }
+    }
+    .page {
+      width: min(1180px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 48px 0 80px;
+    }
+    .eyebrow {
+      margin: 0 0 9px;
+      color: var(--teal-700);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, .serif { font-family: var(--serif); }
+    h1 {
+      max-width: 860px;
+      margin-bottom: 14px;
+      font-size: clamp(40px, 6vw, 72px);
+      line-height: .98;
+      letter-spacing: -.035em;
+    }
+    h2 {
+      margin-bottom: 10px;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -.025em;
+    }
+    h3 { margin-bottom: 8px; font-size: 18px; line-height: 1.25; }
+    .lede {
+      max-width: 720px;
+      color: var(--ink-2);
+      font-size: clamp(16px, 2vw, 19px);
+      line-height: 1.65;
+    }
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .section-heading p { max-width: 620px; margin: 0; color: var(--ink-2); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 10px 18px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      transition: transform .15s, box-shadow .2s, background .2s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { color: white; background: var(--coral-600); box-shadow: var(--shadow-sm); }
+    .btn-primary:hover { background: var(--coral-700); }
+    .btn-dark { color: white; background: var(--navy-900); }
+    .btn-light { color: var(--navy-900); background: white; border-color: var(--line); }
+    .btn-light:hover { background: var(--teal-100); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .text-link {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--teal-700);
+      cursor: pointer;
+      font-weight: 800;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* Dashboard */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 520px;
+      color: white;
+      background: var(--navy-950);
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 76% 42%, rgba(29,180,161,.20), transparent 26%),
+        radial-gradient(circle at 89% 21%, rgba(235,116,89,.16), transparent 19%),
+        linear-gradient(120deg, transparent 0 56%, rgba(255,255,255,.025) 56% 57%, transparent 57%);
+    }
+    .hero-inner {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+      align-items: center;
+      gap: 48px;
+      width: min(1180px, calc(100% - 36px));
+      min-height: 520px;
+      margin: 0 auto;
+      padding: 54px 0 64px;
+    }
+    .hero h1 { max-width: 650px; }
+    .hero h1 em { color: var(--teal-200); font-style: normal; }
+    .hero .lede { color: rgba(255,255,255,.69); }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+    .hero .btn-light { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.08); color: white; }
+    .hero .btn-light:hover { background: rgba(255,255,255,.14); }
+    .hero-visual {
+      position: relative;
+      min-height: 360px;
+      border: 1px solid var(--line-dark);
+      border-radius: 42% 58% 58% 42% / 42% 38% 62% 58%;
+      background: rgba(255,255,255,.025);
+    }
+    .hero-cell {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 48% 52% 55% 45% / 49% 45% 55% 51%;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 10px rgba(255,255,255,.025), 0 20px 45px rgba(0,0,0,.2);
+    }
+    .hero-cell::before {
+      content: "";
+      width: 32%;
+      height: 32%;
+      border: 2px solid currentColor;
+      border-radius: 44% 56% 51% 49%;
+      opacity: .45;
+    }
+    .hero-cell span { position: absolute; bottom: -29px; color: white; white-space: nowrap; }
+    .cell-t { left: 8%; top: 29%; width: 134px; height: 134px; color: var(--teal-200); }
+    .cell-apc { right: 7%; top: 23%; width: 174px; height: 174px; color: var(--coral-200); }
+    .hero-wire {
+      position: absolute;
+      left: 39%;
+      top: 41%;
+      width: 25%;
+      height: 2px;
+      background: var(--gold-200);
+      box-shadow: 0 0 13px var(--gold-500);
+      transform: rotate(-4deg);
+    }
+    .hero-wire::before,
+    .hero-wire::after {
+      content: "";
+      position: absolute;
+      top: -5px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--gold-200);
+    }
+    .hero-wire::before { left: -4px; }
+    .hero-wire::after { right: -4px; }
+    .wire-label {
+      position: absolute;
+      left: 40%;
+      top: 27%;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      background: var(--navy-900);
+      color: var(--gold-200);
+      font: 800 11px/1 var(--sans);
+      transform: rotate(2deg);
+    }
+    .marker-dot {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      border: 2px solid var(--navy-950);
+      border-radius: 50%;
+      background: var(--teal-200);
+      box-shadow: 0 0 0 1px var(--teal-200);
+    }
+    .marker-dot.d1 { left: 17%; top: 23%; }
+    .marker-dot.d2 { left: 28%; top: 60%; background: var(--gold-200); box-shadow: 0 0 0 1px var(--gold-200); }
+    .marker-dot.d3 { right: 20%; top: 18%; background: var(--coral-200); box-shadow: 0 0 0 1px var(--coral-200); }
+    .marker-dot.d4 { right: 10%; top: 58%; background: var(--plum-100); box-shadow: 0 0 0 1px var(--plum-100); }
+
+    .dashboard { margin-top: -26px; position: relative; z-index: 2; }
+    .mission-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 20px;
+      padding: 21px 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .mission-ring {
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: conic-gradient(var(--teal-600) var(--mission-angle, 0deg), #dfe5df 0);
+    }
+    .mission-ring::before {
+      content: attr(data-progress);
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--paper);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .mission-copy h3 { margin: 0; }
+    .mission-copy p { margin: 4px 0 0; color: var(--ink-2); font-size: 13px; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 13px;
+      margin: 22px 0 54px;
+    }
+    .stat {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,253,247,.74);
+    }
+    .stat strong {
+      display: block;
+      margin-bottom: 4px;
+      font-family: var(--serif);
+      font-size: 29px;
+      line-height: 1;
+    }
+    .stat span { color: var(--ink-2); font-size: 12px; font-weight: 700; }
+    .paper-grid {
+      display: grid;
+      grid-template-columns: 1.16fr .84fr;
+      gap: 18px;
+      margin-bottom: 60px;
+    }
+    .paper-card {
+      position: relative;
+      overflow: hidden;
+      padding: 30px;
+      border-radius: var(--radius-lg);
+      color: white;
+      background: var(--navy-900);
+    }
+    .paper-card h3 { max-width: 580px; font: 700 28px/1.15 var(--serif); }
+    .paper-card p { max-width: 650px; color: rgba(255,255,255,.7); }
+    .paper-numbers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 25px;
+    }
+    .paper-number {
+      padding: 13px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      background: rgba(255,255,255,.05);
+    }
+    .paper-number strong { display: block; color: var(--teal-200); font-size: 24px; }
+    .paper-number span { color: rgba(255,255,255,.58); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .principle-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 28px;
+      border: 1px solid #e3c773;
+      border-radius: var(--radius-lg);
+      background: var(--gold-100);
+    }
+    .principle-card blockquote {
+      margin: 0 0 24px;
+      font: 700 26px/1.28 var(--serif);
+    }
+    .principle-card small { color: #75591d; font-weight: 700; }
+    .learning-path {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .path-step {
+      position: relative;
+      min-height: 190px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .path-step:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--teal-500); }
+    .step-no {
+      display: grid;
+      place-items: center;
+      width: 31px;
+      height: 31px;
+      margin-bottom: 28px;
+      border-radius: 50%;
+      color: white;
+      background: var(--navy-900);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .path-step p { margin-bottom: 0; color: var(--ink-2); font-size: 13px; }
+
+    /* Atlas */
+    .page-header { margin-bottom: 38px; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .filters { display: flex; flex-wrap: wrap; gap: 7px; }
+    .filter-chip {
+      min-height: 44px;
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper);
+      cursor: pointer;
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .filter-chip.active { border-color: var(--navy-900); background: var(--navy-900); color: white; }
+    .search-box {
+      width: min(300px, 100%);
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    .network-stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      overflow: hidden;
+      min-height: 410px;
+      margin-bottom: 28px;
+      border-radius: var(--radius-lg);
+      color: white;
+      background: var(--navy-950);
+      box-shadow: var(--shadow);
+    }
+    .network-canvas { position: relative; min-height: 410px; overflow: hidden; }
+    .network-canvas::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px);
+      background-size: 25px 25px;
+      mask-image: linear-gradient(to right, black, transparent 96%);
+    }
+    .network-cell {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      background: rgba(255,255,255,.035);
+      box-shadow: inset 0 0 0 14px rgba(255,255,255,.018);
+    }
+    .network-cell::before {
+      content: "";
+      width: 31%;
+      height: 31%;
+      border: 2px solid currentColor;
+      border-radius: 48% 52% 38% 62%;
+      opacity: .4;
+    }
+    .network-cell.sender { left: 7%; top: 25%; width: 190px; height: 190px; color: var(--coral-200); }
+    .network-cell.receiver { right: 7%; top: 25%; width: 190px; height: 190px; color: var(--teal-200); }
+    .cell-label {
+      position: absolute;
+      bottom: -39px;
+      color: white;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .network-wire {
+      position: absolute;
+      left: calc(7% + 190px);
+      right: calc(7% + 190px);
+      top: 50%;
+      height: 2px;
+      background: var(--gold-200);
+      box-shadow: 0 0 16px var(--gold-500);
+    }
+    .network-wire::before,
+    .network-wire::after {
+      content: "";
+      position: absolute;
+      top: -6px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--gold-200);
+    }
+    .network-wire::before { left: -7px; }
+    .network-wire::after { right: -7px; }
+    .wire-pair {
+      position: absolute;
+      left: 50%;
+      top: calc(50% - 41px);
+      min-width: 160px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 9px;
+      background: var(--navy-800);
+      color: var(--gold-200);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 900;
+      transform: translateX(-50%);
+    }
+    .network-caption {
+      position: absolute;
+      left: 50%;
+      bottom: 25px;
+      color: rgba(255,255,255,.55);
+      font-size: 11px;
+      transform: translateX(-50%);
+    }
+    .network-detail {
+      position: relative;
+      z-index: 2;
+      padding: 26px;
+      border-left: 1px solid var(--line-dark);
+      background: rgba(255,255,255,.045);
+    }
+    .network-detail h3 { margin: 10px 0 10px; font: 700 26px/1.1 var(--serif); }
+    .network-detail p { color: rgba(255,255,255,.67); font-size: 13px; }
+    .network-detail .btn { margin-top: 8px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: var(--teal-100);
+      color: var(--teal-700);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .tag.paper { background: var(--gold-100); color: #765719; }
+    .tag.brake { background: var(--red-100); color: var(--red-700); }
+    .tag.adhesion { background: var(--blue-100); color: var(--blue-600); }
+    .tag.activation { background: var(--green-100); color: var(--green-700); }
+    .pathway-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .pathway-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 255px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .pathway-card:hover { transform: translateY(-3px); border-color: var(--teal-500); box-shadow: var(--shadow); }
+    .pathway-top { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+    .pathway-pair {
+      margin: 19px 0 12px;
+      font: 700 24px/1.1 var(--serif);
+    }
+    .pair-arrow { color: var(--coral-600); font-family: var(--sans); }
+    .pathway-card p { color: var(--ink-2); font-size: 13px; }
+    .pathway-card .card-action { margin-top: auto; text-align: left; }
+    .result-count { color: var(--ink-3); font-size: 12px; font-weight: 700; }
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 50px;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      text-align: center;
+      color: var(--ink-2);
+    }
+
+    /* Cell ID lab */
+    .lab-layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .cell-menu {
+      position: sticky;
+      top: 94px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+    .cell-menu-intro { padding: 19px; border-bottom: 1px solid var(--line); }
+    .cell-menu-intro strong { display: block; margin-bottom: 4px; }
+    .cell-menu-intro span { color: var(--ink-2); font-size: 12px; }
+    .cell-select {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      gap: 12px;
+      padding: 13px 18px;
+      border: 0;
+      border-bottom: 1px solid #eae7df;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+    .cell-select:last-child { border-bottom: 0; }
+    .cell-select:hover { background: var(--teal-100); }
+    .cell-select.active { background: var(--navy-900); color: white; }
+    .mini-cell {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      background: rgba(29,180,161,.11);
+    }
+    .cell-select span { font-size: 13px; font-weight: 800; }
+    .cell-sheet {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow-sm);
+    }
+    .cell-sheet-head {
+      display: grid;
+      grid-template-columns: 1fr 230px;
+      min-height: 230px;
+      padding: 32px;
+      color: white;
+      background: var(--navy-900);
+    }
+    .cell-sheet-head h2 { margin: 8px 0 10px; }
+    .cell-sheet-head p { max-width: 560px; color: rgba(255,255,255,.68); }
+    .cell-portrait { position: relative; display: grid; place-items: center; }
+    .big-cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 142px;
+      height: 142px;
+      border: 3px solid var(--teal-200);
+      border-radius: 47% 53% 49% 51%;
+      color: var(--teal-200);
+      box-shadow: inset 0 0 0 13px rgba(156,225,216,.05);
+    }
+    .big-cell::before {
+      content: "";
+      width: 46px;
+      height: 46px;
+      border: 2px solid currentColor;
+      border-radius: 40% 60% 50% 50%;
+      opacity: .6;
+    }
+    .portrait-marker {
+      position: absolute;
+      padding: 4px 7px;
+      border-radius: 5px;
+      color: var(--navy-950);
+      background: var(--gold-200);
+      font-size: 9px;
+      font-weight: 900;
+    }
+    .portrait-marker.m1 { top: 19px; left: 3px; }
+    .portrait-marker.m2 { top: 36px; right: -7px; }
+    .portrait-marker.m3 { bottom: 13px; left: 15px; }
+    .cell-sheet-body { padding: 28px 32px 34px; }
+    .rule-banner {
+      margin-bottom: 26px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--gold-500);
+      background: var(--gold-100);
+      color: #5f4b20;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .marker-section + .marker-section { margin-top: 28px; padding-top: 26px; border-top: 1px solid var(--line); }
+    .marker-section h3 { margin-bottom: 13px; }
+    .marker-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .marker-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border: 1px solid #beded8;
+      border-radius: 8px;
+      background: var(--teal-100);
+      color: #0b675f;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .marker-chip.neg { border-color: #edc5ca; background: var(--red-100); color: var(--red-700); }
+    .marker-chip.context { border-color: #dfd0ee; background: var(--plum-100); color: var(--plum-600); }
+    .subset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .subset {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #faf8f1;
+    }
+    .subset strong { display: block; margin-bottom: 6px; font-size: 13px; }
+    .subset span { color: var(--ink-2); font-size: 12px; }
+    .gating-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .gate {
+      padding: 7px 9px;
+      border-radius: 7px;
+      background: var(--navy-900);
+      color: white;
+    }
+    .gate-arrow { color: var(--coral-600); }
+
+    /* Phenotypes */
+    .phenotype-board {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      overflow: hidden;
+      min-height: 420px;
+      margin-bottom: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .phenotype-tabs { padding: 17px; color: white; background: var(--navy-900); }
+    .phenotype-tabs h3 { margin: 5px 8px 16px; font-family: var(--serif); font-size: 23px; }
+    .phenotype-tab {
+      display: block;
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px 11px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255,255,255,.65);
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .phenotype-tab:hover { color: white; background: rgba(255,255,255,.06); }
+    .phenotype-tab.active { color: var(--navy-950); background: var(--teal-200); }
+    .phenotype-detail { padding: 32px; }
+    .phenotype-detail h2 { margin: 8px 0 12px; }
+    .phenotype-summary { max-width: 730px; color: var(--ink-2); }
+    .signal-chain {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      margin: 25px 0;
+    }
+    .signal-step {
+      flex: 1;
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #faf8f1;
+    }
+    .signal-step small { display: block; color: var(--teal-700); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .signal-step strong { display: block; margin-top: 6px; font-size: 13px; }
+    .signal-arrow { align-self: center; color: var(--coral-600); font-weight: 900; }
+    .phenotype-columns {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+    .info-block { padding: 17px; border-radius: 12px; background: var(--teal-100); }
+    .info-block.caution { background: var(--coral-100); }
+    .info-block h3 { font-size: 14px; }
+    .info-block ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 12px; }
+    .info-block li + li { margin-top: 6px; }
+    .vocab-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .vocab-card {
+      min-height: 170px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+    .vocab-card dt { margin-bottom: 9px; font: 700 20px/1.1 var(--serif); }
+    .vocab-card dd { margin: 0; color: var(--ink-2); font-size: 12px; }
+    .say-it {
+      display: block;
+      margin-top: 13px;
+      color: var(--teal-700);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    /* Case circuits */
+    .case-layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .case-picker {
+      position: sticky;
+      top: 94px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+    .case-picker h3 {
+      padding: 5px 7px 10px;
+      font-family: var(--serif);
+      font-size: 21px;
+    }
+    .case-select {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 62px;
+      gap: 11px;
+      margin-top: 6px;
+      padding: 10px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+    .case-select:hover { background: var(--teal-100); }
+    .case-select.active { color: white; background: var(--navy-900); }
+    .case-icon {
+      display: grid;
+      place-items: center;
+      width: 37px;
+      height: 37px;
+      flex: 0 0 37px;
+      border-radius: 50%;
+      color: var(--navy-950);
+      background: var(--gold-200);
+      font-family: var(--serif);
+      font-size: 17px;
+      font-weight: 900;
+    }
+    .case-select-copy { min-width: 0; }
+    .case-select-copy strong,
+    .case-select-copy small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .case-select-copy strong { font-size: 12px; }
+    .case-select-copy small { margin-top: 2px; opacity: .64; font-size: 10px; }
+    .case-stage {
+      overflow: hidden;
+      min-height: 590px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      scroll-margin-top: 108px;
+    }
+    .case-head {
+      padding: 26px clamp(22px, 4vw, 38px);
+      color: white;
+      background:
+        radial-gradient(circle at 92% 10%, rgba(156,225,216,.18), transparent 30%),
+        var(--navy-900);
+    }
+    .case-head-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .case-head h2 { margin: 7px 0 7px; }
+    .case-head p { max-width: 660px; margin: 0; color: rgba(255,255,255,.67); font-size: 13px; }
+    .case-score {
+      flex: 0 0 auto;
+      padding: 8px 11px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      color: var(--teal-200);
+      background: rgba(255,255,255,.05);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .case-progress {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      margin-top: 21px;
+    }
+    .case-progress-step {
+      height: 6px;
+      border-radius: 99px;
+      background: rgba(255,255,255,.13);
+    }
+    .case-progress-step.done { background: var(--teal-200); }
+    .case-progress-step.current { background: var(--gold-200); }
+    .case-body { padding: clamp(24px, 5vw, 44px); }
+    .case-phase {
+      display: inline-flex;
+      margin-bottom: 13px;
+      color: var(--coral-700);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .case-scene {
+      max-width: 760px;
+      margin-bottom: 21px;
+      color: var(--ink-2);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .case-question {
+      max-width: 780px;
+      margin-bottom: 22px;
+      font: 700 clamp(23px, 3.3vw, 33px)/1.2 var(--serif);
+    }
+    .case-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .case-option {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+      min-height: 66px;
+      gap: 11px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+    .case-option:hover:not(:disabled) { border-color: var(--teal-500); transform: translateY(-2px); }
+    .case-option.correct { border-color: #74b092; background: var(--green-100); }
+    .case-option.wrong { border-color: #d88995; background: var(--red-100); }
+    .case-option:disabled { cursor: default; }
+    .case-option-letter {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 28px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .case-option span:last-child { font-size: 13px; font-weight: 750; }
+    .case-reveal {
+      margin-top: 20px;
+      padding: 18px;
+      border-left: 4px solid var(--teal-600);
+      border-radius: 0 12px 12px 0;
+      background: var(--teal-100);
+    }
+    .case-reveal.wrong { border-color: var(--coral-600); background: var(--coral-100); }
+    .case-reveal h3 { margin-bottom: 5px; font-size: 15px; }
+    .case-reveal p { margin-bottom: 0; color: var(--ink-2); font-size: 13px; }
+    .case-circuit {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 14px;
+    }
+    .case-node {
+      padding: 6px 8px;
+      border: 1px solid #badfd8;
+      border-radius: 7px;
+      color: #0b675f;
+      background: white;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .case-node-arrow { color: var(--coral-600); font-size: 12px; font-weight: 900; }
+    .case-next { margin-top: 18px; }
+    .case-complete { padding: clamp(28px, 6vw, 58px); text-align: center; }
+    .case-complete-orb {
+      display: grid;
+      place-items: center;
+      width: 112px;
+      height: 112px;
+      margin: 0 auto 24px;
+      border-radius: 50%;
+      color: white;
+      background: var(--teal-600);
+      box-shadow: inset 0 0 0 9px rgba(255,255,255,.16);
+      font: 700 31px/1 var(--serif);
+    }
+    .case-complete p { max-width: 590px; margin-right: auto; margin-left: auto; color: var(--ink-2); }
+    .case-summary-chain {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 24px 0;
+    }
+    .case-complete-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; }
+
+    /* Drill */
+    .drill-switcher {
+      display: flex;
+      gap: 7px;
+      width: fit-content;
+      margin-bottom: 25px;
+      padding: 5px;
+      border-radius: 999px;
+      background: #e4dfd4;
+    }
+    .drill-switch {
+      padding: 9px 15px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .drill-switch.active { color: white; background: var(--navy-900); }
+    .quiz-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 270px;
+      overflow: hidden;
+      min-height: 500px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .quiz-main { padding: clamp(25px, 5vw, 52px); }
+    .quiz-kicker { color: var(--teal-700); font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+    .quiz-question {
+      max-width: 720px;
+      margin: 18px 0 27px;
+      font: 700 clamp(24px, 4vw, 36px)/1.2 var(--serif);
+    }
+    .quiz-options { display: grid; gap: 10px; max-width: 760px; }
+    .quiz-option {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+    .quiz-option:hover:not(:disabled) { border-color: var(--teal-500); transform: translateX(3px); }
+    .quiz-option.correct { border-color: #74b092; background: var(--green-100); }
+    .quiz-option.wrong { border-color: #d88995; background: var(--red-100); }
+    .quiz-key {
+      display: grid;
+      place-items: center;
+      width: 27px;
+      height: 27px;
+      flex: 0 0 27px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .feedback {
+      margin-top: 19px;
+      padding: 15px 17px;
+      border-left: 4px solid var(--teal-600);
+      background: var(--teal-100);
+      font-size: 13px;
+    }
+    .feedback.wrong { border-color: var(--coral-600); background: var(--coral-100); }
+    .feedback strong { display: block; margin-bottom: 4px; }
+    .quiz-next { margin-top: 18px; }
+    .quiz-rail { padding: 26px; color: white; background: var(--navy-900); }
+    .quiz-rail h3 { font-family: var(--serif); font-size: 23px; }
+    .quiz-progress {
+      display: flex;
+      gap: 6px;
+      margin: 18px 0 30px;
+    }
+    .progress-dot { height: 7px; flex: 1; border-radius: 99px; background: rgba(255,255,255,.14); }
+    .progress-dot.done { background: var(--teal-200); }
+    .progress-dot.current { background: var(--gold-200); }
+    .score-big { display: block; color: var(--teal-200); font: 700 46px/1 var(--serif); }
+    .score-label { color: rgba(255,255,255,.55); font-size: 11px; }
+    .quiz-tip {
+      margin-top: 35px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.62);
+      font-size: 11px;
+    }
+    .quiz-results { text-align: center; }
+    .result-orb {
+      display: grid;
+      place-items: center;
+      width: 120px;
+      height: 120px;
+      margin: 10px auto 25px;
+      border-radius: 50%;
+      color: white;
+      background: var(--teal-600);
+      font: 700 36px/1 var(--serif);
+      box-shadow: inset 0 0 0 10px rgba(255,255,255,.13);
+    }
+    .quiz-results p { max-width: 480px; margin-left: auto; margin-right: auto; color: var(--ink-2); }
+    .results-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+
+    .flash-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; }
+    .deck-list {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+    .deck-list h3 { padding: 6px 7px 12px; }
+    .deck-btn {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .deck-btn:hover { background: var(--teal-100); }
+    .deck-btn.active { color: white; background: var(--navy-900); }
+    .deck-count { opacity: .65; }
+    .flash-area { min-width: 0; }
+    .flash-meta { display: flex; justify-content: space-between; margin-bottom: 10px; color: var(--ink-2); font-size: 11px; font-weight: 800; }
+    .flashcard {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 350px;
+      padding: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      text-align: center;
+      perspective: 1000px;
+    }
+    .flashcard::after {
+      content: "Click to reveal";
+      position: absolute;
+      bottom: 18px;
+      color: var(--ink-3);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .flashcard.revealed::after { content: "Answer"; color: var(--teal-700); }
+    .flash-prompt { max-width: 650px; font: 700 clamp(26px, 4vw, 39px)/1.2 var(--serif); }
+    .flash-answer { max-width: 650px; color: var(--ink-2); font-size: 18px; }
+    .flash-answer strong { color: var(--teal-700); }
+    .flash-actions { display: flex; justify-content: center; gap: 9px; margin-top: 16px; }
+    .rate-btn {
+      min-width: 115px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .rate-btn.again { color: var(--coral-700); }
+    .rate-btn.good { color: var(--green-700); }
+
+    /* Modal, toast, footer */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(7,21,29,.72);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .modal {
+      overflow: auto;
+      width: min(720px, 100%);
+      max-height: min(820px, calc(100vh - 40px));
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-head { position: relative; padding: 30px 34px 25px; color: white; background: var(--navy-900); }
+    .modal-head h2 { margin: 11px 45px 8px 0; }
+    .modal-head p { margin-bottom: 0; color: rgba(255,255,255,.64); }
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 50%;
+      background: rgba(255,255,255,.06);
+      color: white;
+      cursor: pointer;
+      font-size: 19px;
+    }
+    .modal-body { padding: 28px 34px 34px; }
+    .modal-pair {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 26px;
+      text-align: center;
+    }
+    .protein-tile { padding: 18px 12px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+    .protein-tile strong { display: block; font: 700 25px/1.1 var(--serif); }
+    .protein-tile small { color: var(--ink-2); }
+    .modal-arrow { color: var(--coral-600); font-weight: 900; }
+    .detail-list { display: grid; gap: 14px; }
+    .detail-item { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .detail-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .detail-item strong { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    .detail-item p { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .lab-line {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 11px;
+      background: var(--gold-100);
+      color: #5e4a1d;
+      font-size: 13px;
+    }
+    .lab-line strong { display: block; margin-bottom: 4px; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 25px;
+      z-index: 100;
+      padding: 11px 16px;
+      border-radius: 999px;
+      color: white;
+      background: var(--navy-950);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      font-weight: 800;
+      transform: translate(-50%, 20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .site-footer {
+      padding:
+        32px
+        calc(18px + env(safe-area-inset-right, 0px))
+        calc(32px + env(safe-area-inset-bottom, 0px))
+        calc(18px + env(safe-area-inset-left, 0px));
+      color: rgba(255,255,255,.6);
+      background: var(--navy-950);
+      text-align: center;
+      font-size: 11px;
+    }
+    .site-footer p { max-width: 820px; margin: 0 auto 9px; }
+    .site-footer a { color: var(--teal-200); }
+
+    @media (max-width: 980px) {
+      .brand-sub, .streak-pill { display: none; }
+      .hero-inner { grid-template-columns: 1fr; }
+      .hero-visual { display: none; }
+      .hero { min-height: auto; }
+      .hero-inner { min-height: auto; padding: 70px 0 80px; }
+      .paper-grid, .network-stage, .quiz-shell { grid-template-columns: 1fr; }
+      .network-detail { border-left: 0; border-top: 1px solid var(--line-dark); }
+      .pathway-grid { grid-template-columns: repeat(2, 1fr); }
+      .learning-path { grid-template-columns: repeat(2, 1fr); }
+      .lab-layout { grid-template-columns: 230px minmax(0, 1fr); }
+      .cell-sheet-head { grid-template-columns: 1fr; }
+      .cell-portrait { display: none; }
+      .phenotype-board { grid-template-columns: 210px minmax(0, 1fr); }
+      .quiz-rail { display: none; }
+      .vocab-grid { grid-template-columns: repeat(2, 1fr); }
+      .case-layout { grid-template-columns: 220px minmax(0, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding:
+          calc(10px + env(safe-area-inset-top, 0px))
+          calc(14px + env(safe-area-inset-right, 0px))
+          10px
+          calc(14px + env(safe-area-inset-left, 0px));
+      }
+      .brand { margin: 4px 0; }
+      .nav-tabs {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .nav-tabs::-webkit-scrollbar { display: none; }
+      .nav-tab { flex: 0 0 auto; }
+      .page { width: min(100% - 26px, 1180px); padding-top: 36px; }
+      .mission-card { grid-template-columns: auto 1fr; }
+      .mission-card .btn { grid-column: 1 / -1; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .paper-grid, .pathway-grid, .learning-path, .vocab-grid { grid-template-columns: 1fr; }
+      .paper-numbers { grid-template-columns: 1fr; }
+      .toolbar { align-items: stretch; flex-direction: column; }
+      .search-box { width: 100%; }
+      .network-canvas { min-height: 340px; }
+      .network-cell.sender { left: 5%; width: 120px; height: 120px; }
+      .network-cell.receiver { right: 5%; width: 120px; height: 120px; }
+      .network-wire { left: calc(5% + 120px); right: calc(5% + 120px); }
+      .network-caption { display: none; }
+      .wire-pair { min-width: 130px; font-size: 10px; }
+      .lab-layout { display: block; }
+      .cell-menu {
+        position: static;
+        display: flex;
+        overflow-x: auto;
+        margin-bottom: 14px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .cell-menu::-webkit-scrollbar { display: none; }
+      .cell-menu-intro { display: none; }
+      .cell-select { flex: 0 0 auto; width: auto; border-bottom: 0; }
+      .mini-cell { display: none; }
+      .subset-grid { grid-template-columns: 1fr; }
+      .cell-sheet-body, .cell-sheet-head { padding: 24px 20px; }
+      .phenotype-board { display: block; }
+      .phenotype-tabs {
+        display: flex;
+        overflow-x: auto;
+        padding: 10px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .phenotype-tabs::-webkit-scrollbar { display: none; }
+      .phenotype-tabs h3 { display: none; }
+      .phenotype-tab { flex: 0 0 auto; width: auto; white-space: nowrap; }
+      .phenotype-tab,
+      .deck-btn,
+      .drill-switch,
+      .rate-btn { min-height: 44px; }
+      .pathway-card .text-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+      }
+      .phenotype-detail { padding: 25px 20px; }
+      .signal-chain { flex-direction: column; }
+      .signal-arrow { transform: rotate(90deg); }
+      .phenotype-columns { grid-template-columns: 1fr; }
+      .case-layout { display: block; }
+      .case-picker {
+        position: static;
+        display: flex;
+        overflow-x: auto;
+        gap: 7px;
+        margin-bottom: 14px;
+        padding: 8px;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+      }
+      .case-picker::-webkit-scrollbar { display: none; }
+      .case-picker h3 { display: none; }
+      .case-select {
+        flex: 0 0 174px;
+        min-height: 58px;
+        margin: 0;
+        scroll-snap-align: start;
+      }
+      .case-icon { width: 34px; height: 34px; flex-basis: 34px; }
+      .case-stage { min-height: 0; }
+      .case-head { padding: 22px 19px; }
+      .case-head-row { display: block; }
+      .case-score { display: inline-flex; margin-top: 12px; }
+      .case-body { padding: 25px 18px 28px; }
+      .case-options { grid-template-columns: 1fr; }
+      .case-option { min-height: 62px; }
+      .case-complete { padding: 36px 19px; }
+      .flash-shell { grid-template-columns: 1fr; }
+      .deck-list {
+        display: flex;
+        overflow-x: auto;
+        align-items: center;
+        -webkit-overflow-scrolling: touch;
+      }
+      .deck-list::-webkit-scrollbar { display: none; }
+      .deck-list h3 { display: none; }
+      .deck-btn { flex: 0 0 auto; width: auto; gap: 12px; }
+      .flashcard { min-height: 330px; padding: 32px 22px; }
+      .modal-body, .modal-head { padding-left: 21px; padding-right: 21px; }
+      .modal-pair { gap: 8px; }
+      .protein-tile strong { font-size: 19px; }
+      .toast { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+      .modal-backdrop {
+        padding:
+          calc(14px + env(safe-area-inset-top, 0px))
+          calc(14px + env(safe-area-inset-right, 0px))
+          calc(14px + env(safe-area-inset-bottom, 0px))
+          calc(14px + env(safe-area-inset-left, 0px));
+      }
+      .modal { max-height: calc(100dvh - 28px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+      input, select, textarea { font-size: 16px; }
+    }
+
+    @media (max-width: 390px) {
+      h1 { font-size: 39px; }
+      .page { width: min(100% - 22px, 1180px); }
+      .brand-name { font-size: 19px; }
+      .stat-grid { gap: 8px; }
+      .stat { padding: 14px; }
+      .network-cell.sender,
+      .network-cell.receiver { width: 104px; height: 104px; }
+      .network-wire { left: calc(5% + 104px); right: calc(5% + 104px); }
+      .wire-pair { min-width: 112px; max-width: 130px; padding: 7px; }
+      .cell-label { max-width: 116px; overflow: hidden; text-overflow: ellipsis; }
+      .modal-pair { grid-template-columns: 1fr; }
+      .modal-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-view="dashboard" aria-label="Immune Circuit home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text">
+          <span class="brand-name">Immune Circuit</span>
+          <span class="brand-sub">Signal · Identify · Recall</span>
+        </span>
+      </button>
+
+      <nav class="nav-tabs" aria-label="Primary navigation">
+        <button class="nav-tab active" data-view="dashboard">Today</button>
+        <button class="nav-tab" data-view="atlas">Wiring atlas</button>
+        <button class="nav-tab" data-view="cells">Cell ID lab</button>
+        <button class="nav-tab" data-view="phenotypes">Phenotypes</button>
+        <button class="nav-tab" data-view="cases">Cases</button>
+        <button class="nav-tab" data-view="drill">Drill</button>
+      </nav>
+
+      <div class="streak-pill" title="Days with completed quiz sessions">
+        <span class="streak-flame" aria-hidden="true">◆</span>
+        <span id="streakText">0 day streak</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="view active" id="view-dashboard" aria-labelledby="dashboard-title">
+        <div class="hero">
+          <div class="hero-inner">
+            <div>
+              <p class="eyebrow" style="color:var(--teal-200)">Your immune system is a social network</p>
+              <h1 id="dashboard-title">Learn who talks to whom—<em>and what happens next.</em></h1>
+              <p class="lede">Build the vocabulary and fast recall to follow an immunology conversation: cells, surface markers, receptor–ligand pairs, and the phenotypes they create.</p>
+              <div class="hero-actions">
+                <button class="btn btn-primary" data-view="drill">Start a 5-question mission <span aria-hidden="true">→</span></button>
+                <button class="btn btn-light" data-view="atlas">Explore the wiring map</button>
+              </div>
+            </div>
+            <div class="hero-visual" aria-label="Stylized T cell and antigen-presenting cell connected by a receptor-ligand pair">
+              <div class="hero-cell cell-t"><span>T cell</span></div>
+              <div class="hero-cell cell-apc"><span>APC</span></div>
+              <div class="hero-wire"></div>
+              <div class="wire-label">receptor ↔ ligand</div>
+              <i class="marker-dot d1"></i><i class="marker-dot d2"></i>
+              <i class="marker-dot d3"></i><i class="marker-dot d4"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="page dashboard">
+          <div class="mission-card">
+            <div class="mission-ring" id="missionRing" data-progress="0/5"></div>
+            <div class="mission-copy">
+              <h3>Today’s recall mission</h3>
+              <p id="missionCopy">Five mixed questions: pathways, markers, phenotypes, and paper findings.</p>
+            </div>
+            <button class="btn btn-dark" data-view="drill" id="missionButton">Begin mission</button>
+          </div>
+
+          <div class="stat-grid" aria-label="Learning progress">
+            <div class="stat"><strong id="statSessions">0</strong><span>quiz missions finished</span></div>
+            <div class="stat"><strong id="statAccuracy">—</strong><span>all-time accuracy</span></div>
+            <div class="stat"><strong id="statCards">0</strong><span>flashcards reviewed</span></div>
+            <div class="stat"><strong id="statCases">0/4</strong><span>case circuits completed</span></div>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Paper → mental model</p>
+              <h2>The big idea</h2>
+            </div>
+          </div>
+          <div class="paper-grid">
+            <article class="paper-card">
+              <span class="tag paper">From the 2022 Nature paper</span>
+              <h3>Immune cells coordinate through a physical surface-protein network.</h3>
+              <p>Shilts and colleagues systematically screened leukocyte surface proteins, measured direct binding, combined interactions with cell-expression data, and tested how selected proteins changed activation and cell contacts.</p>
+              <div class="paper-numbers">
+                <div class="paper-number"><strong>630</strong><span>proteins / complexes</span></div>
+                <div class="paper-number"><strong>28</strong><span>top novel interactions</span></div>
+                <div class="paper-number"><strong>57%</strong><span>unique binding pairs</span></div>
+              </div>
+            </article>
+            <aside class="principle-card">
+              <blockquote>Expression says a conversation is possible. Binding says the proteins can meet. Phenotype asks what the meeting does.</blockquote>
+              <small>Keep these evidence layers separate and you will sound instantly more precise.</small>
+            </aside>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">A five-stop learning loop</p>
+              <h2>Build the circuit in layers</h2>
+            </div>
+          </div>
+          <div class="learning-path">
+            <button class="path-step" data-view="atlas">
+              <span class="step-no">1</span>
+              <h3>Pair the plugs</h3>
+              <p>Learn receptor ↔ ligand pairs as two-sided handshakes, not isolated acronyms.</p>
+            </button>
+            <button class="path-step" data-view="cells">
+              <span class="step-no">2</span>
+              <h3>Name the cells</h3>
+              <p>Identify populations using marker combinations and gating logic.</p>
+            </button>
+            <button class="path-step" data-view="phenotypes">
+              <span class="step-no">3</span>
+              <h3>Predict the state</h3>
+              <p>Connect engagement to activation, inhibition, adhesion, or differentiation.</p>
+            </button>
+            <button class="path-step" data-view="cases">
+              <span class="step-no">4</span>
+              <h3>Run the case</h3>
+              <p>Reason through vaccine, viral, tumour, and allergy circuits one decision at a time.</p>
+            </button>
+            <button class="path-step" data-view="drill">
+              <span class="step-no">5</span>
+              <h3>Retrieve, don’t reread</h3>
+              <p>Use short quizzes and flashcards to make recall conversationally fast.</p>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-atlas" aria-labelledby="atlas-title">
+        <div class="page">
+          <header class="page-header">
+            <p class="eyebrow">Interactive wiring atlas</p>
+            <h1 id="atlas-title">Learn the handshakes.</h1>
+            <p class="lede">A pathway starts with a physical pair. Select one to see the cells, the directional consequence, and the sentence you would actually use in conversation.</p>
+          </header>
+
+          <div class="toolbar">
+            <div class="filters" id="atlasFilters" aria-label="Filter pathways">
+              <button class="filter-chip active" data-filter="all">All circuits</button>
+              <button class="filter-chip" data-filter="activation">Activation</button>
+              <button class="filter-chip" data-filter="brake">Brakes</button>
+              <button class="filter-chip" data-filter="adhesion">Adhesion</button>
+              <button class="filter-chip" data-filter="paper">Paper discoveries</button>
+            </div>
+            <input class="search-box" id="pathwaySearch" type="search" placeholder="Search CD28, NK, VISTA…" aria-label="Search pathways" />
+          </div>
+
+          <section class="network-stage" aria-label="Selected receptor-ligand interaction">
+            <div class="network-canvas">
+              <div class="network-cell sender"><span class="cell-label" id="networkSender">Antigen-presenting cell</span></div>
+              <div class="network-wire"></div>
+              <div class="wire-pair" id="networkPair">CD80 / CD86 ↔ CD28</div>
+              <div class="network-cell receiver"><span class="cell-label" id="networkReceiver">Naïve T cell</span></div>
+              <span class="network-caption">A physical interaction at two cell surfaces</span>
+            </div>
+            <aside class="network-detail">
+              <span class="tag activation" id="networkTag">Activation</span>
+              <h3 id="networkTitle">Costimulation</h3>
+              <p id="networkSummary">Signal 2 licenses productive T-cell activation after antigen recognition.</p>
+              <button class="btn btn-light" id="networkOpen">Open circuit notes</button>
+            </aside>
+          </section>
+
+          <div class="section-heading">
+            <p class="result-count" id="pathwayCount">Showing all circuits</p>
+          </div>
+          <div class="pathway-grid" id="pathwayGrid"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-cells" aria-labelledby="cells-title">
+        <div class="page">
+          <header class="page-header">
+            <p class="eyebrow">Cell ID lab</p>
+            <h1 id="cells-title">Markers are coordinates, not name tags.</h1>
+            <p class="lede">Immunologists identify a cell from combinations: inclusion markers, exclusion markers, relative intensity, tissue, and experimental context.</p>
+          </header>
+          <div class="lab-layout">
+            <aside class="cell-menu" id="cellMenu">
+              <div class="cell-menu-intro">
+                <strong>Choose a population</strong>
+                <span>Then read its marker logic.</span>
+              </div>
+            </aside>
+            <article class="cell-sheet" id="cellSheet"></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-phenotypes" aria-labelledby="phenotypes-title">
+        <div class="page">
+          <header class="page-header">
+            <p class="eyebrow">Phenotype decoder</p>
+            <h1 id="phenotypes-title">What state is the cell in?</h1>
+            <p class="lede">A phenotype is an observed state—not a single marker and not automatically a mechanism. Learn what each label claims, what supports it, and what can be confused with it.</p>
+          </header>
+
+          <section class="phenotype-board">
+            <aside class="phenotype-tabs" id="phenotypeTabs"><h3>Choose a state</h3></aside>
+            <div class="phenotype-detail" id="phenotypeDetail"></div>
+          </section>
+
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Sound precise in the room</p>
+              <h2>Conversation vocabulary</h2>
+            </div>
+          </div>
+          <dl class="vocab-grid" id="vocabGrid"></dl>
+        </div>
+      </section>
+
+      <section class="view" id="view-cases" aria-labelledby="cases-title">
+        <div class="page">
+          <header class="page-header">
+            <p class="eyebrow">Case circuits</p>
+            <h1 id="cases-title">Reason through the response.</h1>
+            <p class="lede">Follow a biological situation across cells and time. At each handoff, choose the interaction or readout that best explains what happens next.</p>
+          </header>
+
+          <div class="case-layout">
+            <aside class="case-picker" id="casePicker" aria-label="Choose an immune case">
+              <h3>Choose a case</h3>
+            </aside>
+            <article class="case-stage" id="caseStage" aria-live="polite"></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-drill" aria-labelledby="drill-title">
+        <div class="page">
+          <header class="page-header">
+            <p class="eyebrow">Retrieval gym</p>
+            <h1 id="drill-title">Make recall automatic.</h1>
+            <p class="lede">Short, mixed practice beats passive rereading. Answer from memory; explanations restore the full circuit after every choice.</p>
+          </header>
+
+          <div class="drill-switcher" role="tablist" aria-label="Study mode">
+            <button class="drill-switch active" data-mode="quiz" role="tab">Quiz mission</button>
+            <button class="drill-switch" data-mode="flash" role="tab">Recall cards</button>
+          </div>
+
+          <section id="quizMode">
+            <div class="quiz-shell" id="quizShell"></div>
+          </section>
+
+          <section id="flashMode" class="hidden">
+            <div class="flash-shell">
+              <aside class="deck-list" id="deckList"></aside>
+              <div class="flash-area" id="flashArea"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Grounded in Shilts et al., <a href="https://doi.org/10.1038/s41586-022-05028-x" target="_blank" rel="noopener">“A physical wiring diagram for the human immune system,” Nature (2022)</a>, including its <a href="https://doi.org/10.1038/s41586-024-07928-6" target="_blank" rel="noopener">2024 author correction</a>. Canonical pathway context is included to make the paper conversationally useful.</p>
+      <p>Educational study guide—not medical advice. Marker panels and phenotypes vary by tissue, species, disease, assay, and laboratory.</p>
+    </footer>
+  </div>
+
+  <div class="modal-backdrop hidden" id="pathwayModal" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-head">
+        <button class="modal-close" id="modalClose" aria-label="Close pathway notes">×</button>
+        <span class="tag" id="modalTag">Pathway</span>
+        <h2 id="modalTitle">Pathway</h2>
+        <p id="modalSubtitle"></p>
+      </header>
+      <div class="modal-body" id="modalBody"></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const PATHWAYS = [
+        {
+          id: "tcr",
+          title: "Antigen recognition",
+          a: "Peptide–MHC I / II",
+          b: "TCR–CD3 + CD8 / CD4",
+          aRole: "antigen display platform",
+          bRole: "clonotypic receptor and signalling complex",
+          sender: "APC / infected target",
+          receiver: "CD4 or CD8 T cell",
+          category: "activation",
+          summary: "The TCR reads peptide displayed by MHC, creating antigen-specific signal 1.",
+          consequence: "TCR–CD3 signalling initiates a kinase cascade through Lck and ZAP-70 toward calcium, NFAT, NF-κB, and AP-1 programs. CD4 supports MHC-II recognition; CD8 supports MHC-I recognition.",
+          cells: "Professional APCs present peptide–MHC II to CD4 T cells. Nearly all nucleated cells can present peptide–MHC I to CD8 T cells.",
+          caveat: "Binding gives specificity, not necessarily productive activation. Costimulation, cytokines, antigen dose, dwell time, and prior cell state determine the outcome.",
+          say: "“I’d start with the TCR–peptide–MHC interaction as signal 1, then ask what costimulatory and cytokine context shaped the response.”",
+          memory: "MHC shows the peptide; TCR reads the display."
+        },
+        {
+          id: "costimulation",
+          title: "T-cell costimulation",
+          a: "CD80 / CD86",
+          b: "CD28",
+          aRole: "ligands on activated APCs",
+          bRole: "costimulatory receptor on T cells",
+          sender: "Activated APC",
+          receiver: "Naïve T cell",
+          category: "activation",
+          summary: "Signal 2 licenses productive T-cell activation after antigen recognition.",
+          consequence: "With TCR signal 1, CD28 promotes survival, IL-2 production, proliferation, and differentiation. Antigen recognition without adequate costimulation can favor anergy or tolerance.",
+          cells: "Dendritic cells, macrophages, and B cells can express CD80/CD86; CD28 is constitutive on most naïve human T cells.",
+          caveat: "CD28 is not the antigen receptor. It changes the interpretation of TCR engagement rather than supplying antigen specificity.",
+          say: "“I’d separate TCR specificity from CD28 costimulation—signal 1 identifies the target, while signal 2 licenses the response.”",
+          memory: "28 turns the T cell ON at the APC gate."
+        },
+        {
+          id: "cd40",
+          title: "T-cell help for APCs and B cells",
+          a: "CD40L (CD154)",
+          b: "CD40",
+          aRole: "induced ligand on activated CD4 T cells",
+          bRole: "TNF-receptor-family member on B cells and APCs",
+          sender: "Activated helper T cell",
+          receiver: "B cell / dendritic cell",
+          category: "activation",
+          summary: "CD40L–CD40 lets activated helper T cells license APCs and deliver essential B-cell help.",
+          consequence: "In B cells, CD40 signalling supports germinal-centre responses, class-switch recombination, affinity maturation, and memory. In dendritic cells, it reinforces activation and T-cell-priming capacity.",
+          cells: "CD40L rises transiently on activated CD4 T cells; CD40 is prominent on B cells, dendritic cells, macrophages, and other APCs.",
+          caveat: "CD40 signalling collaborates with BCR recognition and cytokines. It does not determine antibody isotype or specificity by itself.",
+          say: "“CD40L–CD40 is the contact-dependent core of T-cell help, while cytokines and BCR input shape the resulting B-cell program.”",
+          memory: "CD4 help travels through CD40."
+        },
+        {
+          id: "ctla4",
+          title: "Checkpoint competition",
+          a: "CD80 / CD86",
+          b: "CTLA-4 (CD152)",
+          aRole: "shared ligands on APCs",
+          bRole: "inhibitory receptor on activated T cells and Tregs",
+          sender: "Antigen-presenting cell",
+          receiver: "Activated T cell / Treg",
+          category: "brake",
+          summary: "CTLA-4 outcompetes CD28 for shared ligands and restrains early T-cell activation.",
+          consequence: "High-affinity ligand capture limits CD28 costimulation. Tregs also use CTLA-4 to reduce costimulatory capacity in their environment.",
+          cells: "Induced on conventional T cells after activation; constitutively prominent in regulatory T cells.",
+          caveat: "CTLA-4 mainly regulates the priming phase in lymphoid settings; it is not interchangeable with the PD-1 axis.",
+          say: "“CTLA-4 and CD28 read the same B7 ligands but push the activation threshold in opposite directions.”",
+          memory: "CTLA-4 cuts the costimulation line."
+        },
+        {
+          id: "pd1",
+          title: "Peripheral checkpoint",
+          a: "PD-L1 / PD-L2",
+          b: "PD-1 (CD279)",
+          aRole: "ligands on APCs, tissues, and many tumours",
+          bRole: "inhibitory receptor on activated lymphocytes",
+          sender: "APC / tissue / tumour",
+          receiver: "Activated T cell",
+          category: "brake",
+          summary: "PD-1 engagement dampens receptor-proximal signalling during ongoing responses.",
+          consequence: "Reduces T-cell activation, proliferation, cytokine production, and survival signals. Persistent antigen can sustain PD-1 alongside broader dysfunctional programs.",
+          cells: "PD-1 appears after activation on T cells and can occur on B and NK cells; PD-L1 is inducible in many immune and non-immune cells.",
+          caveat: "PD-1 positivity alone does not prove exhaustion; recently activated functional T cells can also express it.",
+          say: "“I’d treat PD-1 as an activation-history and inhibitory-receptor marker, not as a one-marker definition of exhaustion.”",
+          memory: "PD-1 applies the peripheral brake."
+        },
+        {
+          id: "lfa1",
+          title: "Synapse adhesion",
+          a: "ICAM-1 (CD54)",
+          b: "LFA-1 (CD11a/CD18)",
+          aRole: "adhesion ligand on APCs and inflamed tissues",
+          bRole: "integrin on leukocytes",
+          sender: "APC / endothelium",
+          receiver: "Leukocyte",
+          category: "adhesion",
+          summary: "LFA-1–ICAM-1 stabilizes immune contacts and supports migration through tissue.",
+          consequence: "Inside-out signalling raises LFA-1 affinity, strengthening adhesion, immunological synapses, and transendothelial migration.",
+          cells: "LFA-1 is broadly leukocytic; ICAM-1 is inducible on APCs, endothelium, epithelium, and other cells.",
+          caveat: "Adhesion is regulated by receptor conformation and clustering, so expression level alone does not equal adhesive strength.",
+          say: "“For integrins I’d ask about activation state as well as abundance—high-affinity LFA-1 is what stabilizes the contact.”",
+          memory: "LFA-1 latches onto ICAM-1."
+        },
+        {
+          id: "cd2",
+          title: "Lymphocyte contact",
+          a: "CD58 (LFA-3)",
+          b: "CD2",
+          aRole: "adhesion / costimulatory ligand",
+          bRole: "receptor on T and NK cells",
+          sender: "APC or target cell",
+          receiver: "T cell / NK cell",
+          category: "adhesion",
+          summary: "CD2–CD58 supports close T-cell and NK-cell contacts and can augment activation.",
+          consequence: "Facilitates adhesion and signalling at cell contacts. In the Shilts et al. protein-perturbation assay, soluble CD58 facilitated NK activation and shifted contacts away from T-cell populations.",
+          cells: "CD2 is characteristic of T and NK cells; CD58 is broadly expressed on hematopoietic and many non-hematopoietic cells.",
+          caveat: "A soluble ectodomain perturbation can compete with or cluster receptors; its phenotype does not necessarily mimic membrane-bound contact.",
+          say: "“CD2–CD58 is both physical glue and signalling context; the paper also saw CD58-dependent rewiring of lymphocyte contacts.”",
+          memory: "CD2 finds CD58 to close the gap."
+        },
+        {
+          id: "sirpa",
+          title: "Phagocytosis checkpoint",
+          a: "CD47",
+          b: "SIRPα (CD172a)",
+          aRole: "widely expressed self marker",
+          bRole: "inhibitory receptor on myeloid cells",
+          sender: "Potential target cell",
+          receiver: "Macrophage / monocyte",
+          category: "brake",
+          summary: "CD47–SIRPα delivers a “do not eat me” signal to phagocytes.",
+          consequence: "SIRPα inhibitory signalling counterbalances pro-phagocytic cues. The paper’s perturbation assay also observed increased monocyte contacts after adding SIRPα ectodomain.",
+          cells: "CD47 is widespread; SIRPα is enriched in myeloid cells including monocytes, macrophages, and some dendritic cells.",
+          caveat: "Blocking this axis usually needs an accompanying pro-phagocytic signal; removing a brake is not the same as supplying an accelerator.",
+          say: "“CD47–SIRPα sets a phagocytic threshold by opposing eat-me cues rather than acting as a binary identity test.”",
+          memory: "CD47 shows SIRPα a self passport."
+        },
+        {
+          id: "nkg2d",
+          title: "Stress surveillance",
+          a: "MICA / MICB / ULBPs",
+          b: "NKG2D (CD314)",
+          aRole: "stress-induced ligands",
+          bRole: "activating receptor",
+          sender: "Stressed / transformed cell",
+          receiver: "NK cell / cytotoxic T cell",
+          category: "activation",
+          summary: "NKG2D detects induced-self stress ligands and promotes cytotoxic responses.",
+          consequence: "Engagement contributes an activating signal to NK cells and costimulation to some T-cell populations, tipping the balance toward killing.",
+          cells: "NKG2D is prominent on NK cells and present on CD8 T cells and subsets of other lymphocytes.",
+          caveat: "NK decisions integrate several activating and inhibitory receptors; one ligand–receptor pair rarely determines killing alone.",
+          say: "“NK phenotype reflects a balance-of-signals calculation—NKG2D is an important activating input, not a lone trigger.”",
+          memory: "NKG2D notices danger displayed."
+        },
+        {
+          id: "vista",
+          title: "A newly wired checkpoint",
+          a: "HLA-E / HLA-F",
+          b: "VISTA (VSIR)",
+          aRole: "non-classical MHC-I ligands identified in the paper",
+          bRole: "immune checkpoint receptor VISTA",
+          sender: "HLA-E/F-expressing cell",
+          receiver: "VISTA-expressing leukocyte",
+          category: "paper",
+          summary: "The paper identified HLA-E and HLA-F as endogenous non-tumour binding partners for VISTA.",
+          consequence: "The authors raise the hypothesis that these interactions may help regulate adaptive immune quiescence; the binding is established, while the full physiological mechanism remains to be resolved.",
+          cells: "VISTA is enriched in myeloid cells and can occur on T cells; HLA-E/F are non-classical MHC class I molecules with context-dependent expression.",
+          caveat: "VISTA is VSIR; CD112R is PVRIG, a different checkpoint. Do not treat proposed quiescence as a fully settled downstream mechanism.",
+          say: "“Shilts et al. de-orphaned VISTA with HLA-E and HLA-F; the quiescence role is a compelling hypothesis, not yet the final mechanistic word.”",
+          memory: "VISTA now has an HLA-E/F view."
+        },
+        {
+          id: "jag1vasn",
+          title: "A lymph-node border",
+          a: "JAG1",
+          b: "VASN (vasorin)",
+          aRole: "Jagged family ligand",
+          bRole: "new binding receptor identified in the paper",
+          sender: "JAG1-rich lymph-node region",
+          receiver: "VASN-rich lymph-node region",
+          category: "paper",
+          summary: "The paper discovered JAG1–VASN binding and found the partners in bordering lymph-node regions.",
+          consequence: "Biochemical binding plus spatial proximity makes an in-vivo interaction plausible. Its immune functional output needs dedicated mechanistic study.",
+          cells: "The paper observed JAG1 and VASN expression zoned across the corona and germinal-centre regions of a human lymphoid follicle.",
+          caveat: "Spatial colocalization supports opportunity for contact, not proof of signalling direction or causal function.",
+          say: "“JAG1–VASN is a good example of the paper’s evidence ladder: direct binding, tissue colocalization, then a still-open functional question.”",
+          memory: "JAGged meets VASorin at the zone border."
+        },
+        {
+          id: "pvrkir",
+          title: "An orphan NK receptor gets a ligand",
+          a: "PVR (CD155)",
+          b: "KIR2DL5A",
+          aRole: "nectin-family ligand",
+          bRole: "inhibitory KIR-family receptor",
+          sender: "PVR-expressing cell",
+          receiver: "KIR2DL5A+ NK cell",
+          category: "paper",
+          summary: "The study characterized PVR as a ligand for the formerly orphan KIR2DL5A receptor.",
+          consequence: "The pair supplies a physical route by which PVR-positive cells may influence KIR2DL5A-positive NK subsets; physiological consequences remain context-dependent.",
+          cells: "PVR can be induced on stressed and tumour cells; KIR2DL5A occurs on variable NK-cell subsets because KIR expression is variegated.",
+          caveat: "PVR also binds other receptors, including DNAM-1, TIGIT, and CD96. Its net effect depends on the receptor repertoire.",
+          say: "“PVR is a shared ligand node, so KIR2DL5A has to be interpreted alongside DNAM-1, TIGIT, and CD96.”",
+          memory: "PVR plugs the KIR2DL5A orphan socket."
+        },
+        {
+          id: "cntn1",
+          title: "A new adhesive bridge",
+          a: "CNTN1",
+          b: "MCAM (CD146)",
+          aRole: "contactin-family adhesion molecule",
+          bRole: "cell adhesion molecule",
+          sender: "CNTN1-expressing cell",
+          receiver: "CD146-expressing cell",
+          category: "paper",
+          summary: "The paper characterized CD146 as an adhesive ligand for CNTN1.",
+          consequence: "The binding expands how immune and tissue cells may establish physical contacts, with specific in-vivo functions still being resolved.",
+          cells: "CD146 is found on endothelium and selected immune subsets; CNTN1 expression is tissue- and state-dependent.",
+          caveat: "An adhesive biochemical interaction does not by itself establish which cell is the signal sender or what intracellular program follows.",
+          say: "“For CNTN1–CD146, the strongest current claim is a direct adhesive interaction; signalling direction is a separate question.”",
+          memory: "Contactin contacts CD146."
+        },
+        {
+          id: "paperphenotypes",
+          title: "Perturbation phenotypes",
+          a: "TNFRSF21 / SLITRK4",
+          b: "Leukocyte responses",
+          aRole: "recombinant surface ectodomains",
+          bRole: "activation and contact phenotypes",
+          sender: "Soluble perturbation",
+          receiver: "Mixed PBMC populations",
+          category: "paper",
+          summary: "Protein perturbations linked mapped receptors to T-cell activation and altered cell–cell contacts.",
+          consequence: "TNFRSF21 promoted generalized T-cell activation; SLITRK4 inhibited monocyte–lymphocyte interactions; NRCAM, CD93, and CDH2 converged on early B-cell contacts.",
+          cells: "The multiplex assay distinguished major PBMC populations and measured activation plus pairwise physical contacts after 4 and 24 hours.",
+          caveat: "These are screening phenotypes in mixed blood leukocytes. They prioritize mechanisms for follow-up rather than completing them.",
+          say: "“The functional screen is best read as pathway triage: it connects binding candidates to reproducible phenotypes that now need cell-specific mechanism.”",
+          memory: "Perturb, image, then ask which contacts rewire."
+        }
+      ];
+
+      const CELLS = [
+        {
+          id: "tcell", name: "T cells", subtitle: "Adaptive, antigen-specific coordinators and killers",
+          core: ["CD45+", "CD3+", "TCR+"], exclude: ["CD19−", "CD56 variable"],
+          context: ["CD4 or CD8", "CD45RA / RO", "CCR7", "CD27", "CD28"],
+          rule: "Start with singlets → viable → CD45+ leukocytes → CD3+ T cells. Only then split CD4 and CD8 or ask about differentiation state.",
+          subsets: [
+            ["Naïve", "CD45RA+ CCR7+; usually CD27+ CD28+. Antigen-inexperienced recirculators."],
+            ["Central memory", "CD45RO+ CCR7+; lymphoid-homing, strong proliferative potential."],
+            ["Effector memory", "CD45RO+ CCR7−; faster peripheral effector function."],
+            ["Treg (surface panel)", "CD4+ CD25high CD127low; FOXP3 is a key intracellular/nuclear confirmation marker."]
+          ],
+          gating: ["Singlets", "Live", "CD45+", "CD3+", "CD4 or CD8"],
+          tip: "CD4 and CD8 are lineage/co-receptor markers, not simple helper-versus-killer guarantees in every context."
+        },
+        {
+          id: "bcell", name: "B cells", subtitle: "Antigen recognition, presentation, and antibody lineage",
+          core: ["CD45+", "CD19+", "CD20+"], exclude: ["CD3−", "CD56−"],
+          context: ["IgD", "CD27", "CD38", "CD21", "CD24"],
+          rule: "A practical blood gate is viable CD45+ CD3− CD19+. CD20 is useful but can be low or absent on plasmablasts and plasma cells.",
+          subsets: [
+            ["Naïve", "IgD+ CD27−; has not entered a classic memory phenotype."],
+            ["Unswitched memory", "IgD+ CD27+; often retains IgM/IgD."],
+            ["Class-switched memory", "IgD− CD27+; often carries switched isotypes."],
+            ["Plasmablast", "CD27high CD38high; CD20 often low/negative, antibody-secreting."]
+          ],
+          gating: ["Singlets", "Live", "CD45+", "CD3−", "CD19+"],
+          tip: "CD20-targeted depletion does not directly remove CD20-negative long-lived plasma cells."
+        },
+        {
+          id: "nk", name: "NK cells", subtitle: "Innate lymphocytes that integrate activating and inhibitory cues",
+          core: ["CD45+", "CD3−", "CD56+"], exclude: ["CD19−", "TCR−"],
+          context: ["CD16", "NKG2D", "NKG2A", "KIRs", "CD57"],
+          rule: "In peripheral blood, NK cells are commonly gated as CD45+ lymphocytes, CD3− CD56+. CD16 intensity separates major functional tendencies.",
+          subsets: [
+            ["CD56bright", "CD56bright CD16low/−; cytokine-oriented and less mature in common blood models."],
+            ["CD56dim", "CD56dim CD16high; dominant blood subset with strong cytotoxic and ADCC potential."],
+            ["Adaptive-like NK", "Often NKG2C+ CD57+ with characteristic signalling changes; frequently associated with CMV history."],
+            ["Activated NK", "CD69 can rise early; degranulation is often measured functionally by surface CD107a."]
+          ],
+          gating: ["Singlets", "Live", "CD45+", "CD3−", "CD56+"],
+          tip: "NK-cell killing is a weighted vote across activating, inhibitory, adhesion, and cytokine signals."
+        },
+        {
+          id: "monocyte", name: "Monocytes", subtitle: "Circulating myeloid sensors, phagocytes, and inflammatory responders",
+          core: ["CD45+", "HLA-DR+", "CD14 and/or CD16"], exclude: ["CD3−", "CD19−", "CD56−"],
+          context: ["CD11b", "CD64", "CCR2", "CX3CR1", "SIRPα"],
+          rule: "Exclude lymphocytes, then identify HLA-DR+ myeloid cells and resolve human blood monocyte subsets on relative CD14/CD16 expression.",
+          subsets: [
+            ["Classical", "CD14++ CD16−; usually CCR2-high, rapid inflammatory recruitment."],
+            ["Intermediate", "CD14++ CD16+; transitional and often strong in antigen presentation."],
+            ["Non-classical", "CD14+ CD16++; patrolling vascular phenotype, often CX3CR1-high."],
+            ["Activated context", "CD11b, HLA-DR, CD80/86, and cytokine outputs can change—interpret direction by stimulus and time."]
+          ],
+          gating: ["Singlets", "Live", "CD45+", "Lineage−", "HLA-DR+", "CD14 vs CD16"],
+          tip: "The plus signs are relative intensity conventions: CD14++ means brighter than CD14+ in the same assay."
+        },
+        {
+          id: "dc", name: "Dendritic cells", subtitle: "Rare antigen-presenting specialists with subset-specific programs",
+          core: ["CD45+", "HLA-DR+", "Lineage−"], exclude: ["CD3−", "CD19−", "CD14 low/−"],
+          context: ["CD141", "CLEC9A", "CD1c", "CD123", "CD303"],
+          rule: "First exclude common lineage markers, then use HLA-DR and subset markers. A single “DC marker” is not enough across tissues.",
+          subsets: [
+            ["cDC1", "CD141high CLEC9A+; excels at cross-presentation in the canonical framework."],
+            ["cDC2", "CD1c+; diverse helper-T-cell-polarizing and antigen-presenting programs."],
+            ["pDC", "CD123high CD303+; specialized for rapid type I interferon production."],
+            ["Activated / migratory DC", "CCR7 and costimulatory molecules such as CD80/CD86 can rise with maturation."]
+          ],
+          gating: ["Singlets", "Live", "CD45+", "Lineage−", "HLA-DR+", "Subset markers"],
+          tip: "Human and mouse DC nomenclature and markers are not perfectly interchangeable."
+        },
+        {
+          id: "neutrophil", name: "Neutrophils", subtitle: "Abundant granulocytes built for rapid antimicrobial action",
+          core: ["CD45+", "CD66b+", "CD15+"], exclude: ["HLA-DR−", "CD3−", "CD19−"],
+          context: ["CD16", "CD11b", "CD62L", "CXCR2", "CD10"],
+          rule: "Granularity (side scatter) plus CD66b/CD15 supports neutrophil identity; verify viability because granulocytes are handling-sensitive.",
+          subsets: [
+            ["Mature blood neutrophil", "Typically CD16high CD10+ with high side scatter."],
+            ["Immature phenotype", "CD16low/variable CD10− can rise during emergency granulopoiesis."],
+            ["Activated / degranulating", "Often CD11b up, CD62L shed; timing and handling strongly affect these markers."],
+            ["Functional readouts", "ROS, phagocytosis, chemotaxis, microbial killing, and NET-associated assays answer different questions."]
+          ],
+          gating: ["Singlets", "Live", "CD45+", "High SSC", "CD66b+"],
+          tip: "Sample processing itself can activate neutrophils, so pre-analytic handling is part of the phenotype."
+        }
+      ];
+
+      const PHENOTYPES = [
+        {
+          id: "activation", name: "Activation", tag: "State change",
+          summary: "A cell has received sufficient inputs to alter signalling, transcription, metabolism, trafficking, or effector function.",
+          chain: ["Receptor input", "Early signal", "State markers", "Function"],
+          chainValues: ["TCR + CD28", "pZAP70 / Ca²⁺", "CD69, CD25", "IL-2, division"],
+          evidence: ["Early phospho-signalling or calcium flux", "Time-dependent CD69/CD25 induction", "Cytokine release, proliferation, or effector function"],
+          confuse: ["Marker induction without the expected function", "Stress from handling", "Bystander cytokine activation"],
+          line: "“The receptor was engaged” is weaker than “the cell was functionally activated.” Ask what readout and time point support the claim."
+        },
+        {
+          id: "exhaustion", name: "Exhaustion / dysfunction", tag: "Persistent context",
+          summary: "A durable, graded T-cell program associated with persistent antigen, altered transcriptional/epigenetic state, and impaired or reshaped function.",
+          chain: ["Persistent antigen", "Inhibitory network", "Transcriptional program", "Reduced function"],
+          chainValues: ["Chronic TCR input", "PD-1 + others", "TOX-associated state", "Contextual dysfunction"],
+          evidence: ["Multiple inhibitory receptors, not PD-1 alone", "Reduced cytokine, proliferation, or killing under controlled restimulation", "Transcriptional or epigenetic support and persistent-antigen context"],
+          confuse: ["Recent normal activation", "Senescence", "Anergy", "Terminal differentiation"],
+          line: "Say “exhaustion-like phenotype” unless the experiment establishes function, persistence, and the broader program."
+        },
+        {
+          id: "quiescence", name: "Quiescence", tag: "Resting readiness",
+          summary: "A reversible, actively maintained low-activity state in which cells remain viable and capable of responding.",
+          chain: ["Homeostatic cues", "Low biosynthesis", "Survival", "Rapid re-entry"],
+          chainValues: ["IL-7 / tonic cues", "G₀-like state", "Viable, restrained", "Responds on demand"],
+          evidence: ["Low proliferation and activation markers", "Preserved viability and response competence", "Homeostatic signalling rather than metabolic collapse"],
+          confuse: ["Anergy (antigen-specific hyporesponsiveness)", "Exhaustion", "Cellular senescence", "Dead or dying cells"],
+          line: "The paper proposes that VISTA–HLA-E/F may help adaptive immune quiescence; it does not equate quiescence with exhaustion."
+        },
+        {
+          id: "cytotoxicity", name: "Cytotoxicity", tag: "Effector function",
+          summary: "A lymphocyte recognizes a target and executes a killing program, usually through granule release or death-receptor pathways.",
+          chain: ["Target recognition", "Stable contact", "Degranulation", "Target death"],
+          chainValues: ["TCR / NK balance", "LFA-1–ICAM-1", "CD107a, granzymes", "Apoptosis / lysis"],
+          evidence: ["CD107a exposure indicates degranulation", "Granzyme/perforin content supports capacity", "Target-cell death is the decisive functional output"],
+          confuse: ["Cytotoxic molecule expression without killing", "Target death unrelated to the effector cell", "Cytokine production alone"],
+          line: "Separate cytotoxic potential, degranulation, and actual target killing—they are connected but not identical readouts."
+        },
+        {
+          id: "adhesion", name: "Adhesion / connectivity", tag: "Physical organization",
+          summary: "Cells form or stabilize contacts through surface proteins, enabling migration, synapse formation, and local signalling.",
+          chain: ["Chemokine / activation", "Integrin activation", "Cell contact", "Signal exchange"],
+          chainValues: ["Inside-out cue", "LFA-1 opens", "ICAM-1 binds", "Synapse / trafficking"],
+          evidence: ["Direct protein binding", "Microscopy or conjugate frequency", "Perturbation that changes specific cell-pair contacts"],
+          confuse: ["Co-expression without physical contact", "Colocalization without direct binding", "More contacts caused only by increased cell number"],
+          line: "Shilts et al. measured connectivity as cell–cell contacts; that is a phenotype distinct from activation, even when the two influence each other."
+        },
+        {
+          id: "differentiation", name: "Differentiation", tag: "Identity over time",
+          summary: "A cell adopts a more specialized and relatively stable program through developmental history and environmental instruction.",
+          chain: ["Input context", "Transcription factors", "Marker program", "Specialized function"],
+          chainValues: ["Antigen + cytokines", "Lineage program", "Coordinated phenotype", "Memory / effector"],
+          evidence: ["A coordinated marker panel", "Stable transcriptional program", "Functional specialization and lineage history"],
+          confuse: ["Transient activation", "One induced surface marker", "Sorting artifacts or tissue-driven adaptation"],
+          line: "Activation is a state; differentiation is a trajectory. An activated naïve T cell has not instantly become a stable memory cell."
+        }
+      ];
+
+      const VOCAB = [
+        ["Ligand vs receptor", "A ligand binds; a receptor is usually the molecule whose engagement is interpreted by the cell. Surface pairs can be bidirectional, so the labels are sometimes pragmatic.", "Ask: which side is signalling, and is reverse signalling possible?"],
+        ["Affinity (Kᴅ)", "At equilibrium, a lower dissociation constant generally means tighter binding. Affinity is not the same as how many receptors a cell carries.", "Say: lower Kᴅ, higher affinity."],
+        ["Kinetics", "On-rate and off-rate describe how quickly complexes form and fall apart. Two pairs can share affinity but have different dwell times.", "Ask whether the biology tracks affinity or residence time."],
+        ["Expression", "RNA or protein abundance shows that a component is present. It does not prove localization, binding, pathway activity, or function.", "Name the measurement layer: RNA, surface protein, or function."],
+        ["Gating", "A sequence of inclusion and exclusion decisions used to define events in cytometry. Every downstream claim inherits those choices.", "Ask to see the gating strategy."],
+        ["Phenotype", "An observable state defined by a pattern of markers, morphology, behaviour, or function under specified conditions.", "Avoid defining a complex phenotype with one marker."]
+      ];
+
+      const CASES = [
+        {
+          id: "vaccine",
+          icon: "V",
+          title: "A protein vaccine",
+          subtitle: "From injection to memory",
+          intro: "A protein antigen arrives with an innate-stimulating adjuvant. Trace how a local danger signal becomes durable, antigen-specific immunity.",
+          summary: ["PRR + adjuvant", "Mature DC", "TCR + CD28", "Tfh help", "Memory + antibody"],
+          steps: [
+            {
+              phase: "Phase 1 · Innate alarm",
+              scene: "At the injection site, a dendritic cell encounters antigen plus an adjuvant. Antigen uptake alone does not guarantee that the cell will become an effective primer.",
+              q: "Which additional event best explains dendritic-cell maturation?",
+              o: ["Pattern-recognition receptor signalling from the adjuvant", "PD-1 engagement on the dendritic cell", "CD47 binding SIRPα", "Loss of all MHC expression"],
+              a: 0,
+              why: "Adjuvant-driven pattern-recognition signalling promotes maturation: altered migration, cytokine production, peptide presentation, and increased costimulatory capacity.",
+              circuit: ["Adjuvant", "PRR", "Mature DC"],
+              precision: "Different adjuvants engage different sensors. “The adjuvant activates innate immunity” is safer than assuming one universal receptor."
+            },
+            {
+              phase: "Phase 2 · T-cell priming",
+              scene: "The mature dendritic cell reaches a draining lymph node and displays vaccine-derived peptide to a rare naïve T cell.",
+              q: "Which combination most strongly supports productive naïve T-cell activation?",
+              o: ["Peptide–MHC ↔ TCR plus CD80/86 ↔ CD28", "PD-L1 ↔ PD-1 alone", "CD47 ↔ SIRPα plus IgD", "CD19 plus CD20 expression"],
+              a: 0,
+              why: "Peptide–MHC gives antigen-specific signal 1; CD80/CD86–CD28 supplies classic costimulation. Cytokines then help shape differentiation.",
+              circuit: ["Peptide–MHC", "TCR–CD3", "CD80/86–CD28", "Activated T cell"],
+              precision: "Signal 1, signal 2, and cytokine context are a useful model—not three completely isolated switches."
+            },
+            {
+              phase: "Phase 3 · B-cell help",
+              scene: "An antigen-specific B cell has internalized the protein, presents derived peptide, and meets a cognate helper T cell near a follicle.",
+              q: "Which contact-dependent interaction is central to productive T-cell help for that B cell?",
+              o: ["CD40L on the T cell ↔ CD40 on the B cell", "CD47 on the B cell ↔ SIRPα", "PD-L1 ↔ PD-1 as the only input", "MICA ↔ NKG2D"],
+              a: 0,
+              why: "CD40L–CD40 collaborates with BCR-derived antigen specificity and helper cytokines to support germinal-centre and class-switch programs.",
+              circuit: ["BCR captures antigen", "Peptide–MHC II", "TCR", "CD40L–CD40"],
+              precision: "CD40 signalling supports the program but does not determine antibody specificity or isotype by itself."
+            },
+            {
+              phase: "Phase 4 · Durable output",
+              scene: "Weeks later, the response has generated several B-lineage outputs. You want evidence of rapid antibody secretion in blood.",
+              q: "Which phenotype most strongly supports a circulating plasmablast?",
+              o: ["CD19+ CD27high CD38high with CD20 low", "CD3− CD56dim CD16high", "CD14++ CD16−", "CD4+ CD25high CD127low"],
+              a: 0,
+              why: "CD27high CD38high identifies a classic human plasmablast phenotype; CD20 is often reduced. Memory B cells are a related but distinct durable output.",
+              circuit: ["Germinal centre", "Plasmablast", "Antibody", "Memory B cell"],
+              precision: "A surface phenotype supports identity. Antibody secretion, affinity, and protection each require their own functional measurement."
+            }
+          ]
+        },
+        {
+          id: "virus",
+          icon: "I",
+          title: "An acute viral infection",
+          subtitle: "Early control to targeted killing",
+          intro: "A respiratory virus infects epithelial cells. Follow the layered transition from rapid innate surveillance to antigen-specific cytotoxicity.",
+          summary: ["Infected cell", "NK surveillance", "Cross-presentation", "CD8 T cell", "Target death"],
+          steps: [
+            {
+              phase: "Phase 1 · Induced-self alarm",
+              scene: "An infected epithelial cell is stressed before a large antigen-specific T-cell population exists. NK cells survey the tissue.",
+              q: "Which surface change can provide an activating input to NKG2D?",
+              o: ["Upregulation of MICA, MICB, or ULBP ligands", "Upregulation of CD47 only", "Expression of CD19", "Loss of every adhesion molecule"],
+              a: 0,
+              why: "Stress-induced MICA/MICB/ULBP family ligands engage NKG2D and contribute an activating vote to the NK-cell decision.",
+              circuit: ["Cell stress", "MICA/B or ULBP", "NKG2D", "NK activation input"],
+              precision: "NKG2D is one input. NK killing reflects the balance of activating, inhibitory, adhesion, and cytokine signals."
+            },
+            {
+              phase: "Phase 2 · Antigen delivery",
+              scene: "A dendritic cell acquires viral material and primes a naïve CD8 T cell in a lymph node even though the dendritic cell itself may not be productively infected.",
+              q: "What is this antigen-presentation route called?",
+              o: ["Cross-presentation on MHC class I", "Class switching", "Opsonization", "Reverse signalling through CD40"],
+              a: 0,
+              why: "Cross-presentation allows exogenous material to enter an MHC-I presentation pathway, supporting CD8 T-cell priming.",
+              circuit: ["Viral antigen", "Dendritic cell", "Peptide–MHC I", "CD8 T cell"],
+              precision: "Cross-presentation describes antigen display; cross-priming refers to the resulting activation of naïve CD8 T cells."
+            },
+            {
+              phase: "Phase 3 · Stable kill synapse",
+              scene: "An expanded effector CD8 T cell recognizes matching peptide–MHC I on an infected target. The two cells must hold a productive contact.",
+              q: "Which pair helps stabilize that cytotoxic synapse?",
+              o: ["LFA-1 ↔ ICAM-1", "CD80 ↔ CTLA-4 only", "CD47 ↔ SIRPα", "IgD ↔ CD27"],
+              a: 0,
+              why: "Activated LFA-1 binds ICAM-1 to strengthen adhesion, helping organize directed degranulation toward the target.",
+              circuit: ["TCR–peptide–MHC I", "LFA-1–ICAM-1", "Degranulation"],
+              precision: "Integrin activity depends on conformation and clustering, so LFA-1 abundance alone does not measure synapse strength."
+            },
+            {
+              phase: "Phase 4 · Prove the function",
+              scene: "The effector cells express granzyme B and expose CD107a during target contact. You need the strongest evidence that they are actually cytotoxic.",
+              q: "Which additional readout is most decisive?",
+              o: ["Controlled measurement of target-cell death", "PD-1 expression", "CD45 expression", "T-cell size alone"],
+              a: 0,
+              why: "Granzyme content indicates capacity and CD107a indicates degranulation. Target-cell death directly measures the claimed killing function.",
+              circuit: ["Recognition", "CD107a exposure", "Granule delivery", "Target death"],
+              precision: "Cytotoxic potential, degranulation, and target killing are connected but non-identical evidence layers."
+            }
+          ]
+        },
+        {
+          id: "tumour",
+          icon: "T",
+          title: "A tumour immune niche",
+          subtitle: "Competing brakes and activators",
+          intro: "A tumour is infiltrated by T cells, NK cells, and macrophages. Trace why immune-cell presence does not automatically produce tumour-cell clearance.",
+          summary: ["Tumour cell", "CD47 / PD-L1 / PVR", "Immune brakes", "Perturbation", "Functional test"],
+          steps: [
+            {
+              phase: "Phase 1 · Phagocytosis threshold",
+              scene: "Tumour-associated macrophages contact tumour cells that display abundant CD47 despite the presence of pro-phagocytic cues.",
+              q: "Which receptor interprets the CD47-mediated inhibitory signal?",
+              o: ["SIRPα on myeloid cells", "CD28 on naïve T cells", "NKG2D on NK cells", "CD40 on B cells"],
+              a: 0,
+              why: "CD47 engages SIRPα on myeloid cells and raises the threshold for phagocytosis by opposing eat-me signals.",
+              circuit: ["Tumour CD47", "Myeloid SIRPα", "Inhibitory signal", "Less phagocytosis"],
+              precision: "Removing a brake is not the same as supplying an accelerator; pro-phagocytic cues still matter."
+            },
+            {
+              phase: "Phase 2 · T-cell restraint",
+              scene: "An infiltrating CD8 T cell recognizes tumour antigen but encounters interferon-inducible PD-L1 in the local tissue.",
+              q: "What is the most precise interpretation of PD-1 on that T cell?",
+              o: ["It is an inhibitory receptor and activation-history marker; exhaustion needs broader evidence", "It proves irreversible exhaustion by itself", "It identifies a B cell", "It means the TCR cannot bind antigen"],
+              a: 0,
+              why: "PD-1 engagement can dampen ongoing receptor signalling, but PD-1 positivity alone cannot define exhaustion.",
+              circuit: ["Tumour PD-L1", "T-cell PD-1", "Reduced proximal signalling"],
+              precision: "Use “exhaustion-like” only when persistent context, broader state markers, and functional impairment support it."
+            },
+            {
+              phase: "Phase 3 · A shared ligand node",
+              scene: "The tumour also expresses PVR/CD155. The paper characterized PVR binding to the formerly orphan NK receptor KIR2DL5A.",
+              q: "Why can PVR expression not predict one universal NK-cell outcome?",
+              o: ["PVR can engage multiple activating and inhibitory receptors", "PVR is never a surface protein", "All NK cells express identical KIR repertoires", "Binding affinity never matters"],
+              a: 0,
+              why: "PVR is shared across receptors including DNAM-1, TIGIT, CD96, and KIR2DL5A. Net behaviour depends on the cell’s receptor repertoire and context.",
+              circuit: ["Tumour PVR", "DNAM-1 / TIGIT / CD96 / KIR2DL5A", "Net NK decision"],
+              precision: "This is a paper-linked example of why a ligand node should be interpreted as a network, not a one-arrow pathway."
+            },
+            {
+              phase: "Phase 4 · Test the mechanism",
+              scene: "A candidate treatment perturbs one checkpoint and tumour cells decline in a mixed culture. You want to know whether a specific immune subset caused the effect.",
+              q: "Which follow-up most directly strengthens a cell-specific causal claim?",
+              o: ["Subset depletion or isolation plus a controlled killing assay", "Measuring ligand RNA alone", "Showing the proteins can bind once", "Counting total cells at only one time point"],
+              a: 0,
+              why: "Removing or isolating the candidate effector population and measuring controlled target killing tests whether that cell type is necessary or sufficient in the assay.",
+              circuit: ["Checkpoint perturbation", "Defined effector subset", "Controlled target", "Killing readout"],
+              precision: "Direct binding, mixed-culture phenotype, and therapeutic efficacy are separate claims that require separate evidence."
+            }
+          ]
+        },
+        {
+          id: "allergy",
+          icon: "A",
+          title: "Immediate allergy",
+          subtitle: "Sensitization to degranulation",
+          intro: "A harmless environmental protein drives a type-2-biased response. Follow the circuit from helper-cell instruction to rapid mast-cell activation.",
+          summary: ["Allergen", "Type-2 help", "IgE", "FcεRI mast cell", "Degranulation"],
+          steps: [
+            {
+              phase: "Phase 1 · Type-2 context",
+              scene: "Barrier perturbation and innate signals bias antigen presentation toward a type-2 response rather than a cytotoxic antiviral program.",
+              q: "Which helper cytokine is especially associated with IgE class-switch instruction?",
+              o: ["IL-4", "Type I interferon only", "IL-2 as the sole signal", "Granzyme B"],
+              a: 0,
+              why: "IL-4 is a central type-2 cytokine that supports IgE class switching in an appropriately activated B cell.",
+              circuit: ["Barrier / innate cue", "Type-2 helper cell", "IL-4"],
+              precision: "Cytokines work in context. IL-4 alone is not a complete sensitization mechanism."
+            },
+            {
+              phase: "Phase 2 · Contact-dependent help",
+              scene: "The allergen-specific B cell presents peptide to a cognate helper T cell and receives cytokine instruction.",
+              q: "What complementary surface pair supports the class-switch program?",
+              o: ["CD40L ↔ CD40", "CD47 ↔ SIRPα", "LFA-1 ↔ IgE", "PD-L1 ↔ CD28"],
+              a: 0,
+              why: "T-cell CD40L engages B-cell CD40, collaborating with BCR specificity and cytokines such as IL-4.",
+              circuit: ["BCR antigen capture", "T-cell help", "CD40L–CD40", "IgE switch"],
+              precision: "The BCR determines antigen specificity; helper signals shape the response program."
+            },
+            {
+              phase: "Phase 3 · Sensitized effector",
+              scene: "Secreted allergen-specific IgE coats tissue mast cells before the next exposure.",
+              q: "Which high-affinity receptor retains IgE on the mast-cell surface?",
+              o: ["FcεRI", "TCR–CD3", "SIRPα", "CD28"],
+              a: 0,
+              why: "FcεRI binds IgE with high affinity, leaving mast cells sensitized to future encounter with the relevant allergen.",
+              circuit: ["IgE", "FcεRI", "Sensitized mast cell"],
+              precision: "Serum IgE and receptor-bound, allergen-specific IgE are related but not identical measurements."
+            },
+            {
+              phase: "Phase 4 · Immediate response",
+              scene: "On re-exposure, multivalent allergen binds several receptor-bound IgE molecules at once.",
+              q: "What proximal event best explains rapid mast-cell degranulation?",
+              o: ["Crosslinking of FcεRI-bound IgE complexes", "Loss of CD45", "PD-1 expression on a T cell", "MHC-I cross-presentation"],
+              a: 0,
+              why: "Allergen-mediated crosslinking clusters FcεRI complexes and initiates signalling that can trigger rapid mediator release.",
+              circuit: ["Allergen", "IgE crosslinking", "FcεRI clustering", "Histamine / tryptase release"],
+              precision: "Sensitization shows readiness; degranulation and mediator release demonstrate the immediate effector phenotype."
+            }
+          ]
+        }
+      ];
+
+      const QUESTIONS = [
+        { c: "Pathway", q: "Which interaction creates antigen-specific “signal 1” for a T cell?", o: ["Peptide–MHC ↔ TCR–CD3", "CD80/CD86 ↔ CD28", "CD47 ↔ SIRPα", "CD58 ↔ CD2"], a: 0, x: "The clonotypic TCR reads peptide–MHC and signals through CD3. Costimulation and cytokines then determine how that recognition is interpreted." },
+        { c: "Pathway", q: "Which pair supplies classic costimulatory “signal 2” to a naïve T cell?", o: ["PD-L1 ↔ PD-1", "CD80/CD86 ↔ CD28", "CD47 ↔ SIRPα", "ICAM-1 ↔ LFA-1"], a: 1, x: "CD28 on the T cell reads CD80/CD86 on an activated APC. TCR–peptide–MHC supplies antigen-specific signal 1." },
+        { c: "Pathway", q: "Which contact-dependent pair is central to helper-T-cell support of B-cell class switching?", o: ["CD40L ↔ CD40", "PD-L1 ↔ PD-1", "CD47 ↔ SIRPα", "MICA ↔ NKG2D"], a: 0, x: "CD40L on activated helper T cells engages CD40 on B cells; BCR input and cytokines provide additional specificity and differentiation cues." },
+        { c: "Pathway", q: "Which receptor competes with CD28 for CD80/CD86 and restrains early T-cell activation?", o: ["NKG2D", "CTLA-4", "CD2", "SIRPα"], a: 1, x: "CTLA-4 binds the B7 ligands CD80/CD86 and reduces access to CD28 costimulation." },
+        { c: "Interpretation", q: "A functional T cell is PD-1+. What is the safest conclusion?", o: ["It is definitely exhausted", "It was activated or has activation history", "It is a regulatory T cell", "It cannot produce cytokines"], a: 1, x: "PD-1 is induced by activation and can participate in exhaustion, but PD-1 alone does not establish a dysfunctional exhaustion program." },
+        { c: "Pathway", q: "What is the core effect of CD47 engaging SIRPα on a macrophage?", o: ["Promote T-cell costimulation", "Inhibit phagocytosis", "Trigger antibody class switching", "Activate complement"], a: 1, x: "SIRPα supplies an inhibitory “do not eat me” signal that counterbalances pro-phagocytic cues." },
+        { c: "Markers", q: "Which blood phenotype most strongly suggests an NK cell?", o: ["CD3+ CD4+", "CD19+ CD20+", "CD3− CD56+", "CD14++ CD16−"], a: 2, x: "Human blood NK cells are commonly identified as CD45+ lymphocytes that are CD3− and CD56+." },
+        { c: "Markers", q: "Which marker combination best fits a conventional surface-panel Treg gate?", o: ["CD8+ CD56+", "CD4+ CD25high CD127low", "CD19+ IgD+", "CD14+ HLA-DR+"], a: 1, x: "CD4+ CD25high CD127low enriches for Tregs; intracellular/nuclear FOXP3 is commonly used for confirmation." },
+        { c: "Markers", q: "Which human blood monocyte subset is CD14++ CD16−?", o: ["Classical", "Intermediate", "Non-classical", "Plasmacytoid DC"], a: 0, x: "Classical monocytes are CD14 bright and CD16 negative; non-classical monocytes are CD14+ CD16++." },
+        { c: "Markers", q: "A CD19+ CD27high CD38high cell with low CD20 is most consistent with…", o: ["Naïve B cell", "Plasmablast", "cDC1", "Central-memory T cell"], a: 1, x: "Plasmablasts are antibody-secreting B-lineage cells commonly marked CD27high CD38high, often with reduced CD20." },
+        { c: "Markers", q: "Which panel best supports a human cDC1 identity?", o: ["CD141high CLEC9A+", "CD123high CD303+", "CD14++ CD16−", "CD56dim CD16high"], a: 0, x: "Human cDC1s are classically enriched as CD141high CLEC9A+; CD123high CD303+ instead suggests pDCs." },
+        { c: "Phenotype", q: "What is the most decisive readout of cytotoxic function?", o: ["Granzyme B expression", "PD-1 expression", "Target-cell death", "CD69 induction"], a: 2, x: "Granzyme content shows capacity and CD107a shows degranulation, but controlled target-cell death directly measures killing." },
+        { c: "Phenotype", q: "What best distinguishes quiescence from exhaustion?", o: ["Quiescent cells are dead", "Quiescence is reversible readiness; exhaustion is a persistent-antigen-associated program", "They are synonyms", "Only exhausted cells express receptors"], a: 1, x: "Quiescent cells remain viable and response-competent; exhaustion is a broader dysfunctional/adapted program shaped by chronic stimulation." },
+        { c: "Evidence", q: "Two binding partners are expressed in adjacent lymph-node regions. What does this prove?", o: ["The downstream pathway is known", "They definitely signal in vivo", "They have an opportunity to interact", "One activates the other"], a: 2, x: "Spatial proximity supports biological opportunity. Direct binding and causal functional output require separate evidence." },
+        { c: "Paper", q: "What high-throughput method did Shilts et al. use to screen surface-protein pairs?", o: ["CRISPR-Cas9", "SAVEXIS", "ELISpot", "ATAC-seq"], a: 1, x: "SAVEXIS stands for scalable arrayed multi-valent extracellular interaction screen." },
+        { c: "Paper", q: "How many proteins or protein complexes were in the paper’s pan-leukocyte library?", o: ["63", "187", "630", "6,300"], a: 2, x: "The library contained 630 proteins or protein complexes and was designed around detectable leukocyte surface proteins plus compatible CD molecules." },
+        { c: "Paper", q: "Which ligands did the paper identify for the previously orphan checkpoint VISTA?", o: ["CD80 and CD86", "HLA-E and HLA-F", "MICA and MICB", "CD47 and ICAM-1"], a: 1, x: "The study identified the non-classical MHC-I molecules HLA-E and HLA-F as endogenous non-tumour VISTA ligands." },
+        { c: "Paper", q: "What pair was observed in bordering regions of a human lymph-node follicle?", o: ["JAG1 ↔ VASN", "CD28 ↔ PD-1", "CD47 ↔ CD58", "CD19 ↔ CD3"], a: 0, x: "JAG1 and VASN were spatially zoned in bordering lymph-node regions, supporting the opportunity for their newly mapped interaction." },
+        { c: "Paper", q: "Which cell lineage emerged as an interaction hub across several tissues in the paper’s atlas?", o: ["Erythroid", "Myeloid", "Epithelial", "Platelet"], a: 1, x: "Myeloid-lineage populations repeatedly showed higher network centrality despite similar numbers of surface ligands." },
+        { c: "Paper", q: "During inflammatory activation, the paper found a broad shift toward…", o: ["Only secreted proteins", "Higher-affinity, less-transient surface interactions", "No physical contacts", "Lower receptor expression in every cell"], a: 1, x: "The paper describes an affinity switch from more transient interactions at rest toward higher-affinity contacts in inflammation." },
+        { c: "Paper", q: "PVR (CD155) was characterized as a ligand for which formerly orphan receptor?", o: ["KIR2DL5A", "CD28", "SIRPα", "LFA-1"], a: 0, x: "PVR was characterized as a ligand for KIR2DL5A. PVR also engages other activating and inhibitory receptors." },
+        { c: "Paper", q: "What happened with soluble SLITRK4 in the functional screen?", o: ["It promoted complement lysis", "It inhibited monocyte–lymphocyte contacts", "It induced antibody secretion", "It removed all NK cells"], a: 1, x: "SLITRK4 inhibited interactions between monocyte–lymphocyte pairs in the mixed-leukocyte contact assay." },
+        { c: "Concept", q: "If a receptor’s Kᴅ becomes smaller, its affinity generally becomes…", o: ["Weaker", "Stronger", "Unchanged by definition", "Impossible to compare"], a: 1, x: "Lower equilibrium dissociation constants correspond to tighter binding, all else equal." },
+        { c: "Concept", q: "Why can high LFA-1 expression fail to predict strong adhesion?", o: ["LFA-1 is not a protein", "Integrin conformation and clustering regulate affinity", "ICAM-1 is secreted only", "Adhesion never uses receptors"], a: 1, x: "Integrins undergo inside-out activation and clustering, so abundance and adhesive activity are distinct measurements." },
+        { c: "Concept", q: "Which statement correctly separates evidence layers?", o: ["RNA expression proves direct binding", "Direct binding proves a clinical effect", "Expression, binding, and phenotype answer different questions", "A phenotype identifies the receptor automatically"], a: 2, x: "Expression shows presence, binding shows physical compatibility, and phenotype shows an observed consequence under defined conditions." },
+        { c: "Pathway", q: "Which interaction helps stabilize an immunological synapse?", o: ["LFA-1 ↔ ICAM-1", "HLA-E ↔ VISTA only", "CD47 ↔ SIRPα", "IgD ↔ CD27"], a: 0, x: "Activated LFA-1 on leukocytes binds ICAM-1 and helps stabilize close immune contacts." },
+        { c: "Pathway", q: "Which ligands alert NKG2D to stressed or transformed cells?", o: ["CD80/CD86", "MICA/MICB/ULBPs", "HLA-DR", "CD14/CD16"], a: 1, x: "MICA, MICB, and ULBP family proteins are stress-inducible ligands for the activating NKG2D receptor." },
+        { c: "Interpretation", q: "A cell expresses CD69 four hours after stimulation. What is the best claim?", o: ["It shows an early activation-associated change", "It is permanently differentiated", "It is definitely exhausted", "It is necessarily cytotoxic"], a: 0, x: "CD69 is an early activation-associated marker, but function and durable cell state require additional measurements." },
+        { c: "Paper", q: "What is the safest interpretation of the paper’s soluble-protein phenotypes?", o: ["They complete every mechanism", "They prioritize receptor pathways for cell-specific follow-up", "They only measure RNA", "They prove clinical efficacy"], a: 1, x: "The multiplex perturbation screen connects proteins to activation/contact phenotypes, providing strong leads rather than complete mechanisms." },
+        { c: "Markers", q: "What does CD14++ mean in a cytometry phenotype?", o: ["Two CD14 genes", "Relatively bright CD14 signal", "CD14 is absent", "The cell has divided twice"], a: 1, x: "Repeated plus signs are a shorthand for relative expression intensity within the measurement context." }
+      ];
+
+      const FLASHCARDS = [
+        { d: "Pathways", q: "Peptide–MHC ↔ ?", a: "<strong>TCR–CD3</strong>, with CD4 supporting MHC-II recognition and CD8 supporting MHC-I recognition." },
+        { d: "Pathways", q: "CD80 / CD86 ↔ ?", a: "<strong>CD28</strong> for costimulation; <strong>CTLA-4</strong> competes for the same ligands to restrain activation." },
+        { d: "Pathways", q: "CD40L (CD154) ↔ ?", a: "<strong>CD40</strong> on B cells and APCs, enabling contact-dependent T-cell help and APC licensing." },
+        { d: "Pathways", q: "PD-L1 / PD-L2 ↔ ?", a: "<strong>PD-1 (CD279)</strong>, an inhibitory receptor induced on activated lymphocytes." },
+        { d: "Pathways", q: "ICAM-1 (CD54) ↔ ?", a: "<strong>LFA-1 (CD11a/CD18)</strong>, an integrin that stabilizes adhesion and synapses." },
+        { d: "Pathways", q: "CD47 ↔ ?", a: "<strong>SIRPα (CD172a)</strong> on myeloid cells: the classic “do not eat me” axis." },
+        { d: "Pathways", q: "MICA / MICB / ULBPs ↔ ?", a: "<strong>NKG2D (CD314)</strong>, an activating receptor for induced-self stress ligands." },
+        { d: "Pathways", q: "CD58 (LFA-3) ↔ ?", a: "<strong>CD2</strong> on T and NK cells, supporting adhesion and signalling." },
+        { d: "Paper", q: "What were the newly identified endogenous non-tumour ligands for VISTA?", a: "<strong>HLA-E and HLA-F</strong>, two non-classical MHC-I molecules." },
+        { d: "Paper", q: "JAG1 ↔ ?", a: "<strong>VASN (vasorin)</strong>. The pair was also found in bordering regions of a human lymph-node follicle." },
+        { d: "Paper", q: "PVR (CD155) ↔ which newly de-orphaned KIR?", a: "<strong>KIR2DL5A</strong>. Remember that PVR is shared with DNAM-1, TIGIT, and CD96." },
+        { d: "Paper", q: "CNTN1 ↔ ?", a: "<strong>MCAM (CD146)</strong>, characterized as an adhesive binding partner." },
+        { d: "Paper", q: "The pan-leukocyte library size and top novel interaction count?", a: "<strong>630</strong> proteins/complexes and <strong>28</strong> top novel interactions." },
+        { d: "Paper", q: "Which lineage repeatedly acted as a network hub?", a: "<strong>Myeloid cells</strong>, with higher centrality across several immune tissues." },
+        { d: "Markers", q: "Core human blood NK phenotype?", a: "<strong>CD45+ CD3− CD56+</strong>, then use CD16 and other receptors to resolve state/subset." },
+        { d: "Markers", q: "Classical vs non-classical monocytes?", a: "<strong>Classical: CD14++ CD16−.</strong> Non-classical: <strong>CD14+ CD16++.</strong>" },
+        { d: "Markers", q: "Naïve vs central-memory T cells?", a: "<strong>Naïve: CD45RA+ CCR7+.</strong> Central memory: <strong>CD45RO+ CCR7+.</strong>" },
+        { d: "Markers", q: "Surface-panel Treg enrichment?", a: "<strong>CD4+ CD25high CD127low</strong>; FOXP3 is an intracellular/nuclear confirmation marker." },
+        { d: "Markers", q: "Human cDC1 vs pDC?", a: "<strong>cDC1: CD141high CLEC9A+.</strong> pDC: <strong>CD123high CD303+.</strong>" },
+        { d: "Phenotypes", q: "Why does PD-1 not equal exhaustion?", a: "Because <strong>recently activated functional cells also express PD-1</strong>. Exhaustion needs persistent context, broader program, and functional evidence." },
+        { d: "Phenotypes", q: "Expression vs binding vs phenotype?", a: "<strong>Expression:</strong> present. <strong>Binding:</strong> can physically meet. <strong>Phenotype:</strong> observed consequence under defined conditions." },
+        { d: "Phenotypes", q: "Lower Kᴅ means…", a: "<strong>Higher affinity</strong> (tighter equilibrium binding), but kinetics and receptor abundance still matter." }
+      ];
+
+      const STORAGE_KEY = "immune_circuit_progress_v1";
+      const defaultProgress = {
+        sessions: 0, correct: 0, answered: 0, cards: 0,
+        today: "", todayAnswered: 0, lastStudy: "", streak: 0,
+        caseBest: {}, caseCompleted: []
+      };
+      let progress = loadProgress();
+      let currentPathway = PATHWAYS[0];
+      let atlasFilter = "all";
+      let currentCell = CELLS[0];
+      let currentPhenotype = PHENOTYPES[0];
+      let currentCase = CASES[0];
+      let caseStep = 0;
+      let caseScore = 0;
+      let caseAnswered = false;
+      let caseFinished = false;
+      let quiz = { questions: [], index: 0, score: 0, answered: false, misses: [] };
+      let flashDeck = "All";
+      let flashIndex = 0;
+      let flashRevealed = false;
+      let lastFocus = null;
+
+      function todayKey() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function loadProgress() {
+        try {
+          return { ...defaultProgress, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
+        } catch (_) {
+          return { ...defaultProgress };
+        }
+      }
+
+      function saveProgress() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+        renderProgress();
+      }
+
+      function markStudy() {
+        const today = todayKey();
+        if (progress.lastStudy === today) return;
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = yesterday.toISOString().slice(0, 10);
+        progress.streak = progress.lastStudy === yesterdayKey ? progress.streak + 1 : 1;
+        progress.lastStudy = today;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+        })[char]);
+      }
+
+      function tagLabel(category) {
+        return { activation: "Activation", brake: "Brake", adhesion: "Adhesion", paper: "Paper discovery" }[category] || category;
+      }
+
+      function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+
+      function showView(name) {
+        document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === `view-${name}`));
+        document.querySelectorAll(".nav-tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === name));
+        const activeTab = document.querySelector(`.nav-tab[data-view="${name}"]`);
+        if (activeTab && window.innerWidth <= 720) {
+          activeTab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        }
+        if (name === "drill" && quiz.questions.length === 0) startQuiz();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function renderProgress() {
+        const todayDone = progress.today === todayKey() ? Math.min(progress.todayAnswered, 5) : 0;
+        const angle = todayDone / 5 * 360;
+        const ring = document.getElementById("missionRing");
+        ring.dataset.progress = `${todayDone}/5`;
+        ring.style.setProperty("--mission-angle", `${angle}deg`);
+        document.getElementById("missionCopy").textContent = todayDone === 5
+          ? "Mission complete. Use recall cards for a bonus memory pass."
+          : `${5 - todayDone} retrieval${5 - todayDone === 1 ? "" : "s"} left: pathways, markers, phenotypes, and paper findings.`;
+        document.getElementById("missionButton").textContent = todayDone === 5 ? "Keep studying" : todayDone ? "Continue mission" : "Begin mission";
+        document.getElementById("statSessions").textContent = progress.sessions;
+        document.getElementById("statAccuracy").textContent = progress.answered ? `${Math.round(progress.correct / progress.answered * 100)}%` : "—";
+        document.getElementById("statCards").textContent = progress.cards;
+        const completedCases = Array.isArray(progress.caseCompleted) ? progress.caseCompleted.length : 0;
+        document.getElementById("statCases").textContent = `${completedCases}/${CASES.length}`;
+        document.getElementById("streakText").textContent = `${progress.streak} day${progress.streak === 1 ? "" : "s"} streak`;
+      }
+
+      function renderPathways() {
+        const query = document.getElementById("pathwaySearch").value.trim().toLowerCase();
+        const matches = PATHWAYS.filter(pathway => {
+          const filterMatch = atlasFilter === "all" || pathway.category === atlasFilter;
+          const searchMatch = !query || [
+            pathway.title, pathway.a, pathway.b, pathway.sender, pathway.receiver,
+            pathway.summary, pathway.cells
+          ].join(" ").toLowerCase().includes(query);
+          return filterMatch && searchMatch;
+        });
+        const grid = document.getElementById("pathwayGrid");
+        document.getElementById("pathwayCount").textContent = `Showing ${matches.length} of ${PATHWAYS.length} circuits`;
+        if (!matches.length) {
+          grid.innerHTML = '<div class="empty-state"><h3>No circuits matched.</h3><p>Try a marker, cell type, or a broader filter.</p></div>';
+          return;
+        }
+        grid.innerHTML = matches.map(pathway => `
+          <article class="pathway-card">
+            <div class="pathway-top">
+              <span class="tag ${pathway.category}">${tagLabel(pathway.category)}</span>
+              <button class="text-link card-action" data-select-pathway="${pathway.id}">Map it</button>
+            </div>
+            <div class="pathway-pair">${escapeHtml(pathway.a)} <span class="pair-arrow">↔</span> ${escapeHtml(pathway.b)}</div>
+            <h3>${escapeHtml(pathway.title)}</h3>
+            <p>${escapeHtml(pathway.summary)}</p>
+            <button class="text-link card-action" data-open-pathway="${pathway.id}">Open circuit notes →</button>
+          </article>
+        `).join("");
+      }
+
+      function selectPathway(id, scroll = true) {
+        currentPathway = PATHWAYS.find(pathway => pathway.id === id) || PATHWAYS[0];
+        document.getElementById("networkSender").textContent = currentPathway.sender;
+        document.getElementById("networkReceiver").textContent = currentPathway.receiver;
+        document.getElementById("networkPair").textContent = `${currentPathway.a} ↔ ${currentPathway.b}`;
+        document.getElementById("networkTitle").textContent = currentPathway.title;
+        document.getElementById("networkSummary").textContent = currentPathway.summary;
+        const tag = document.getElementById("networkTag");
+        tag.className = `tag ${currentPathway.category}`;
+        tag.textContent = tagLabel(currentPathway.category);
+        if (scroll) {
+          document.querySelector(".network-stage").scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+
+      function openPathway(id) {
+        const pathway = PATHWAYS.find(item => item.id === id) || currentPathway;
+        currentPathway = pathway;
+        lastFocus = document.activeElement;
+        const tag = document.getElementById("modalTag");
+        tag.className = `tag ${pathway.category}`;
+        tag.textContent = tagLabel(pathway.category);
+        document.getElementById("modalTitle").textContent = pathway.title;
+        document.getElementById("modalSubtitle").textContent = pathway.summary;
+        document.getElementById("modalBody").innerHTML = `
+          <div class="modal-pair">
+            <div class="protein-tile"><strong>${escapeHtml(pathway.a)}</strong><small>${escapeHtml(pathway.aRole)}</small></div>
+            <span class="modal-arrow">↔</span>
+            <div class="protein-tile"><strong>${escapeHtml(pathway.b)}</strong><small>${escapeHtml(pathway.bRole)}</small></div>
+          </div>
+          <div class="detail-list">
+            <div class="detail-item"><strong>Cellular consequence</strong><p>${escapeHtml(pathway.consequence)}</p></div>
+            <div class="detail-item"><strong>Where you encounter it</strong><p>${escapeHtml(pathway.cells)}</p></div>
+            <div class="detail-item"><strong>Precision check</strong><p>${escapeHtml(pathway.caveat)}</p></div>
+            <div class="detail-item"><strong>Memory hook</strong><p>${escapeHtml(pathway.memory)}</p></div>
+          </div>
+          <div class="lab-line"><strong>Say it like this</strong>${escapeHtml(pathway.say)}</div>
+        `;
+        document.getElementById("pathwayModal").classList.remove("hidden");
+        document.body.style.overflow = "hidden";
+        document.getElementById("modalClose").focus();
+      }
+
+      function closeModal() {
+        document.getElementById("pathwayModal").classList.add("hidden");
+        document.body.style.overflow = "";
+        if (lastFocus) lastFocus.focus();
+      }
+
+      function renderCellMenu() {
+        const menu = document.getElementById("cellMenu");
+        menu.querySelectorAll(".cell-select").forEach(node => node.remove());
+        CELLS.forEach(cell => {
+          const button = document.createElement("button");
+          button.className = `cell-select${cell.id === currentCell.id ? " active" : ""}`;
+          button.dataset.cell = cell.id;
+          button.innerHTML = `<i class="mini-cell"></i><span>${escapeHtml(cell.name)}</span>`;
+          menu.appendChild(button);
+        });
+      }
+
+      function renderCellSheet() {
+        const cell = currentCell;
+        document.getElementById("cellSheet").innerHTML = `
+          <header class="cell-sheet-head">
+            <div>
+              <span class="tag">Population card</span>
+              <h2>${escapeHtml(cell.name)}</h2>
+              <p>${escapeHtml(cell.subtitle)}</p>
+            </div>
+            <div class="cell-portrait" aria-hidden="true">
+              <div class="big-cell">
+                <span class="portrait-marker m1">${escapeHtml(cell.core[0])}</span>
+                <span class="portrait-marker m2">${escapeHtml(cell.core[1])}</span>
+                <span class="portrait-marker m3">${escapeHtml(cell.context[0])}</span>
+              </div>
+            </div>
+          </header>
+          <div class="cell-sheet-body">
+            <div class="rule-banner">${escapeHtml(cell.rule)}</div>
+            <section class="marker-section">
+              <h3>Identity anchors</h3>
+              <div class="marker-row">
+                ${cell.core.map(m => `<span class="marker-chip">${escapeHtml(m)}</span>`).join("")}
+                ${cell.exclude.map(m => `<span class="marker-chip neg">${escapeHtml(m)}</span>`).join("")}
+              </div>
+            </section>
+            <section class="marker-section">
+              <h3>Context / subset markers</h3>
+              <div class="marker-row">
+                ${cell.context.map(m => `<span class="marker-chip context">${escapeHtml(m)}</span>`).join("")}
+              </div>
+            </section>
+            <section class="marker-section">
+              <h3>Common phenotypes</h3>
+              <div class="subset-grid">
+                ${cell.subsets.map(([name, copy]) => `<div class="subset"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(copy)}</span></div>`).join("")}
+              </div>
+            </section>
+            <section class="marker-section">
+              <h3>Think like a gating strategy</h3>
+              <div class="gating-line">${cell.gating.map((gate, i) => `${i ? '<span class="gate-arrow">→</span>' : ""}<span class="gate">${escapeHtml(gate)}</span>`).join("")}</div>
+            </section>
+            <section class="marker-section">
+              <div class="info-block caution"><h3>Precision check</h3><p style="margin:0;color:var(--ink-2);font-size:12px">${escapeHtml(cell.tip)}</p></div>
+            </section>
+          </div>
+        `;
+      }
+
+      function selectCell(id) {
+        currentCell = CELLS.find(cell => cell.id === id) || CELLS[0];
+        renderCellMenu();
+        renderCellSheet();
+      }
+
+      function renderPhenotypes() {
+        const tabs = document.getElementById("phenotypeTabs");
+        tabs.querySelectorAll(".phenotype-tab").forEach(node => node.remove());
+        PHENOTYPES.forEach(item => {
+          const button = document.createElement("button");
+          button.className = `phenotype-tab${item.id === currentPhenotype.id ? " active" : ""}`;
+          button.dataset.phenotype = item.id;
+          button.textContent = item.name;
+          tabs.appendChild(button);
+        });
+        const p = currentPhenotype;
+        document.getElementById("phenotypeDetail").innerHTML = `
+          <span class="tag">${escapeHtml(p.tag)}</span>
+          <h2>${escapeHtml(p.name)}</h2>
+          <p class="phenotype-summary">${escapeHtml(p.summary)}</p>
+          <div class="signal-chain">
+            ${p.chain.map((label, i) => `${i ? '<span class="signal-arrow">→</span>' : ""}<div class="signal-step"><small>${escapeHtml(label)}</small><strong>${escapeHtml(p.chainValues[i])}</strong></div>`).join("")}
+          </div>
+          <div class="phenotype-columns">
+            <div class="info-block"><h3>Evidence that strengthens the claim</h3><ul>${p.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+            <div class="info-block caution"><h3>Commonly confused with</h3><ul>${p.confuse.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+          </div>
+          <div class="lab-line"><strong>Precision line</strong>${escapeHtml(p.line)}</div>
+        `;
+      }
+
+      function selectPhenotype(id) {
+        currentPhenotype = PHENOTYPES.find(item => item.id === id) || PHENOTYPES[0];
+        renderPhenotypes();
+      }
+
+      function renderVocab() {
+        document.getElementById("vocabGrid").innerHTML = VOCAB.map(([term, definition, line]) => `
+          <div class="vocab-card">
+            <dt>${escapeHtml(term)}</dt>
+            <dd>${escapeHtml(definition)}<span class="say-it">${escapeHtml(line)}</span></dd>
+          </div>
+        `).join("");
+      }
+
+      function caseBestScore(id) {
+        if (!progress.caseBest || typeof progress.caseBest !== "object") return 0;
+        return progress.caseBest[id] || 0;
+      }
+
+      function renderCasePicker() {
+        const picker = document.getElementById("casePicker");
+        const previousScroll = picker.scrollLeft;
+        picker.querySelectorAll(".case-select").forEach(node => node.remove());
+        CASES.forEach(item => {
+          const button = document.createElement("button");
+          const best = caseBestScore(item.id);
+          button.className = `case-select${item.id === currentCase.id ? " active" : ""}`;
+          button.dataset.case = item.id;
+          button.setAttribute("aria-current", item.id === currentCase.id ? "true" : "false");
+          button.innerHTML = `
+            <span class="case-icon">${escapeHtml(item.icon)}</span>
+            <span class="case-select-copy">
+              <strong>${escapeHtml(item.title)}</strong>
+              <small>${best ? `Best ${best}/${item.steps.length}` : escapeHtml(item.subtitle)}</small>
+            </span>
+          `;
+          picker.appendChild(button);
+        });
+        picker.scrollLeft = previousScroll;
+      }
+
+      function renderCircuit(nodes) {
+        return nodes.map((node, index) => `${index ? '<span class="case-node-arrow">→</span>' : ""}<span class="case-node">${escapeHtml(node)}</span>`).join("");
+      }
+
+      function renderCase() {
+        renderCasePicker();
+        const stage = document.getElementById("caseStage");
+        if (caseFinished) {
+          const pct = Math.round(caseScore / currentCase.steps.length * 100);
+          const nextIndex = (CASES.findIndex(item => item.id === currentCase.id) + 1) % CASES.length;
+          stage.innerHTML = `
+            <div class="case-complete">
+              <div class="case-complete-orb">${caseScore}/${currentCase.steps.length}</div>
+              <span class="tag">Circuit complete</span>
+              <h2>${pct === 100 ? "Every handoff connected." : "The circuit is mapped."}</h2>
+              <p>${escapeHtml(currentCase.intro)} You can now retell the response as one linked biological story instead of a list of molecules.</p>
+              <div class="case-summary-chain">${renderCircuit(currentCase.summary)}</div>
+              <div class="case-complete-actions">
+                <button class="btn btn-light" id="restartCase">Run this case again</button>
+                <button class="btn btn-dark" id="nextCase" data-next-case="${CASES[nextIndex].id}">Next case: ${escapeHtml(CASES[nextIndex].title)}</button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const step = currentCase.steps[caseStep];
+        stage.innerHTML = `
+          <header class="case-head">
+            <div class="case-head-row">
+              <div>
+                <span class="tag paper">Case ${CASES.findIndex(item => item.id === currentCase.id) + 1} of ${CASES.length}</span>
+                <h2>${escapeHtml(currentCase.title)}</h2>
+                <p>${escapeHtml(currentCase.intro)}</p>
+              </div>
+              <span class="case-score">${caseScore} connected</span>
+            </div>
+            <div class="case-progress" aria-label="Case progress: step ${caseStep + 1} of ${currentCase.steps.length}">
+              ${currentCase.steps.map((_, index) => `<i class="case-progress-step ${index < caseStep ? "done" : index === caseStep ? "current" : ""}"></i>`).join("")}
+            </div>
+          </header>
+          <div class="case-body">
+            <span class="case-phase">${escapeHtml(step.phase)}</span>
+            <p class="case-scene">${escapeHtml(step.scene)}</p>
+            <div class="case-question">${escapeHtml(step.q)}</div>
+            <div class="case-options">
+              ${step.o.map((option, index) => `
+                <button class="case-option" data-case-answer="${index}">
+                  <span class="case-option-letter">${String.fromCharCode(65 + index)}</span>
+                  <span>${escapeHtml(option)}</span>
+                </button>
+              `).join("")}
+            </div>
+            <div id="caseFeedback"></div>
+          </div>
+        `;
+      }
+
+      function selectCase(id) {
+        currentCase = CASES.find(item => item.id === id) || CASES[0];
+        caseStep = 0;
+        caseScore = 0;
+        caseAnswered = false;
+        caseFinished = false;
+        renderCase();
+        if (window.innerWidth <= 720) {
+          document.getElementById("caseStage").scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+
+      function answerCase(index) {
+        if (caseAnswered || caseFinished) return;
+        caseAnswered = true;
+        const step = currentCase.steps[caseStep];
+        const correct = index === step.a;
+        if (correct) caseScore += 1;
+        markStudy();
+        saveProgress();
+        document.querySelectorAll(".case-option").forEach((button, optionIndex) => {
+          button.disabled = true;
+          if (optionIndex === step.a) button.classList.add("correct");
+          if (optionIndex === index && !correct) button.classList.add("wrong");
+        });
+        document.getElementById("caseFeedback").innerHTML = `
+          <div class="case-reveal ${correct ? "" : "wrong"}">
+            <h3>${correct ? "Circuit connected." : "Rerouting the signal."}</h3>
+            <p>${escapeHtml(step.why)}</p>
+            <div class="case-circuit">${renderCircuit(step.circuit)}</div>
+            <p style="margin-top:13px"><strong>Precision check:</strong> ${escapeHtml(step.precision)}</p>
+          </div>
+          <button class="btn btn-dark case-next" id="caseNext">${caseStep === currentCase.steps.length - 1 ? "Complete circuit" : "Continue the case"} →</button>
+        `;
+        document.getElementById("caseNext").focus();
+      }
+
+      function nextCaseStep() {
+        caseStep += 1;
+        caseAnswered = false;
+        if (caseStep >= currentCase.steps.length) {
+          caseFinished = true;
+          if (!progress.caseBest || typeof progress.caseBest !== "object") progress.caseBest = {};
+          progress.caseBest[currentCase.id] = Math.max(caseBestScore(currentCase.id), caseScore);
+          if (!Array.isArray(progress.caseCompleted)) progress.caseCompleted = [];
+          if (!progress.caseCompleted.includes(currentCase.id)) progress.caseCompleted.push(currentCase.id);
+          markStudy();
+          saveProgress();
+        }
+        renderCase();
+        document.getElementById("caseStage").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function shuffled(items) {
+        const copy = [...items];
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      }
+
+      function startQuiz(source = QUESTIONS) {
+        const paper = shuffled(source.filter(q => q.c === "Paper")).slice(0, 1);
+        const markers = shuffled(source.filter(q => q.c === "Markers")).slice(0, 1);
+        const others = shuffled(source.filter(q => !paper.includes(q) && !markers.includes(q))).slice(0, 3);
+        let selected = [...paper, ...markers, ...others];
+        if (source.length <= 5) selected = [...source];
+        quiz = { questions: shuffled(selected), index: 0, score: 0, answered: false, misses: [] };
+        renderQuiz();
+      }
+
+      function renderQuiz() {
+        const shell = document.getElementById("quizShell");
+        if (quiz.index >= quiz.questions.length) {
+          finishQuiz();
+          return;
+        }
+        const item = quiz.questions[quiz.index];
+        shell.innerHTML = `
+          <div class="quiz-main">
+            <span class="quiz-kicker">${escapeHtml(item.c)} · Question ${quiz.index + 1} of ${quiz.questions.length}</span>
+            <div class="quiz-question">${escapeHtml(item.q)}</div>
+            <div class="quiz-options">
+              ${item.o.map((option, i) => `<button class="quiz-option" data-answer="${i}"><span class="quiz-key">${i + 1}</span><span>${escapeHtml(option)}</span></button>`).join("")}
+            </div>
+            <div id="quizFeedback"></div>
+          </div>
+          <aside class="quiz-rail">
+            <h3>Mission control</h3>
+            <div class="quiz-progress">${quiz.questions.map((_, i) => `<i class="progress-dot ${i < quiz.index ? "done" : i === quiz.index ? "current" : ""}"></i>`).join("")}</div>
+            <span class="score-big">${quiz.score}</span>
+            <span class="score-label">correct so far</span>
+            <p class="quiz-tip">Keyboard shortcut: press 1–4 to choose. The explanation matters more than the score.</p>
+          </aside>
+        `;
+      }
+
+      function answerQuiz(index) {
+        if (quiz.answered) return;
+        quiz.answered = true;
+        const item = quiz.questions[quiz.index];
+        const correct = index === item.a;
+        if (correct) quiz.score += 1;
+        else quiz.misses.push(item);
+        progress.answered += 1;
+        if (correct) progress.correct += 1;
+        if (progress.today !== todayKey()) {
+          progress.today = todayKey();
+          progress.todayAnswered = 0;
+        }
+        progress.todayAnswered = Math.min(5, progress.todayAnswered + 1);
+        markStudy();
+        saveProgress();
+        document.querySelectorAll(".quiz-option").forEach((button, i) => {
+          button.disabled = true;
+          if (i === item.a) button.classList.add("correct");
+          if (i === index && !correct) button.classList.add("wrong");
+        });
+        document.getElementById("quizFeedback").innerHTML = `
+          <div class="feedback ${correct ? "" : "wrong"}">
+            <strong>${correct ? "Connected." : "Circuit repaired."}</strong>
+            ${escapeHtml(item.x)}
+          </div>
+          <button class="btn btn-dark quiz-next" id="quizNext">${quiz.index === quiz.questions.length - 1 ? "See results" : "Next question"} →</button>
+        `;
+        document.getElementById("quizNext").focus();
+      }
+
+      function nextQuiz() {
+        quiz.index += 1;
+        quiz.answered = false;
+        renderQuiz();
+      }
+
+      function finishQuiz() {
+        progress.sessions += 1;
+        markStudy();
+        saveProgress();
+        const total = quiz.questions.length;
+        const pct = Math.round(quiz.score / total * 100);
+        const message = pct === 100 ? "Clean circuit. Every connection held."
+          : pct >= 80 ? "Strong signal. One quick repair pass will lock it in."
+          : pct >= 60 ? "The map is forming. Review the misses while they are fresh."
+          : "Good diagnostic pass. Misses are the highest-value cards in the deck.";
+        document.getElementById("quizShell").innerHTML = `
+          <div class="quiz-main quiz-results">
+            <span class="quiz-kicker">Mission complete</span>
+            <div class="result-orb">${quiz.score}/${total}</div>
+            <h2>${message}</h2>
+            <p>You just practiced pathways, marker combinations, phenotype language, and evidence from the paper.</p>
+            <div class="results-actions">
+              ${quiz.misses.length ? '<button class="btn btn-primary" id="reviewMisses">Retry misses</button>' : ""}
+              <button class="btn btn-dark" id="newQuiz">New mixed mission</button>
+              <button class="btn btn-light" id="goFlash">Switch to recall cards</button>
+            </div>
+          </div>
+          <aside class="quiz-rail">
+            <h3>Session signal</h3>
+            <span class="score-big">${pct}%</span>
+            <span class="score-label">mission accuracy</span>
+            <p class="quiz-tip">A wrong answer that you correct now is more useful than a familiar fact you only reread.</p>
+          </aside>
+        `;
+      }
+
+      function setDrillMode(mode) {
+        document.querySelectorAll(".drill-switch").forEach(button => button.classList.toggle("active", button.dataset.mode === mode));
+        document.getElementById("quizMode").classList.toggle("hidden", mode !== "quiz");
+        document.getElementById("flashMode").classList.toggle("hidden", mode !== "flash");
+        if (mode === "flash") renderFlash();
+      }
+
+      function currentFlashCards() {
+        return flashDeck === "All" ? FLASHCARDS : FLASHCARDS.filter(card => card.d === flashDeck);
+      }
+
+      function renderDecks() {
+        const decks = ["All", ...new Set(FLASHCARDS.map(card => card.d))];
+        document.getElementById("deckList").innerHTML = `<h3>Recall decks</h3>${decks.map(deck => `
+          <button class="deck-btn ${flashDeck === deck ? "active" : ""}" data-deck="${deck}">
+            <span>${deck}</span><span class="deck-count">${deck === "All" ? FLASHCARDS.length : FLASHCARDS.filter(card => card.d === deck).length}</span>
+          </button>
+        `).join("")}`;
+      }
+
+      function renderFlash() {
+        renderDecks();
+        const cards = currentFlashCards();
+        if (flashIndex >= cards.length) flashIndex = 0;
+        const card = cards[flashIndex];
+        document.getElementById("flashArea").innerHTML = `
+          <div class="flash-meta"><span>${escapeHtml(card.d)}</span><span>${flashIndex + 1} / ${cards.length}</span></div>
+          <article class="flashcard ${flashRevealed ? "revealed" : ""}" id="flashcard" tabindex="0" role="button" aria-label="Flashcard; activate to reveal answer">
+            ${flashRevealed ? `<div class="flash-answer">${card.a}</div>` : `<div class="flash-prompt">${escapeHtml(card.q)}</div>`}
+          </article>
+          <div class="flash-actions ${flashRevealed ? "" : "hidden"}">
+            <button class="rate-btn again" data-rate="again">Again</button>
+            <button class="rate-btn good" data-rate="good">Got it</button>
+          </div>
+        `;
+      }
+
+      function revealFlash() {
+        if (flashRevealed) return;
+        flashRevealed = true;
+        renderFlash();
+      }
+
+      function rateFlash(rate) {
+        progress.cards += 1;
+        markStudy();
+        saveProgress();
+        showToast(rate === "again" ? "Card kept in the recall loop" : "Connection strengthened");
+        const cards = currentFlashCards();
+        if (rate === "good") flashIndex = (flashIndex + 1) % cards.length;
+        flashRevealed = false;
+        renderFlash();
+      }
+
+      function bindEvents() {
+        document.addEventListener("click", event => {
+          const viewButton = event.target.closest("[data-view]");
+          if (viewButton) {
+            showView(viewButton.dataset.view);
+            return;
+          }
+          const filter = event.target.closest("[data-filter]");
+          if (filter) {
+            atlasFilter = filter.dataset.filter;
+            document.querySelectorAll(".filter-chip").forEach(chip => chip.classList.toggle("active", chip === filter));
+            renderPathways();
+            return;
+          }
+          const select = event.target.closest("[data-select-pathway]");
+          if (select) {
+            selectPathway(select.dataset.selectPathway);
+            return;
+          }
+          const open = event.target.closest("[data-open-pathway]");
+          if (open) {
+            openPathway(open.dataset.openPathway);
+            return;
+          }
+          const cell = event.target.closest("[data-cell]");
+          if (cell) {
+            selectCell(cell.dataset.cell);
+            return;
+          }
+          const phenotype = event.target.closest("[data-phenotype]");
+          if (phenotype) {
+            selectPhenotype(phenotype.dataset.phenotype);
+            return;
+          }
+          const caseSelect = event.target.closest("[data-case]");
+          if (caseSelect) {
+            selectCase(caseSelect.dataset.case);
+            return;
+          }
+          const caseAnswer = event.target.closest("[data-case-answer]");
+          if (caseAnswer) {
+            answerCase(Number(caseAnswer.dataset.caseAnswer));
+            return;
+          }
+          const mode = event.target.closest("[data-mode]");
+          if (mode) {
+            setDrillMode(mode.dataset.mode);
+            return;
+          }
+          const answer = event.target.closest("[data-answer]");
+          if (answer) {
+            answerQuiz(Number(answer.dataset.answer));
+            return;
+          }
+          const deck = event.target.closest("[data-deck]");
+          if (deck) {
+            flashDeck = deck.dataset.deck;
+            flashIndex = 0;
+            flashRevealed = false;
+            renderFlash();
+            return;
+          }
+          const rate = event.target.closest("[data-rate]");
+          if (rate) {
+            rateFlash(rate.dataset.rate);
+            return;
+          }
+          if (event.target.closest("#quizNext")) nextQuiz();
+          if (event.target.closest("#newQuiz")) startQuiz();
+          if (event.target.closest("#reviewMisses")) startQuiz(quiz.misses);
+          if (event.target.closest("#goFlash")) setDrillMode("flash");
+          if (event.target.closest("#flashcard")) revealFlash();
+          if (event.target.closest("#caseNext")) nextCaseStep();
+          if (event.target.closest("#restartCase")) selectCase(currentCase.id);
+          const nextCase = event.target.closest("[data-next-case]");
+          if (nextCase) selectCase(nextCase.dataset.nextCase);
+        });
+
+        document.getElementById("pathwaySearch").addEventListener("input", renderPathways);
+        document.getElementById("networkOpen").addEventListener("click", () => openPathway(currentPathway.id));
+        document.getElementById("modalClose").addEventListener("click", closeModal);
+        document.getElementById("pathwayModal").addEventListener("click", event => {
+          if (event.target.id === "pathwayModal") closeModal();
+        });
+        document.addEventListener("keydown", event => {
+          if (event.key === "Escape" && !document.getElementById("pathwayModal").classList.contains("hidden")) closeModal();
+          const quizVisible = document.getElementById("view-drill").classList.contains("active")
+            && !document.getElementById("quizMode").classList.contains("hidden");
+          if (quizVisible && !quiz.answered && ["1", "2", "3", "4"].includes(event.key)) {
+            const index = Number(event.key) - 1;
+            if (quiz.questions[quiz.index] && index < quiz.questions[quiz.index].o.length) answerQuiz(index);
+          }
+          const caseVisible = document.getElementById("view-cases").classList.contains("active");
+          if (caseVisible && !caseAnswered && !caseFinished && ["1", "2", "3", "4"].includes(event.key)) {
+            const index = Number(event.key) - 1;
+            if (index < currentCase.steps[caseStep].o.length) answerCase(index);
+          }
+          if ((event.key === "Enter" || event.key === " ") && event.target.id === "flashcard") {
+            event.preventDefault();
+            revealFlash();
+          }
+        });
+      }
+
+      function boot() {
+        renderProgress();
+        renderPathways();
+        selectPathway(PATHWAYS[0].id, false);
+        renderCellMenu();
+        renderCellSheet();
+        renderPhenotypes();
+        renderVocab();
+        renderCase();
+        renderFlash();
+        bindEvents();
+      }
+
+      boot();
+    })();
+  </script>
+</body>
+</html>

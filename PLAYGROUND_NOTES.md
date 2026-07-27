@@ -47,7 +47,9 @@ For in-file navigation, every HTML/JS file has a comment block at the top with a
 26. [Escape Room Simulator (React + Vite)](#26-escape-room-simulator-folder) — `escape-room-simulator/`
 27. [Guitar MP3 Transcription (Python + FastAPI)](#27-guitar-mp3-transcription-folder) — `guitar-mp3-transcription/`
 28. [Violin Sheet Helper (FastAPI + OCR)](#28-violin-sheet-helper-webapp-folder) — `violin-sheet-helper-webapp/`
-29. [Cross-Project Patterns](#cross-project-patterns)
+29. [CodeSignal Prep](#29-codesignal-prep-folder) — `codesignal-prep/`
+30. [Immune Circuit (Immunology Study Guide)](#30-immune-circuit-immunology-study-guide) — `immunology-wiring.html`
+31. [Cross-Project Patterns](#cross-project-patterns)
 
 ---
 
@@ -1841,11 +1843,60 @@ Spaced-repetition flashcards for ~55 Python idioms across 14 categories (Slicing
 
 ---
 
+## 30. Immune Circuit (Immunology Study Guide)
+
+**File:** `immunology-wiring.html`
+
+**Status:** Complete
+
+**Dependencies:** None (single-file vanilla HTML/CSS/JS, works offline)
+
+Conversation-focused immunology learning app grounded in Shilts et al., “A physical wiring
+diagram for the human immune system” (Nature, 2022). It distinguishes paper-derived findings
+from canonical pathway context and teaches receptor–ligand pairs, cell identity by marker
+combinations, phenotype interpretation, and evidence-layer precision.
+
+### Structure
+
+- Sticky six-view app shell: Today, Wiring atlas, Cell ID lab, Phenotypes, Cases, Drill
+- Dashboard with local progress, paper snapshot, and five-step learning path
+- Data-driven pathway atlas with filters, search, live two-cell wiring diagram, and detail modal
+- Cell ID cards for T, B, NK, monocyte, dendritic, and neutrophil populations
+- Phenotype decoder for activation, exhaustion, quiescence, cytotoxicity, adhesion, and differentiation
+- Four stepwise case circuits (vaccine, viral infection, tumour, allergy) with causal feedback
+- Five-question mixed quiz missions with explanations and keyboard shortcuts
+- Filterable recall-card decks; case best scores, streak, accuracy, and review counts in localStorage
+- iPhone-safe responsive rules: safe-area insets, 44px+ controls, momentum-scrolling tabs,
+  one-column cases, narrow-screen modal/network adaptations, and 16px form inputs
+
+### Key JS data and entry points
+
+- `PATHWAYS` — canonical and paper-discovered receptor circuits with evidence caveats
+- `CELLS` — marker combinations, subsets, gating sequences, and interpretation tips
+- `PHENOTYPES` / `VOCAB` — state definitions, evidence, confounders, and conversation language
+- `CASES` — four scenarios with four sequential decisions each
+- `QUESTIONS` / `FLASHCARDS` — retrieval-practice content
+- `renderPathways`, `selectPathway`, `openPathway` — wiring atlas
+- `renderCellSheet`, `renderPhenotypes` — reference labs
+- `renderCase`, `answerCase`, `nextCaseStep` — case-circuit engine
+- `startQuiz`, `answerQuiz`, `finishQuiz` — five-question mission engine
+- `renderFlash`, `rateFlash` — recall deck engine
+- localStorage key: `immune_circuit_progress_v1`
+
+### Palette
+
+Deep navy (`#07151d`, `#0b202a`), teal (`#1db4a1`, `#d8f4ef`), coral
+(`#eb7459`, `#ffe8e2`), gold (`#daa23d`, `#fff1c9`), cream paper (`#f4efe4`).
+
+---
+
+## Cross-Project Patterns
+
 
 
 | Pattern | Where |
 |---------|-------|
-| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics, nihao, pawn-path, speak-sharp, sat-reading, interview-drill |
+| **Single IIFE script** | All Glow Studio variants, both slot machines, spades, math-ace, habla-clara, bio-basics, nihao, pawn-path, speak-sharp, sat-reading, interview-drill, immunology-wiring |
 | **Procedural Web Audio (no files)** | slot-machine, slot-machine-memes (with optional MP3), spades, daw (Tone.js) |
 | **Canvas-based rendering** | All Glow Studio (image processing), count-champ (charts), mortgage-lab (line charts), speak-sharp (live pitch curve) |
 | **Inline SVG for static graphics** | math-ace (shapes, analog clock, fraction bars), bio-basics (animated cell, interactive cell tour, animal/plant compare), nihao (tone tracks, live pitch curves), violin-voyage (staff + fingerboard), money-smarts (coin tour + piggy bank), hello (vowel quadrant chart) |
@@ -1853,12 +1904,12 @@ Spaced-repetition flashcards for ~55 Python idioms across 14 categories (Slicing
 | **Shared blush+ink palette** | All 4 Glow Studio variants |
 | **Identical reel/paytable engine** | slot-machine + slot-machine-memes |
 | **CSS variables for theming** | All projects |
-| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map), pawn-path (stars + best times per theme), speak-sharp (per-prompt history), mortgage-lab (input state per tab), sat-reading (per-passage best time + score), interview-drill (per-question history + STAR notes), money-smarts (modules-completed), hello (L1 + modules-completed), violin-voyage (module progress), fridge-feast (API key only) |
-| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow), nihao (single-module 6-scene flow, no landing), money-smarts (landing → module), hello (single-module 6-scene) |
+| **localStorage-persisted progress** | math-ace (stars + best times per topic), habla-clara (daily-reset word/scenario tracking), bio-basics (modules-completed map), nihao (modules-completed map), pawn-path (stars + best times per theme), speak-sharp (per-prompt history), mortgage-lab (input state per tab), sat-reading (per-passage best time + score), interview-drill (per-question history + STAR notes), money-smarts (modules-completed), hello (L1 + modules-completed), violin-voyage (module progress), immunology-wiring (missions, accuracy, streak, card reviews), fridge-feast (API key only) |
+| **View-state-machine SPA** | math-ace (landing → grade → topic → detail), count-champ (tabs), habla-clara (landing → scenario → gym), bio-basics (landing → 6-scene module flow), nihao (single-module 6-scene flow, no landing), money-smarts (landing → module), hello (single-module 6-scene), immunology-wiring (five study views) |
 | **Microphone input + pitch analysis** | nihao (autocorrelation; first project to capture mic input for shape-based grading) |
 | **Web Speech API (TTS + recognition)** | habla-clara (TTS + recognition), nihao (TTS-only fallback when MP3 audio missing), speak-sharp (recognition for transcript), interview-drill (TTS asks question + recognition for answer), hello (both APIs for vowel trainer) |
 | **Pitch detection (autocorrelate)** | nihao (tone trainer), speak-sharp (vocal-range metric) |
-| **No build step / no framework** | Every vanilla HTML project (count: 19) |
+| **No build step / no framework** | Every vanilla HTML project (count: 20) |
 | **Build step required** | escape-room-simulator (React + Vite + TypeScript) |
 | **Python backend required** | stock-screener (data fetch script), guitar-mp3-transcription (FastAPI), violin-sheet-helper-webapp (FastAPI) |
 | **External CDNs** | DAW only (Tone.js + VexFlow) |
@@ -1880,6 +1931,7 @@ Spaced-repetition flashcards for ~55 Python idioms across 14 categories (Slicing
 | hello.html | 2,848 | English pronunciation tutor (L1-aware) |
 | math-ace.html | 2,766 | K–5 math tutor (44 topics) |
 | count-champ.html | 2,580 | Blackjack trainer + Monte Carlo sim |
+| immunology-wiring.html | 3,235 | Immunology pathways, case circuits, marker lab, phenotype decoder, and drills |
 | violin-voyage.html | 2,487 | Beginner violin & sheet-music tutor (12 modules) |
 | glow-studio-mobile.html | 2,399 | Photo editor |
 | habla-clara.html | 2,385 | Pronunciation tutor (Spanish L1) |

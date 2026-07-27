@@ -29,7 +29,7 @@ PLAYGROUND_NOTES.md, not SITES.md.
 
 ## File conventions
 
-- Every `.html` file (all 25) opens with a top **TOC comment block** describing what it
+- Every `.html` file (all 27) opens with a top **TOC comment block** describing what it
   does and mapping its sections. **Read that header first** — it's the fastest way to
   orient in a large single-file site (some exceed 200 KB / several thousand lines).
 - Inside any file, `grep -n "============"` lists its section anchors.

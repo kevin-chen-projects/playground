@@ -10,12 +10,13 @@ engineering map see [PLAYGROUND_NOTES.md](PLAYGROUND_NOTES.md).
 > `main`, root folder) for these links to resolve. Single-file `.html` sites work as-is;
 > folder projects that need a server or build step are listed separately at the bottom.
 
-_Last updated: 2026-06-06 (moved Tier A+B candidates to a private repo; archived sites still browsable)_
+_Last updated: 2026-07-26 (added Immune Circuit; archived sites still browsable)_
 
 ---
 
 ## Learning & education
 
+- [Immune Circuit](https://kevin-chen-projects.github.io/playground/immunology-wiring.html) — interactive immunology study guide
 - [SAT Reading Sprints](https://kevin-chen-projects.github.io/playground/sat-reading.html) — timed SAT reading practice
 - [Money Smarts](https://kevin-chen-projects.github.io/playground/money-smarts.html) — personal-finance literacy
 - [Violin Voyage](https://kevin-chen-projects.github.io/playground/violin-voyage.html) — beginner violin + sheet music

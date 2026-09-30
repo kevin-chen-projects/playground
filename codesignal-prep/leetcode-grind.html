@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  LeetCode Grind — Python pattern drills (in-browser execution via Pyodide)
+================================================================================
+
+  Single-file vanilla HTML/CSS/JS. Open in a browser. ONE external dependency:
+  Pyodide (CPython in WASM) loaded from a CDN so your code actually RUNS and is
+  graded against real test cases — like LeetCode. First open needs network to
+  fetch Pyodide (~6 MB, cached after). Everything else is self-contained.
+
+  NOTE: this is the only file in codesignal-prep/ that touches the network; the
+  rest of the kit is offline. That tradeoff buys true pass/fail execution.
+
+  WHAT IT IS
+  ==============================================================================
+  A LeetCode-style grinder: a filterable problem list on the left, a
+  Description / Solution tab pair, a code editor, and a Run button that executes
+  your Python in the browser and shows per-test pass/fail. Built to drill
+  pattern recognition + muscle memory across two tracks:
+    - Broad LeetCode patterns (hash map, two pointers, sliding window, stack,
+      binary search, strings, math, intervals, design).
+    - The IMC stateful-class genre this prep kit targets (counter/grouping
+      idioms, top-N tie-breaks, TTL/expiry, deepcopy snapshots, `and`
+      short-circuit order) — see blank-line-drills.md.
+
+  Every solution + expected output in here was executed in CPython by the
+  generator (gen_grind.py) before shipping — no unverified expected values.
+
+  FILE INDEX
+  ==============================================================================
+  HEAD            this comment + <head> meta/title + Pyodide <script> tag
+  STYLE           palette (slate + python-blue + amber), layout (sidebar+main),
+                  problem list, tabs, editor, run console, responsive
+  BODY            .app = .sidebar (filters + problem list) + .main
+                  (.tabs, .pane-desc, .pane-solution, .editor, .console)
+  SCRIPT
+    PROBLEMS      injected array: {id,title,difficulty,category,pattern,
+                  description,starter,solution,explanation,tests}
+    State         current problem id, per-problem saved code + solved flag
+    Persistence   localStorage['csprep_grind_v1']
+    Pyodide       lazy boot on first Run; harness wraps user code + tests,
+                  collects check() results, reports pass/fail
+    Render        sidebar list (grouped, solved ticks), tabs, editor, console
+    Events        select problem, tab switch, run, reset code, filters
+================================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeetCode Grind — Python Patterns</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --panel: #1e293b; --panel-2: #273449;
+  --ink: #e2e8f0; --muted: #94a3b8;
+  --blue: #4b8bbe; --blue-bright: #5fa8e0; --amber: #ffd43b;
+  --green: #4ade80; --red: #f87171; --orange: #fb923c;
+  --radius: 12px; --shadow: 0 8px 24px rgba(0,0,0,.35);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--sans); background: var(--bg); color: var(--ink);
+  line-height: 1.5; overflow: hidden;
+}
+
+/* ===== App shell: sidebar + main ===== */
+.app { display: flex; height: 100vh; }
+.sidebar {
+  width: 320px; flex: 0 0 320px; background: var(--panel);
+  border-right: 1px solid #2c3a52; display: flex; flex-direction: column;
+}
+.main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+
+/* ===== Sidebar ===== */
+.brand {
+  padding: 16px 18px 12px; font-weight: 700; font-size: 1.1rem;
+  border-bottom: 1px solid #2c3a52;
+}
+.brand .lc { color: var(--blue-bright); }
+.brand .py { color: var(--amber); }
+.brand .sub { display: block; font-weight: 400; font-size: .72rem; color: var(--muted); margin-top: 3px; }
+.filters { padding: 12px 14px; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #2c3a52; }
+.filters select {
+  flex: 1 1 0; min-width: 0; font-family: var(--sans); font-size: .8rem;
+  background: var(--panel-2); color: var(--ink); border: 1px solid #38476080;
+  border-radius: 8px; padding: 6px 8px; cursor: pointer;
+}
+.progress-line { padding: 8px 18px; font-size: .76rem; color: var(--muted); border-bottom: 1px solid #2c3a52; }
+.progress-line b { color: var(--green); }
+.plist { flex: 1 1 auto; overflow-y: auto; padding: 6px 0 24px; }
+.group-head {
+  padding: 12px 18px 4px; font-size: .68rem; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--blue-bright); font-weight: 700;
+}
+.pitem {
+  display: flex; align-items: center; gap: 9px; padding: 8px 18px;
+  cursor: pointer; font-size: .86rem; border-left: 3px solid transparent;
+}
+.pitem:hover { background: var(--panel-2); }
+.pitem.active { background: var(--panel-2); border-left-color: var(--blue); }
+.pitem .tick { width: 15px; flex: 0 0 15px; color: var(--green); font-size: .85rem; }
+.pitem .ptitle { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pitem.active .ptitle { color: #fff; font-weight: 600; }
+.diff { font-size: .66rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; flex: 0 0 auto; }
+.diff.Easy { color: var(--green); background: #14361f; }
+.diff.Medium { color: var(--orange); background: #3a2410; }
+
+/* ===== Main: tabs ===== */
+.tabs {
+  display: flex; align-items: center; gap: 4px; padding: 0 14px;
+  border-bottom: 1px solid #2c3a52; background: var(--panel);
+}
+.tab {
+  font-family: var(--sans); font-size: .85rem; color: var(--muted);
+  background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 13px 14px; cursor: pointer;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--ink); border-bottom-color: var(--blue); font-weight: 600; }
+.tab-spacer { flex: 1 1 auto; }
+.run-btn {
+  font-family: var(--sans); font-size: .85rem; font-weight: 700; color: #06240f;
+  background: var(--green); border: none; border-radius: 8px;
+  padding: 8px 18px; cursor: pointer; margin: 7px 0;
+}
+.run-btn:hover { filter: brightness(1.08); }
+.run-btn:disabled { opacity: .55; cursor: default; }
+.ghost-btn {
+  font-family: var(--sans); font-size: .78rem; color: var(--muted);
+  background: var(--panel-2); border: 1px solid #38476080; border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; margin: 7px 6px 7px 0;
+}
+.ghost-btn:hover { color: var(--ink); }
+
+/* ===== Content panes ===== */
+.content { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.pane { display: none; overflow-y: auto; padding: 22px 26px; }
+.pane.active { display: block; }
+.pane.text-pane { flex: 1 1 auto; }
+.ptitle-big { font-size: 1.45rem; font-weight: 700; margin-bottom: 8px; }
+.meta-row { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.cat-tag {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--blue-bright); background: #12203a; border: 1px solid #1e3a5f;
+  padding: 3px 9px; border-radius: 6px;
+}
+.pattern-note {
+  background: #15233c; border-left: 3px solid var(--amber); border-radius: 6px;
+  padding: 10px 14px; margin-bottom: 18px; font-size: .9rem; color: #d8e2f0;
+}
+.pattern-note b { color: var(--amber); }
+.desc-body { white-space: pre-wrap; font-size: .96rem; color: #d8e2f0; }
+.desc-body, .explain-body { font-family: var(--sans); }
+.explain-body { white-space: pre-wrap; font-size: .95rem; color: #d8e2f0; margin-top: 6px; }
+.section-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 18px 0 6px; }
+pre, code { font-family: var(--mono); }
+pre.code-block {
+  background: #0b1220; border: 1px solid #1e2c44; border-radius: 10px;
+  padding: 14px 16px; overflow-x: auto; font-size: .9rem; color: #e6edf3;
+  white-space: pre; line-height: 1.55;
+}
+.locked-note { color: var(--muted); font-style: italic; font-size: .9rem; }
+
+/* ===== Code editor + console (Code tab) ===== */
+.pane-code { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+.pane-code.active { display: flex; }
+.editor-wrap { flex: 1 1 60%; min-height: 0; display: flex; flex-direction: column; padding: 14px 16px 0; }
+.editor {
+  flex: 1 1 auto; width: 100%; resize: none; tab-size: 4;
+  font-family: var(--mono); font-size: .92rem; line-height: 1.55;
+  background: #0b1220; color: #e6edf3; border: 1px solid #1e2c44;
+  border-radius: 10px; padding: 14px 16px; white-space: pre; overflow: auto;
+}
+.editor:focus { outline: 1px solid var(--blue); }
+.console {
+  flex: 0 0 auto; max-height: 38%; overflow-y: auto; margin: 12px 16px 16px;
+  background: #0b1220; border: 1px solid #1e2c44; border-radius: 10px;
+  padding: 13px 16px; font-family: var(--mono); font-size: .85rem;
+}
+.console .status { color: var(--muted); }
+.console .summary { font-weight: 700; margin-bottom: 8px; }
+.console .summary.pass { color: var(--green); }
+.console .summary.fail { color: var(--red); }
+.test-row { display: flex; gap: 8px; padding: 3px 0; align-items: baseline; }
+.test-row .mark { flex: 0 0 16px; }
+.test-row.ok .mark { color: var(--green); }
+.test-row.no .mark { color: var(--red); }
+.test-row .tname { color: var(--ink); }
+.test-row .detail { color: var(--muted); }
+.test-row.no .detail { color: #fbc4c4; }
+.err-trace { color: var(--red); white-space: pre-wrap; }
+
+/* ===== Responsive ===== */
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { flex-direction: column; height: auto; }
+  .sidebar { width: 100%; flex: none; max-height: 38vh; }
+  .main { height: 62vh; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="lc">LeetCode</span> <span class="py">Grind</span>
+      <span class="sub">Python patterns + IMC stateful-class drills · runs in-browser</span>
+    </div>
+    <div class="filters">
+      <select id="catFilter" aria-label="Category"></select>
+      <select id="diffFilter" aria-label="Difficulty">
+        <option value="All">All levels</option>
+        <option value="Easy">Easy</option>
+        <option value="Medium">Medium</option>
+      </select>
+    </div>
+    <div class="progress-line" id="progressLine"></div>
+    <div class="plist" id="plist"></div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <section class="main">
+    <div class="tabs">
+      <button class="tab active" data-tab="desc" id="tabDesc">Description</button>
+      <button class="tab" data-tab="code" id="tabCode">Code</button>
+      <button class="tab" data-tab="solution" id="tabSolution">Solution</button>
+      <span class="tab-spacer"></span>
+      <button class="ghost-btn" id="resetCodeBtn">Reset code</button>
+      <button class="run-btn" id="runBtn">▶ Run</button>
+    </div>
+    <div class="content">
+      <!-- Description -->
+      <div class="pane text-pane active" id="paneDesc"></div>
+      <!-- Code editor + console -->
+      <div class="pane-code" id="paneCode">
+        <div class="editor-wrap">
+          <textarea class="editor" id="editor" spellcheck="false"
+            autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+        </div>
+        <div class="console" id="console">
+          <span class="status">Write your solution, then press Run (Ctrl/Cmd+Enter). Pyodide loads on first run.</span>
+        </div>
+      </div>
+      <!-- Solution -->
+      <div class="pane text-pane" id="paneSolution"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   PROBLEMS — injected by gen_grind.py (verified in CPython).
+   ============================================================ */
+const PROBLEMS = [
+{
+"id": "two-sum",
+"title": "Two Sum",
+"difficulty": "Easy",
+"category": "Hash Map",
+"pattern": "Remember what you've seen in a dict; look up the complement.",
+"description": "Given an array of integers `nums` and an integer `target`, return the indices of the two numbers that add up to `target`. Exactly one solution exists; you may not use the same element twice.\n\nExample:\n  two_sum([2,7,11,15], 9) -> [0, 1]   (2 + 7 = 9)\n  two_sum([3,2,4], 6)     -> [1, 2]",
+"starter": "def two_sum(nums, target):\n    # return the two indices\n    pass\n",
+"solution": "def two_sum(nums, target):\n    seen = {}                      # value -> index\n    for i, n in enumerate(nums):\n        if target - n in seen:\n            return [seen[target - n], i]\n        seen[n] = i\n    return []\n",
+"explanation": "One pass. For each number, check if its complement (target - n) was already seen; if so you have the pair. Store value->index as you go.\nTime O(n), space O(n). The brute-force double loop is O(n^2).",
+"tests": "check(\"ex1\", two_sum([2,7,11,15], 9), [0,1])\ncheck(\"ex2\", two_sum([3,2,4], 6), [1,2])\ncheck(\"dup\", two_sum([3,3], 6), [0,1])\n"
+},
+{
+"id": "contains-duplicate",
+"title": "Contains Duplicate",
+"difficulty": "Easy",
+"category": "Hash Map",
+"pattern": "set() collapses duplicates; compare lengths.",
+"description": "Return True if any value appears at least twice in `nums`, False if every element is distinct.\n\nExample:\n  contains_duplicate([1,2,3,1]) -> True\n  contains_duplicate([1,2,3,4]) -> False",
+"starter": "def contains_duplicate(nums):\n    pass\n",
+"solution": "def contains_duplicate(nums):\n    return len(set(nums)) != len(nums)\n",
+"explanation": "A set drops duplicates, so if the set is smaller than the list a duplicate existed. Time O(n), space O(n).",
+"tests": "check(\"dup\", contains_duplicate([1,2,3,1]), True)\ncheck(\"nodup\", contains_duplicate([1,2,3,4]), False)\ncheck(\"empty\", contains_duplicate([]), False)\n"
+},
+{
+"id": "valid-anagram",
+"title": "Valid Anagram",
+"difficulty": "Easy",
+"category": "Hash Map",
+"pattern": "Two strings are anagrams iff their char counts match.",
+"description": "Return True if `t` is an anagram of `s` (same characters, same counts, any order).\n\nExample:\n  is_anagram(\"anagram\", \"nagaram\") -> True\n  is_anagram(\"rat\", \"car\")         -> False",
+"starter": "def is_anagram(s, t):\n    pass\n",
+"solution": "from collections import Counter\n\ndef is_anagram(s, t):\n    return Counter(s) == Counter(t)\n",
+"explanation": "Counter builds char->count; two anagrams have identical Counters. Equivalent: sorted(s) == sorted(t). Time O(n).",
+"tests": "check(\"yes\", is_anagram(\"anagram\", \"nagaram\"), True)\ncheck(\"no\", is_anagram(\"rat\", \"car\"), False)\ncheck(\"len\", is_anagram(\"a\", \"ab\"), False)\n"
+},
+{
+"id": "group-anagrams",
+"title": "Group Anagrams",
+"difficulty": "Medium",
+"category": "Hash Map",
+"pattern": "Bucket by a canonical key (sorted letters) \u2014 grouping idiom.",
+"description": "Group the strings that are anagrams of each other. Return a list of groups (order of groups and within groups doesn't matter).\n\nExample:\n  group_anagrams([\"eat\",\"tea\",\"tan\",\"ate\",\"nat\",\"bat\"])\n    -> [[\"eat\",\"tea\",\"ate\"], [\"tan\",\"nat\"], [\"bat\"]]",
+"starter": "def group_anagrams(strs):\n    pass\n",
+"solution": "def group_anagrams(strs):\n    groups = {}                       # sorted-key -> [words]\n    for s in strs:\n        key = \"\".join(sorted(s))\n        groups.setdefault(key, []).append(s)\n    return list(groups.values())\n",
+"explanation": "All anagrams share the same sorted-letters string, so use it as a dict key and append each word to its bucket. This is the grouping idiom (setdefault) \u2014 a comprehension can't accumulate buckets. Time O(n * k log k).",
+"tests": "def norm(res):\n    return sorted(sorted(g) for g in res)\ncheck(\"ex1\", norm(group_anagrams([\"eat\",\"tea\",\"tan\",\"ate\",\"nat\",\"bat\"])), norm([[\"eat\",\"tea\",\"ate\"],[\"tan\",\"nat\"],[\"bat\"]]))\ncheck(\"single\", norm(group_anagrams([\"abc\"])), [[\"abc\"]])\ncheck(\"empty\", group_anagrams([]), [])\n"
+},
+{
+"id": "top-k-frequent",
+"title": "Top K Frequent Elements",
+"difficulty": "Medium",
+"category": "Hash Map",
+"pattern": "Counter.most_common(k) \u2014 count then take the top.",
+"description": "Return the `k` most frequent elements of `nums` (any order).\n\nExample:\n  top_k_frequent([1,1,1,2,2,3], 2) -> [1, 2]\n  top_k_frequent([1], 1)           -> [1]",
+"starter": "def top_k_frequent(nums, k):\n    pass\n",
+"solution": "from collections import Counter\n\ndef top_k_frequent(nums, k):\n    counts = Counter(nums)\n    return [n for n, _ in counts.most_common(k)]\n",
+"explanation": "Count frequencies, then most_common(k) returns the k highest-count (value, count) pairs; strip the value. Time O(n log k).",
+"tests": "check(\"ex1\", sorted(top_k_frequent([1,1,1,2,2,3], 2)), [1,2])\ncheck(\"one\", top_k_frequent([1], 1), [1])\ncheck(\"all\", sorted(top_k_frequent([4,4,5,5,6], 3)), [4,5,6])\n"
+},
+{
+"id": "first-unique-char",
+"title": "First Unique Character",
+"difficulty": "Easy",
+"category": "Hash Map",
+"pattern": "Count first, then scan in order for the first count==1.",
+"description": "Return the index of the first non-repeating character in `s`, or -1 if there is none.\n\nExample:\n  first_uniq_char(\"leetcode\")   -> 0\n  first_uniq_char(\"loveleetcode\") -> 2\n  first_uniq_char(\"aabb\")       -> -1",
+"starter": "def first_uniq_char(s):\n    pass\n",
+"solution": "from collections import Counter\n\ndef first_uniq_char(s):\n    counts = Counter(s)\n    for i, c in enumerate(s):\n        if counts[c] == 1:\n            return i\n    return -1\n",
+"explanation": "First pass counts each char; second pass returns the index of the first char whose count is 1. Order matters, so scan the original string, not the dict. Time O(n).",
+"tests": "check(\"ex1\", first_uniq_char(\"leetcode\"), 0)\ncheck(\"ex2\", first_uniq_char(\"loveleetcode\"), 2)\ncheck(\"none\", first_uniq_char(\"aabb\"), -1)\n"
+},
+{
+"id": "valid-palindrome",
+"title": "Valid Palindrome",
+"difficulty": "Easy",
+"category": "Two Pointers",
+"pattern": "Filter to alphanumerics, compare with its reverse.",
+"description": "Return True if `s` reads the same forwards and backwards, considering only alphanumeric characters and ignoring case.\n\nExample:\n  is_palindrome(\"A man, a plan, a canal: Panama\") -> True\n  is_palindrome(\"race a car\")                     -> False",
+"starter": "def is_palindrome(s):\n    pass\n",
+"solution": "def is_palindrome(s):\n    cleaned = [c.lower() for c in s if c.isalnum()]\n    return cleaned == cleaned[::-1]\n",
+"explanation": "Keep only alphanumerics (lowercased), then check it equals its reverse. cleaned[::-1] reverses. Time O(n). A two-pointer scan avoids building the reversed copy but the slice is simpler.",
+"tests": "check(\"yes\", is_palindrome(\"A man, a plan, a canal: Panama\"), True)\ncheck(\"no\", is_palindrome(\"race a car\"), False)\ncheck(\"empty\", is_palindrome(\" \"), True)\n"
+},
+{
+"id": "two-sum-ii",
+"title": "Two Sum II (Sorted Input)",
+"difficulty": "Medium",
+"category": "Two Pointers",
+"pattern": "Sorted array -> converge two pointers by comparing the sum.",
+"description": "`numbers` is sorted ascending. Return the 1-indexed positions of the two numbers that add to `target` as [i, j] with i < j.\n\nExample:\n  two_sum_sorted([2,7,11,15], 9)  -> [1, 2]\n  two_sum_sorted([2,3,4], 6)      -> [1, 3]",
+"starter": "def two_sum_sorted(numbers, target):\n    pass\n",
+"solution": "def two_sum_sorted(numbers, target):\n    lo, hi = 0, len(numbers) - 1\n    while lo < hi:\n        s = numbers[lo] + numbers[hi]\n        if s == target:\n            return [lo + 1, hi + 1]\n        if s < target:\n            lo += 1\n        else:\n            hi -= 1\n    return []\n",
+"explanation": "Because the array is sorted, a too-small sum means move the left pointer up; too-big means move the right pointer down. Converge in one pass. Time O(n), space O(1).",
+"tests": "check(\"ex1\", two_sum_sorted([2,7,11,15], 9), [1,2])\ncheck(\"ex2\", two_sum_sorted([2,3,4], 6), [1,3])\ncheck(\"ex3\", two_sum_sorted([-1,0], -1), [1,2])\n"
+},
+{
+"id": "move-zeroes",
+"title": "Move Zeroes",
+"difficulty": "Easy",
+"category": "Two Pointers",
+"pattern": "Write pointer packs non-zeros forward; fill the rest with zeros.",
+"description": "Move all 0's to the end of `nums` while keeping the order of the non-zero elements. Modify in place and return the list.\n\nExample:\n  move_zeroes([0,1,0,3,12]) -> [1,3,12,0,0]",
+"starter": "def move_zeroes(nums):\n    pass\n",
+"solution": "def move_zeroes(nums):\n    w = 0                          # next write slot\n    for n in nums:\n        if n != 0:\n            nums[w] = n\n            w += 1\n    for i in range(w, len(nums)):\n        nums[i] = 0\n    return nums\n",
+"explanation": "Two pointers: copy each non-zero to the front (write pointer w), then zero-fill the tail. Stable and in place. Time O(n), space O(1).",
+"tests": "check(\"ex1\", move_zeroes([0,1,0,3,12]), [1,3,12,0,0])\ncheck(\"nozeros\", move_zeroes([1,2,3]), [1,2,3])\ncheck(\"allzeros\", move_zeroes([0,0]), [0,0])\n"
+},
+{
+"id": "remove-duplicates-sorted",
+"title": "Remove Duplicates from Sorted Array",
+"difficulty": "Easy",
+"category": "Two Pointers",
+"pattern": "Slow/fast pointers; write each new value once.",
+"description": "`nums` is sorted ascending. Remove duplicates in place so each value appears once, and return k = the number of unique elements. The first k slots of nums must hold the unique values in order.\n\nReturn k here (the harness checks both k and nums[:k]).\n\nExample:\n  remove_duplicates([1,1,2]) -> 2, nums[:2] == [1,2]",
+"starter": "def remove_duplicates(nums):\n    pass\n",
+"solution": "def remove_duplicates(nums):\n    if not nums:\n        return 0\n    w = 1                          # next write slot\n    for i in range(1, len(nums)):\n        if nums[i] != nums[w - 1]:\n            nums[w] = nums[i]\n            w += 1\n    return w\n",
+"explanation": "Sorted means duplicates are adjacent. Keep a write pointer; whenever the current value differs from the last written one, write it. Returns the unique count. Time O(n), space O(1).",
+"tests": "a = [1,1,2]\ncheck(\"k\", remove_duplicates(a), 2)\ncheck(\"front\", a[:2], [1,2])\nb = [0,0,1,1,1,2,2,3,3,4]\ncheck(\"k2\", remove_duplicates(b), 5)\ncheck(\"front2\", b[:5], [0,1,2,3,4])\n"
+},
+{
+"id": "container-most-water",
+"title": "Container With Most Water",
+"difficulty": "Medium",
+"category": "Two Pointers",
+"pattern": "Move the shorter wall inward \u2014 it's the only way area can grow.",
+"description": "Each element of `height` is a vertical line. Pick two lines that with the x-axis form a container holding the most water; return that area (min height * width).\n\nExample:\n  max_area([1,8,6,2,5,4,8,3,7]) -> 49\n  max_area([1,1])               -> 1",
+"starter": "def max_area(height):\n    pass\n",
+"solution": "def max_area(height):\n    lo, hi = 0, len(height) - 1\n    best = 0\n    while lo < hi:\n        area = min(height[lo], height[hi]) * (hi - lo)\n        best = max(best, area)\n        if height[lo] < height[hi]:\n            lo += 1\n        else:\n            hi -= 1\n    return best\n",
+"explanation": "Start wide. Width only shrinks as pointers converge, so move the shorter line inward \u2014 keeping it could never beat the current area. Time O(n), space O(1).",
+"tests": "check(\"ex1\", max_area([1,8,6,2,5,4,8,3,7]), 49)\ncheck(\"ex2\", max_area([1,1]), 1)\ncheck(\"incr\", max_area([1,2,3,4,5]), 6)\n"
+},
+{
+"id": "best-time-stock",
+"title": "Best Time to Buy and Sell Stock",
+"difficulty": "Easy",
+"category": "Sliding Window",
+"pattern": "Track the min price so far; best profit = price - min.",
+"description": "`prices[i]` is the price on day i. Buy on one day and sell on a later day. Return the max profit, or 0 if no profit is possible.\n\nExample:\n  max_profit([7,1,5,3,6,4]) -> 5   (buy at 1, sell at 6)\n  max_profit([7,6,4,3,1])   -> 0",
+"starter": "def max_profit(prices):\n    pass\n",
+"solution": "def max_profit(prices):\n    best = 0\n    cheapest = float('inf')\n    for p in prices:\n        cheapest = min(cheapest, p)\n        best = max(best, p - cheapest)\n    return best\n",
+"explanation": "One pass: keep the lowest price seen so far; the best sell-today profit is price - cheapest. Track the max. Time O(n), space O(1).",
+"tests": "check(\"ex1\", max_profit([7,1,5,3,6,4]), 5)\ncheck(\"none\", max_profit([7,6,4,3,1]), 0)\ncheck(\"empty\", max_profit([]), 0)\n"
+},
+{
+"id": "max-subarray",
+"title": "Maximum Subarray",
+"difficulty": "Medium",
+"category": "Sliding Window",
+"pattern": "Kadane: drop the running sum the moment it goes negative.",
+"description": "Return the largest sum of any contiguous non-empty subarray of `nums`.\n\nExample:\n  max_sub_array([-2,1,-3,4,-1,2,1,-5,4]) -> 6   ([4,-1,2,1])\n  max_sub_array([-1])                    -> -1",
+"starter": "def max_sub_array(nums):\n    pass\n",
+"solution": "def max_sub_array(nums):\n    best = cur = nums[0]\n    for n in nums[1:]:\n        cur = max(n, cur + n)\n        best = max(best, cur)\n    return best\n",
+"explanation": "Kadane's algorithm. cur = best sum ending here: either extend the previous run or restart at n (whichever is larger). Track the global best. Time O(n), space O(1).",
+"tests": "check(\"ex1\", max_sub_array([-2,1,-3,4,-1,2,1,-5,4]), 6)\ncheck(\"neg\", max_sub_array([-1]), -1)\ncheck(\"allpos\", max_sub_array([1,2,3]), 6)\n"
+},
+{
+"id": "longest-substring-no-repeat",
+"title": "Longest Substring Without Repeating Characters",
+"difficulty": "Medium",
+"category": "Sliding Window",
+"pattern": "Grow a window; on a repeat, jump the left edge past it.",
+"description": "Return the length of the longest substring of `s` with no repeating characters.\n\nExample:\n  length_of_longest(\"abcabcbb\") -> 3   (\"abc\")\n  length_of_longest(\"bbbbb\")    -> 1\n  length_of_longest(\"pwwkew\")   -> 3   (\"wke\")",
+"starter": "def length_of_longest(s):\n    pass\n",
+"solution": "def length_of_longest(s):\n    last = {}                      # char -> last index seen\n    start = 0\n    best = 0\n    for i, c in enumerate(s):\n        if c in last and last[c] >= start:\n            start = last[c] + 1\n        last[c] = i\n        best = max(best, i - start + 1)\n    return best\n",
+"explanation": "Sliding window [start, i]. Remember each char's last index; when you hit a repeat inside the window, move start just past that earlier occurrence. Window size i-start+1 tracks the answer. Time O(n).",
+"tests": "check(\"ex1\", length_of_longest(\"abcabcbb\"), 3)\ncheck(\"same\", length_of_longest(\"bbbbb\"), 1)\ncheck(\"ex3\", length_of_longest(\"pwwkew\"), 3)\ncheck(\"empty\", length_of_longest(\"\"), 0)\n"
+},
+{
+"id": "valid-parentheses",
+"title": "Valid Parentheses",
+"difficulty": "Easy",
+"category": "Stack",
+"pattern": "Push openers; each closer must match the top of the stack.",
+"description": "Given a string of just the characters ()[]{}, return True if every bracket is closed by the same type in the correct order.\n\nExample:\n  is_valid(\"()[]{}\") -> True\n  is_valid(\"(]\")     -> False\n  is_valid(\"([)]\")   -> False",
+"starter": "def is_valid(s):\n    pass\n",
+"solution": "def is_valid(s):\n    pairs = {')': '(', ']': '[', '}': '{'}\n    stack = []\n    for c in s:\n        if c in pairs:\n            if not stack or stack.pop() != pairs[c]:\n                return False\n        else:\n            stack.append(c)\n    return not stack\n",
+"explanation": "Push every opener. On a closer, the top of the stack must be its matching opener (and the stack must be non-empty). Valid iff the stack is empty at the end. Time O(n).",
+"tests": "check(\"ok\", is_valid(\"()[]{}\"), True)\ncheck(\"mismatch\", is_valid(\"(]\"), False)\ncheck(\"order\", is_valid(\"([)]\"), False)\ncheck(\"nested\", is_valid(\"{[]}\"), True)\ncheck(\"openleft\", is_valid(\"(\"), False)\n"
+},
+{
+"id": "daily-temperatures",
+"title": "Daily Temperatures",
+"difficulty": "Medium",
+"category": "Stack",
+"pattern": "Monotonic stack of indices waiting for a warmer day.",
+"description": "Given daily `temperatures`, return an array where answer[i] is how many days you wait for a warmer temperature, or 0 if none.\n\nExample:\n  daily_temperatures([73,74,75,71,69,72,76,73])\n    -> [1,1,4,2,1,1,0,0]",
+"starter": "def daily_temperatures(temperatures):\n    pass\n",
+"solution": "def daily_temperatures(temperatures):\n    ans = [0] * len(temperatures)\n    stack = []                     # indices of days awaiting warmth\n    for i, t in enumerate(temperatures):\n        while stack and temperatures[stack[-1]] < t:\n            j = stack.pop()\n            ans[j] = i - j\n        stack.append(i)\n    return ans\n",
+"explanation": "Keep a stack of indices with decreasing temps. Today resolves every stacked day it's warmer than; the wait is the index gap. Each index is pushed/popped once. Time O(n).",
+"tests": "check(\"ex1\", daily_temperatures([73,74,75,71,69,72,76,73]), [1,1,4,2,1,1,0,0])\ncheck(\"desc\", daily_temperatures([5,4,3,2,1]), [0,0,0,0,0])\ncheck(\"one\", daily_temperatures([30]), [0])\n"
+},
+{
+"id": "binary-search",
+"title": "Binary Search",
+"difficulty": "Easy",
+"category": "Binary Search",
+"pattern": "Halve the range each step; mind lo<=hi and mid+/-1.",
+"description": "`nums` is sorted ascending and has unique values. Return the index of `target`, or -1 if it's not present.\n\nExample:\n  search([-1,0,3,5,9,12], 9) -> 4\n  search([-1,0,3,5,9,12], 2) -> -1",
+"starter": "def search(nums, target):\n    pass\n",
+"solution": "def search(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n",
+"explanation": "Classic binary search. Use lo <= hi (inclusive) and always move past mid (mid+1 / mid-1) so the range strictly shrinks. Time O(log n).",
+"tests": "check(\"found\", search([-1,0,3,5,9,12], 9), 4)\ncheck(\"missing\", search([-1,0,3,5,9,12], 2), -1)\ncheck(\"first\", search([1,2,3], 1), 0)\ncheck(\"last\", search([1,2,3], 3), 2)\n"
+},
+{
+"id": "search-insert",
+"title": "Search Insert Position",
+"difficulty": "Easy",
+"category": "Binary Search",
+"pattern": "When not found, lo lands on the insertion index.",
+"description": "`nums` is sorted with distinct values. Return the index of `target`; if absent, return the index where it would be inserted to keep the array sorted.\n\nExample:\n  search_insert([1,3,5,6], 5) -> 2\n  search_insert([1,3,5,6], 2) -> 1\n  search_insert([1,3,5,6], 7) -> 4",
+"starter": "def search_insert(nums, target):\n    pass\n",
+"solution": "def search_insert(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return lo\n",
+"explanation": "Same search, but on a miss the loop exits with lo pointing at the first slot >= target \u2014 exactly the insertion index. Time O(log n).",
+"tests": "check(\"found\", search_insert([1,3,5,6], 5), 2)\ncheck(\"mid\", search_insert([1,3,5,6], 2), 1)\ncheck(\"end\", search_insert([1,3,5,6], 7), 4)\ncheck(\"front\", search_insert([1,3,5,6], 0), 0)\n"
+},
+{
+"id": "search-rotated",
+"title": "Search in Rotated Sorted Array",
+"difficulty": "Medium",
+"category": "Binary Search",
+"pattern": "One half is always sorted; decide which, then which side to keep.",
+"description": "A sorted, distinct array was rotated at an unknown pivot (e.g. [0,1,2,4,5,6,7] -> [4,5,6,7,0,1,2]). Return the index of `target` or -1.\n\nExample:\n  search_rotated([4,5,6,7,0,1,2], 0) -> 4\n  search_rotated([4,5,6,7,0,1,2], 3) -> -1",
+"starter": "def search_rotated(nums, target):\n    pass\n",
+"solution": "def search_rotated(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[lo] <= nums[mid]:           # left half sorted\n            if nums[lo] <= target < nums[mid]:\n                hi = mid - 1\n            else:\n                lo = mid + 1\n        else:                               # right half sorted\n            if nums[mid] < target <= nums[hi]:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n    return -1\n",
+"explanation": "At each step one half is properly sorted. Detect which (compare nums[lo] and nums[mid]); if the target falls inside that sorted range, search it, else search the other half. Time O(log n).",
+"tests": "check(\"found\", search_rotated([4,5,6,7,0,1,2], 0), 4)\ncheck(\"missing\", search_rotated([4,5,6,7,0,1,2], 3), -1)\ncheck(\"pivot\", search_rotated([4,5,6,7,0,1,2], 4), 0)\ncheck(\"one\", search_rotated([1], 1), 0)\n"
+},
+{
+"id": "reverse-string",
+"title": "Reverse String",
+"difficulty": "Easy",
+"category": "Strings",
+"pattern": "Two pointers swapping inward \u2014 in place.",
+"description": "Reverse a list of characters `s` in place and return it.\n\nExample:\n  reverse_string([\"h\",\"e\",\"l\",\"l\",\"o\"]) -> [\"o\",\"l\",\"l\",\"e\",\"h\"]",
+"starter": "def reverse_string(s):\n    pass\n",
+"solution": "def reverse_string(s):\n    lo, hi = 0, len(s) - 1\n    while lo < hi:\n        s[lo], s[hi] = s[hi], s[lo]\n        lo += 1\n        hi -= 1\n    return s\n",
+"explanation": "Swap the outermost pair, then move both pointers inward until they meet. In place, O(1) extra space, O(n) time.",
+"tests": "check(\"ex1\", reverse_string([\"h\",\"e\",\"l\",\"l\",\"o\"]), [\"o\",\"l\",\"l\",\"e\",\"h\"])\ncheck(\"even\", reverse_string([\"a\",\"b\"]), [\"b\",\"a\"])\ncheck(\"one\", reverse_string([\"x\"]), [\"x\"])\n"
+},
+{
+"id": "longest-common-prefix",
+"title": "Longest Common Prefix",
+"difficulty": "Easy",
+"category": "Strings",
+"pattern": "Shrink a candidate prefix against each string.",
+"description": "Return the longest common prefix among an array of strings, or the empty string \"\" if there is none.\n\nExample:\n  longest_common_prefix([\"flower\",\"flow\",\"flight\"]) -> \"fl\"\n  longest_common_prefix([\"dog\",\"racecar\",\"car\"])    -> \"\"",
+"starter": "def longest_common_prefix(strs):\n    pass\n",
+"solution": "def longest_common_prefix(strs):\n    if not strs:\n        return \"\"\n    prefix = strs[0]\n    for s in strs[1:]:\n        while not s.startswith(prefix):\n            prefix = prefix[:-1]\n            if not prefix:\n                return \"\"\n    return prefix\n",
+"explanation": "Start with the first string as the candidate prefix; for each other string, trim the candidate from the right until it's a prefix. Time O(total chars).",
+"tests": "check(\"ex1\", longest_common_prefix([\"flower\",\"flow\",\"flight\"]), \"fl\")\ncheck(\"none\", longest_common_prefix([\"dog\",\"racecar\",\"car\"]), \"\")\ncheck(\"one\", longest_common_prefix([\"single\"]), \"single\")\n"
+},
+{
+"id": "roman-to-int",
+"title": "Roman to Integer",
+"difficulty": "Easy",
+"category": "Strings",
+"pattern": "Subtract when a smaller numeral precedes a larger one.",
+"description": "Convert a Roman numeral string to an integer. Symbols: I=1 V=5 X=10 L=50 C=100 D=500 M=1000. A smaller value before a larger one is subtracted (IV=4, IX=9, XL=40 ...).\n\nExample:\n  roman_to_int(\"III\")     -> 3\n  roman_to_int(\"LVIII\")   -> 58\n  roman_to_int(\"MCMXCIV\") -> 1994",
+"starter": "def roman_to_int(s):\n    pass\n",
+"solution": "def roman_to_int(s):\n    val = {'I':1,'V':5,'X':10,'L':50,'C':100,'D':500,'M':1000}\n    total = 0\n    for i, c in enumerate(s):\n        if i + 1 < len(s) and val[c] < val[s[i + 1]]:\n            total -= val[c]\n        else:\n            total += val[c]\n    return total\n",
+"explanation": "Sum each numeral, but if a numeral is smaller than the one to its right, subtract it instead (that encodes the IV/IX form). Time O(n).",
+"tests": "check(\"three\", roman_to_int(\"III\"), 3)\ncheck(\"58\", roman_to_int(\"LVIII\"), 58)\ncheck(\"1994\", roman_to_int(\"MCMXCIV\"), 1994)\ncheck(\"four\", roman_to_int(\"IV\"), 4)\n"
+},
+{
+"id": "reverse-words",
+"title": "Reverse Words in a String",
+"difficulty": "Medium",
+"category": "Strings",
+"pattern": "split() drops extra spaces; reverse; re-join with one space.",
+"description": "Reverse the order of words in `s`. A word is a maximal run of non-space chars. Collapse multiple spaces and trim leading/trailing space; words in the result are separated by a single space.\n\nExample:\n  reverse_words(\"the sky is blue\")     -> \"blue is sky the\"\n  reverse_words(\"  hello   world  \")   -> \"world hello\"",
+"starter": "def reverse_words(s):\n    pass\n",
+"solution": "def reverse_words(s):\n    return \" \".join(s.split()[::-1])\n",
+"explanation": "s.split() with no args splits on any whitespace and drops empties, so trimming/collapsing is free. Reverse the word list and join with one space. Time O(n).",
+"tests": "check(\"ex1\", reverse_words(\"the sky is blue\"), \"blue is sky the\")\ncheck(\"spaces\", reverse_words(\"  hello   world  \"), \"world hello\")\ncheck(\"one\", reverse_words(\"word\"), \"word\")\n"
+},
+{
+"id": "is-subsequence",
+"title": "Is Subsequence",
+"difficulty": "Easy",
+"category": "Strings",
+"pattern": "Advance one pointer through t, ticking off chars of s in order.",
+"description": "Return True if `s` is a subsequence of `t` (the chars of s appear in t in order, not necessarily contiguously).\n\nExample:\n  is_subsequence(\"abc\", \"ahbgdc\") -> True\n  is_subsequence(\"axc\", \"ahbgdc\") -> False",
+"starter": "def is_subsequence(s, t):\n    pass\n",
+"solution": "def is_subsequence(s, t):\n    i = 0\n    for c in t:\n        if i < len(s) and s[i] == c:\n            i += 1\n    return i == len(s)\n",
+"explanation": "Walk through t once; each time the current char matches s[i], advance i. If i reaches the end of s, every char was matched in order. Time O(len(t)).",
+"tests": "check(\"yes\", is_subsequence(\"abc\", \"ahbgdc\"), True)\ncheck(\"no\", is_subsequence(\"axc\", \"ahbgdc\"), False)\ncheck(\"empty\", is_subsequence(\"\", \"anything\"), True)\n"
+},
+{
+"id": "fizzbuzz",
+"title": "Fizz Buzz",
+"difficulty": "Easy",
+"category": "Math",
+"pattern": "Divisibility with %, build strings; check 15 first or concat.",
+"description": "Return a list of length `n` (1-indexed) where multiples of 3 are \"Fizz\", of 5 are \"Buzz\", of both are \"FizzBuzz\", else the number as a string.\n\nExample:\n  fizz_buzz(5) -> [\"1\",\"2\",\"Fizz\",\"4\",\"Buzz\"]",
+"starter": "def fizz_buzz(n):\n    pass\n",
+"solution": "def fizz_buzz(n):\n    out = []\n    for i in range(1, n + 1):\n        s = \"\"\n        if i % 3 == 0:\n            s += \"Fizz\"\n        if i % 5 == 0:\n            s += \"Buzz\"\n        out.append(s or str(i))\n    return out\n",
+"explanation": "Build the label by concatenation: \"Fizz\" for /3, \"Buzz\" for /5 (both gives \"FizzBuzz\" automatically). If the label is empty, fall back to the number. `s or str(i)` picks the number when s is falsy. Time O(n).",
+"tests": "check(\"ex5\", fizz_buzz(5), [\"1\",\"2\",\"Fizz\",\"4\",\"Buzz\"])\ncheck(\"fb\", fizz_buzz(15)[14], \"FizzBuzz\")\ncheck(\"one\", fizz_buzz(1), [\"1\"])\n"
+},
+{
+"id": "palindrome-number",
+"title": "Palindrome Number",
+"difficulty": "Easy",
+"category": "Math",
+"pattern": "Negatives never qualify; reverse via %10 and //10 (no str).",
+"description": "Return True if integer `x` reads the same forwards and backwards. Negative numbers are never palindromes.\n\nExample:\n  is_palindrome_num(121)  -> True\n  is_palindrome_num(-121) -> False\n  is_palindrome_num(10)   -> False",
+"starter": "def is_palindrome_num(x):\n    pass\n",
+"solution": "def is_palindrome_num(x):\n    if x < 0:\n        return False\n    rev, n = 0, x\n    while n > 0:\n        rev = rev * 10 + n % 10\n        n //= 10\n    return rev == x\n",
+"explanation": "Build the reversed number digit by digit (n % 10 grabs the last digit, n //= 10 drops it) and compare. Negatives short-circuit to False. Time O(digits).",
+"tests": "check(\"yes\", is_palindrome_num(121), True)\ncheck(\"neg\", is_palindrome_num(-121), False)\ncheck(\"ten\", is_palindrome_num(10), False)\ncheck(\"zero\", is_palindrome_num(0), True)\n"
+},
+{
+"id": "plus-one",
+"title": "Plus One",
+"difficulty": "Easy",
+"category": "Math",
+"pattern": "Carry from the right; a leading carry prepends a 1.",
+"description": "`digits` is a non-negative integer, one digit per element, most significant first. Add one and return the resulting digits.\n\nExample:\n  plus_one([1,2,3]) -> [1,2,4]\n  plus_one([9,9])   -> [1,0,0]",
+"starter": "def plus_one(digits):\n    pass\n",
+"solution": "def plus_one(digits):\n    for i in range(len(digits) - 1, -1, -1):\n        if digits[i] < 9:\n            digits[i] += 1\n            return digits\n        digits[i] = 0\n    return [1] + digits\n",
+"explanation": "Walk from the least significant digit. A digit < 9 just increments and you're done; a 9 becomes 0 and carries. If every digit was 9 the loop ends and you prepend a 1. Time O(n).",
+"tests": "check(\"simple\", plus_one([1,2,3]), [1,2,4])\ncheck(\"carry\", plus_one([9,9]), [1,0,0])\ncheck(\"mid\", plus_one([1,9,9]), [2,0,0])\n"
+},
+{
+"id": "single-number",
+"title": "Single Number",
+"difficulty": "Easy",
+"category": "Math",
+"pattern": "XOR cancels pairs; the loner survives.",
+"description": "Every element of `nums` appears twice except one. Return the one that appears once. Aim for O(n) time and O(1) space.\n\nExample:\n  single_number([2,2,1])     -> 1\n  single_number([4,1,2,1,2]) -> 4",
+"starter": "def single_number(nums):\n    pass\n",
+"solution": "def single_number(nums):\n    result = 0\n    for n in nums:\n        result ^= n\n    return result\n",
+"explanation": "XOR of a number with itself is 0 and XOR with 0 is the number, so XOR-ing everything cancels all the pairs and leaves the unique value. Time O(n), space O(1).",
+"tests": "check(\"ex1\", single_number([2,2,1]), 1)\ncheck(\"ex2\", single_number([4,1,2,1,2]), 4)\ncheck(\"one\", single_number([7]), 7)\n"
+},
+{
+"id": "majority-element",
+"title": "Majority Element",
+"difficulty": "Easy",
+"category": "Math",
+"pattern": "Boyer-Moore voting: a count that the majority can't lose.",
+"description": "An element appears more than n/2 times in `nums`. Return it. Aim for O(n) time, O(1) space.\n\nExample:\n  majority_element([3,2,3])         -> 3\n  majority_element([2,2,1,1,1,2,2]) -> 2",
+"starter": "def majority_element(nums):\n    pass\n",
+"solution": "def majority_element(nums):\n    count = 0\n    candidate = None\n    for n in nums:\n        if count == 0:\n            candidate = n\n        count += 1 if n == candidate else -1\n    return candidate\n",
+"explanation": "Boyer-Moore voting: pair off each occurrence of the candidate against a different value. The true majority (> n/2) can never be fully cancelled, so it's whatever the candidate is at the end. Time O(n), space O(1).",
+"tests": "check(\"ex1\", majority_element([3,2,3]), 3)\ncheck(\"ex2\", majority_element([2,2,1,1,1,2,2]), 2)\ncheck(\"one\", majority_element([1]), 1)\n"
+},
+{
+"id": "merge-intervals",
+"title": "Merge Intervals",
+"difficulty": "Medium",
+"category": "Intervals",
+"pattern": "Sort by start; merge when the next start <= current end.",
+"description": "Given a list of [start, end] intervals, merge all overlapping ones and return the result sorted by start.\n\nExample:\n  merge([[1,3],[2,6],[8,10],[15,18]]) -> [[1,6],[8,10],[15,18]]\n  merge([[1,4],[4,5]])                -> [[1,5]]",
+"starter": "def merge(intervals):\n    pass\n",
+"solution": "def merge(intervals):\n    intervals.sort(key=lambda iv: iv[0])\n    out = []\n    for iv in intervals:\n        if out and iv[0] <= out[-1][1]:\n            out[-1][1] = max(out[-1][1], iv[1])\n        else:\n            out.append(iv[:])\n    return out\n",
+"explanation": "Sort by start so overlaps are adjacent. Walk through; if the current interval starts before the last merged one ends, extend that one's end, otherwise start a fresh interval. Time O(n log n).",
+"tests": "check(\"ex1\", merge([[1,3],[2,6],[8,10],[15,18]]), [[1,6],[8,10],[15,18]])\ncheck(\"touch\", merge([[1,4],[4,5]]), [[1,5]])\ncheck(\"one\", merge([[1,4]]), [[1,4]])\ncheck(\"unsorted\", merge([[2,3],[1,2]]), [[1,3]])\n"
+},
+{
+"id": "min-stack",
+"title": "Min Stack",
+"difficulty": "Medium",
+"category": "Design",
+"pattern": "Carry the running min alongside each pushed value.",
+"description": "Design a stack supporting push, pop, top and get_min \u2014 all O(1).\n\n  MinStack()        # empty\n  push(val)         # push val\n  pop()             # remove top\n  top()             # return top value\n  get_min()         # return the minimum value in the stack\n\nExample:\n  s = MinStack(); s.push(-2); s.push(0); s.push(-3)\n  s.get_min() -> -3;  s.pop();  s.top() -> 0;  s.get_min() -> -2",
+"starter": "class MinStack:\n    def __init__(self):\n        pass\n\n    def push(self, val):\n        pass\n\n    def pop(self):\n        pass\n\n    def top(self):\n        pass\n\n    def get_min(self):\n        pass\n",
+"solution": "class MinStack:\n    def __init__(self):\n        self.stack = []            # (value, min-so-far)\n\n    def push(self, val):\n        cur_min = val if not self.stack else min(val, self.stack[-1][1])\n        self.stack.append((val, cur_min))\n\n    def pop(self):\n        self.stack.pop()\n\n    def top(self):\n        return self.stack[-1][0]\n\n    def get_min(self):\n        return self.stack[-1][1]\n",
+"explanation": "Store each element as a (value, min-of-stack-up-to-here) pair. The min is then always the top pair's second field, so get_min is O(1) and survives pops automatically.",
+"tests": "s = MinStack()\ns.push(-2); s.push(0); s.push(-3)\ncheck(\"min1\", s.get_min(), -3)\ns.pop()\ncheck(\"top\", s.top(), 0)\ncheck(\"min2\", s.get_min(), -2)\n"
+},
+{
+"id": "word-bank",
+"title": "WordBank (frequency tracker)",
+"difficulty": "Easy",
+"category": "IMC: Stateful Class",
+"pattern": "The counter idiom: d[k] = d.get(k, 0) + 1.",
+"description": "A by-hand frequency tracker (no collections.Counter).\n\n  __init__()       # empty state\n  add(word)        # +1 to word's count (from 0 if new); return new count\n  count(word)      # current count (0 if never seen)\n  unique()         # number of distinct words seen",
+"starter": "class WordBank:\n    def __init__(self):\n        pass\n\n    def add(self, word):\n        pass\n\n    def count(self, word):\n        pass\n\n    def unique(self):\n        pass\n",
+"solution": "class WordBank:\n    def __init__(self):\n        self.counts = {}\n\n    def add(self, word):\n        self.counts[word] = self.counts.get(word, 0) + 1\n        return self.counts[word]\n\n    def count(self, word):\n        return self.counts.get(word, 0)\n\n    def unique(self):\n        return len(self.counts)\n",
+"explanation": "State is one dict word->count. The counter idiom .get(k, 0) + 1 handles the first-seen case without a branch; count() reuses .get with a 0 default so a missing word never raises.",
+"tests": "b = WordBank()\ncheck(\"a1\", b.add(\"a\"), 1)\ncheck(\"a2\", b.add(\"a\"), 2)\ncheck(\"b1\", b.add(\"b\"), 1)\ncheck(\"count_a\", b.count(\"a\"), 2)\ncheck(\"count_missing\", b.count(\"zzz\"), 0)\ncheck(\"unique\", b.unique(), 2)\n"
+},
+{
+"id": "leaderboard",
+"title": "Leaderboard (top-N with tie-break)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "sorted(d.items(), key=lambda kv: (-kv[1], kv[0]))[:n].",
+"description": "The most common hard-ish IMC shape: accumulate then rank.\n\n  __init__()             # empty state\n  add_score(name, pts)   # add pts to name's total (from 0 if new)\n  top(n)                 # top n as (name, total) tuples, sorted by\n                         # total DESC, then name ASC on ties",
+"starter": "class Leaderboard:\n    def __init__(self):\n        pass\n\n    def add_score(self, name, points):\n        pass\n\n    def top(self, n):\n        pass\n",
+"solution": "class Leaderboard:\n    def __init__(self):\n        self.scores = {}\n\n    def add_score(self, name, points):\n        self.scores[name] = self.scores.get(name, 0) + points\n\n    def top(self, n):\n        return sorted(self.scores.items(),\n                      key=lambda kv: (-kv[1], kv[0]))[:n]\n",
+"explanation": "Counter idiom to accumulate totals. The tie-break is the tuple key (-count, name): negating the count sorts it descending while name stays ascending. Slice [:n] safely handles n > number of players. Sort .items() (pairs), not the dict (keys).",
+"tests": "L = Leaderboard()\nL.add_score(\"alice\", 50)\nL.add_score(\"bob\", 50)\nL.add_score(\"carol\", 30)\nL.add_score(\"alice\", 20)\ncheck(\"top2\", L.top(2), [(\"alice\", 70), (\"bob\", 50)])\ncheck(\"topall\", L.top(5), [(\"alice\", 70), (\"bob\", 50), (\"carol\", 30)])\n"
+},
+{
+"id": "ttl-store",
+"title": "TTLStore (expiry by timestamp)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "Store (value, expires_at); alive while timestamp < expires_at.",
+"description": "A key/value store whose entries expire. Time is passed in as an int (no real clock).\n\n  __init__()\n  set(key, value, timestamp, ttl)  # expires at timestamp + ttl\n  get(key, timestamp)              # value if it exists AND\n                                   # timestamp < expires_at, else None",
+"starter": "class TTLStore:\n    def __init__(self):\n        pass\n\n    def set(self, key, value, timestamp, ttl):\n        pass\n\n    def get(self, key, timestamp):\n        pass\n",
+"solution": "class TTLStore:\n    def __init__(self):\n        self.store = {}            # key -> (value, expires_at)\n\n    def set(self, key, value, timestamp, ttl):\n        self.store[key] = (value, timestamp + ttl)\n\n    def get(self, key, timestamp):\n        if key not in self.store:\n            return None\n        value, expires_at = self.store[key]\n        if timestamp < expires_at:\n            return value\n        return None\n",
+"explanation": "Store the precomputed expiry (timestamp + ttl) next to the value. On get, guard membership FIRST (so a missing key returns None instead of raising), then compare with strict < \u2014 exactly at expiry counts as expired.",
+"tests": "s = TTLStore()\ns.set(\"a\", \"x\", 100, 50)\ncheck(\"alive\", s.get(\"a\", 120), \"x\")\ncheck(\"boundary\", s.get(\"a\", 150), None)\ncheck(\"expired\", s.get(\"a\", 200), None)\ncheck(\"missing\", s.get(\"missing\", 100), None)\n"
+},
+{
+"id": "task-queue",
+"title": "TaskQueue (state machine + ordering)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "Two dicts; guard unknown ids; filter-then-sort with a tuple key.",
+"description": "Track each task's status and priority.\n\n  __init__()\n  submit(task_id, priority)  # register \"pending\" with a priority (int)\n  start(task_id)             # -> \"running\"; return False if unknown\n  complete(task_id)          # -> \"done\"; return False if unknown\n  status(task_id)            # status string, or None if unknown\n  pending()                  # ids still \"pending\", sorted by\n                             # priority DESC, then task_id ASC",
+"starter": "class TaskQueue:\n    def __init__(self):\n        pass\n\n    def submit(self, task_id, priority):\n        pass\n\n    def start(self, task_id):\n        pass\n\n    def complete(self, task_id):\n        pass\n\n    def status(self, task_id):\n        pass\n\n    def pending(self):\n        pass\n",
+"solution": "class TaskQueue:\n    def __init__(self):\n        self.status_of = {}        # task_id -> status string\n        self.priority = {}         # task_id -> int\n\n    def submit(self, task_id, priority):\n        self.status_of[task_id] = \"pending\"\n        self.priority[task_id] = priority\n\n    def start(self, task_id):\n        if task_id not in self.status_of:\n            return False\n        self.status_of[task_id] = \"running\"\n\n    def complete(self, task_id):\n        if task_id not in self.status_of:\n            return False\n        self.status_of[task_id] = \"done\"\n\n    def status(self, task_id):\n        return self.status_of.get(task_id)\n\n    def pending(self):\n        ids = [t for t in self.status_of if self.status_of[t] == \"pending\"]\n        return sorted(ids, key=lambda t: (-self.priority[t], t))\n",
+"explanation": "Two parallel dicts (status + priority). State transitions guard the id with `not in` and return False on unknown. pending() filters to just \"pending\" ids then sorts with the (-priority, id) tuple key.",
+"tests": "q = TaskQueue()\nq.submit(\"t1\", 5)\nq.submit(\"t2\", 5)\nq.submit(\"t3\", 9)\nq.start(\"t1\")\ncheck(\"running\", q.status(\"t1\"), \"running\")\ncheck(\"unknown_status\", q.status(\"nope\"), None)\ncheck(\"unknown_start\", q.start(\"nope\"), False)\ncheck(\"pending1\", q.pending(), [\"t3\", \"t2\"])\nq.complete(\"t2\")\ncheck(\"pending2\", q.pending(), [\"t3\"])\n"
+},
+{
+"id": "order-book",
+"title": "OrderBook (count AND group at once)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "Counter idiom + grouping idiom side by side (NOT comprehensions).",
+"description": "Track per-symbol share totals and per-trader fills.\n\n  __init__()\n  fill(trader, symbol, shares)  # add shares to symbol's total AND\n                                # append (symbol, shares) to trader\n  volume(symbol)                # total shares for symbol (0 if none)\n  fills_for(trader)             # list of (symbol, shares), [] if none\n  top_symbols(n)                # top n (symbol, vol), vol DESC then\n                                # symbol ASC on ties",
+"starter": "class OrderBook:\n    def __init__(self):\n        pass\n\n    def fill(self, trader, symbol, shares):\n        pass\n\n    def volume(self, symbol):\n        pass\n\n    def fills_for(self, trader):\n        pass\n\n    def top_symbols(self, n):\n        pass\n",
+"solution": "class OrderBook:\n    def __init__(self):\n        self.vol = {}              # symbol -> total shares (COUNTER)\n        self.by_trader = {}        # trader -> [(symbol, shares)] (GROUP)\n\n    def fill(self, trader, symbol, shares):\n        self.vol[symbol] = self.vol.get(symbol, 0) + shares\n        self.by_trader.setdefault(trader, []).append((symbol, shares))\n\n    def volume(self, symbol):\n        return self.vol.get(symbol, 0)\n\n    def fills_for(self, trader):\n        return self.by_trader.get(trader, [])\n\n    def top_symbols(self, n):\n        return sorted(self.vol.items(),\n                      key=lambda kv: (-kv[1], kv[0]))[:n]\n",
+"explanation": "Two accumulation idioms together: .get(k, 0) + shares to COUNT volume, setdefault(k, []).append(...) to GROUP fills. Both need a statement that mutates a dict \u2014 a comprehension can't accumulate into buckets. Then the usual (-vol, symbol) top-N sort.",
+"tests": "ob = OrderBook()\nob.fill(\"alice\", \"AAPL\", 100)\nob.fill(\"bob\", \"AAPL\", 50)\nob.fill(\"alice\", \"MSFT\", 150)\nob.fill(\"carol\", \"TSLA\", 90)\ncheck(\"vol\", ob.volume(\"AAPL\"), 150)\ncheck(\"vol_missing\", ob.volume(\"ZZZZ\"), 0)\ncheck(\"fills\", ob.fills_for(\"alice\"), [(\"AAPL\", 100), (\"MSFT\", 150)])\ncheck(\"fills_missing\", ob.fills_for(\"nobody\"), [])\ncheck(\"top\", ob.top_symbols(2), [(\"AAPL\", 150), (\"MSFT\", 150)])\n"
+},
+{
+"id": "tournament",
+"title": "Tournament (filter -> sort -> slice)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "Nested records; guard unknown names; the 3-stage standings pipeline.",
+"description": "Players each have a score and an active flag.\n\n  __init__()\n  join(name)         # record {score: 0, active: True}\n  award(name, pts)   # add pts to score (ignore unknown names)\n  eliminate(name)    # set active False (ignore unknown)\n  standings(n)       # top n ACTIVE players as (name, score),\n                     # score DESC then name ASC; eliminated excluded",
+"starter": "class Tournament:\n    def __init__(self):\n        pass\n\n    def join(self, name):\n        pass\n\n    def award(self, name, pts):\n        pass\n\n    def eliminate(self, name):\n        pass\n\n    def standings(self, n):\n        pass\n",
+"solution": "class Tournament:\n    def __init__(self):\n        self.players = {}          # name -> {score, active}\n\n    def join(self, name):\n        self.players[name] = {\"score\": 0, \"active\": True}\n\n    def award(self, name, pts):\n        if name not in self.players:\n            return\n        self.players[name][\"score\"] += pts\n\n    def eliminate(self, name):\n        if name not in self.players:\n            return\n        self.players[name][\"active\"] = False\n\n    def standings(self, n):\n        active = [name for name in self.players if self.players[name][\"active\"]]\n        active.sort(key=lambda name: (-self.players[name][\"score\"], name))\n        return [(name, self.players[name][\"score\"]) for name in active][:n]\n",
+"explanation": "Each player is a nested record dict. Mutating methods guard unknown names up front. standings is the canonical three stages: FILTER to active, SORT by (-score, name), then map to (name, score) and SLICE [:n]. The final comprehension is the RIGHT use of one \u2014 pure transform, no accumulation.",
+"tests": "t = Tournament()\nt.join(\"a\"); t.join(\"b\"); t.join(\"c\")\nt.award(\"a\", 30); t.award(\"b\", 30); t.award(\"c\", 50)\nt.eliminate(\"c\")\nt.award(\"zzz\", 99)\ncheck(\"standings\", t.standings(5), [(\"a\", 30), (\"b\", 30)])\n"
+},
+{
+"id": "versioned-config",
+"title": "VersionedConfig (snapshot / restore)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "deepcopy on BOTH snapshot and restore so nested state can't leak.",
+"description": "A settings store with backup/restore. The deepcopy trap lives here.\n\n  __init__()\n  set(key, value)   # value may be a list/dict\n  get(key)          # value, or None\n  snapshot()        # save a backup of the ENTIRE current config\n  restore()         # replace config with the last snapshot, such that\n                    # future edits don't corrupt the saved snapshot",
+"starter": "class VersionedConfig:\n    def __init__(self):\n        pass\n\n    def set(self, key, value):\n        pass\n\n    def get(self, key):\n        pass\n\n    def snapshot(self):\n        pass\n\n    def restore(self):\n        pass\n",
+"solution": "import copy\n\nclass VersionedConfig:\n    def __init__(self):\n        self.config = {}\n        self.backup = {}\n\n    def set(self, key, value):\n        self.config[key] = value\n\n    def get(self, key):\n        return self.config.get(key)\n\n    def snapshot(self):\n        self.backup = copy.deepcopy(self.config)\n\n    def restore(self):\n        self.config = copy.deepcopy(self.backup)\n",
+"explanation": "deepcopy on BOTH sides. Snapshot deepcopy freezes the backup so later live mutations (appending to a stored list) don't leak in. Restore deepcopy means future edits to config don't reach back and corrupt the saved backup \u2014 a shallow copy would share the nested objects.",
+"tests": "c = VersionedConfig()\nc.set(\"tags\", [\"a\", \"b\"])\nc.snapshot()\nc.get(\"tags\").append(\"c\")\nc.set(\"extra\", 1)\nc.restore()\ncheck(\"frozen\", c.get(\"tags\"), [\"a\", \"b\"])\ncheck(\"gone\", c.get(\"extra\"), None)\n"
+},
+{
+"id": "access-log",
+"title": "AccessLog (and short-circuit order)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "Guard on the LEFT, risky deref on the RIGHT \u2014 and is L->R.",
+"description": "Records may or may not have a role key.\n\n  __init__()           # self.users = {} (user_id -> record dict)\n  add(user_id)         # create {\"active\": True}  (NO role key yet)\n  set_role(uid, role)  # set the record's role\n  admins()             # user_ids that are BOTH active AND role=='admin';\n                       # must NOT crash on users with no role. Any order.",
+"starter": "class AccessLog:\n    def __init__(self):\n        pass\n\n    def add(self, user_id):\n        pass\n\n    def set_role(self, user_id, role):\n        pass\n\n    def admins(self):\n        pass\n",
+"solution": "class AccessLog:\n    def __init__(self):\n        self.users = {}\n\n    def add(self, user_id):\n        self.users[user_id] = {\"active\": True}\n\n    def set_role(self, user_id, role):\n        self.users[user_id][\"role\"] = role\n\n    def admins(self):\n        out = []\n        for uid in self.users:\n            rec = self.users[uid]\n            if rec[\"active\"] and rec.get(\"role\") == \"admin\":\n                out.append(uid)\n        return out\n",
+"explanation": "`and` evaluates left to right and short-circuits, but only AFTER the left side ran \u2014 so the safe check must be on the left. rec.get('role') returns None on a roleless record (None == 'admin' is just False), never KeyError. rec['role'] would crash, so you'd need \"role\" in rec on the left first.",
+"tests": "a = AccessLog()\na.add(\"u1\"); a.add(\"u2\"); a.add(\"u3\")\na.set_role(\"u1\", \"admin\")\na.set_role(\"u3\", \"user\")\ncheck(\"admins\", sorted(a.admins()), [\"u1\"])\n"
+},
+{
+"id": "rate-limiter",
+"title": "RateLimiter (sliding window)",
+"difficulty": "Medium",
+"category": "IMC: Stateful Class",
+"pattern": "Per-key timestamp list; drop entries outside the window, then count.",
+"description": "Allow at most `limit` requests per user within any window of `window` time units. Time is passed in as a non-decreasing int.\n\n  __init__(limit, window)\n  allow(user, timestamp)   # record + return True if the request is\n                           # allowed, else return False (not recorded).\n                           # A request at t counts requests with\n                           # time > t - window (i.e. last `window` units).\n\nExample with limit=2, window=10:\n  allow(\"u\", 1) -> True;  allow(\"u\", 2) -> True;  allow(\"u\", 3) -> False\n  allow(\"u\", 12) -> True   (the t=1,2 requests fell out of the window)",
+"starter": "class RateLimiter:\n    def __init__(self, limit, window):\n        pass\n\n    def allow(self, user, timestamp):\n        pass\n",
+"solution": "class RateLimiter:\n    def __init__(self, limit, window):\n        self.limit = limit\n        self.window = window\n        self.hits = {}             # user -> [timestamps]\n\n    def allow(self, user, timestamp):\n        recent = self.hits.setdefault(user, [])\n        cutoff = timestamp - self.window\n        recent[:] = [t for t in recent if t > cutoff]\n        if len(recent) >= self.limit:\n            return False\n        recent.append(timestamp)\n        return True\n",
+"explanation": "Keep each user's recent request times. On a request, drop timestamps older than the window (t > timestamp - window keeps the live ones), then allow only if fewer than `limit` remain \u2014 and record it. recent[:] = [...] rewrites the list in place so the dict keeps the same list object.",
+"tests": "r = RateLimiter(2, 10)\ncheck(\"a1\", r.allow(\"u\", 1), True)\ncheck(\"a2\", r.allow(\"u\", 2), True)\ncheck(\"a3\", r.allow(\"u\", 3), False)\ncheck(\"a4\", r.allow(\"u\", 12), True)\ncheck(\"other_user\", r.allow(\"v\", 12), True)\n"
+}
+];
+
+/* ============================================================
+   STATE + PERSISTENCE
+   ============================================================ */
+const LS_KEY = "csprep_grind_v1";
+const state = {
+  curId: PROBLEMS[0] ? PROBLEMS[0].id : null,
+  tab: "desc",
+  category: "All",
+  difficulty: "All",
+  solvedSeen: false,         // has the user opened the Solution tab this problem
+  // persisted: id -> { code: string, solved: bool }
+  prog: {},
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) state.prog = JSON.parse(raw) || {};
+  } catch (e) { state.prog = {}; }
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state.prog)); } catch (e) {}
+}
+function prog(id) {
+  if (!state.prog[id]) state.prog[id] = { code: null, solved: false };
+  return state.prog[id];
+}
+function getProblem(id) { return PROBLEMS.find(p => p.id === id); }
+
+/* ============================================================
+   PYODIDE — lazy boot; run user code + tests, collect results
+   ============================================================ */
+let pyodideReady = null;     // promise, set on first run
+function bootPyodide() {
+  if (!pyodideReady) {
+    pyodideReady = loadPyodide();
+  }
+  return pyodideReady;
+}
+
+// The harness: define check() to collect results, run user code, then tests,
+// and hand back a JSON blob. User code and tests are base64-encoded so any
+// quotes / newlines / triple-quotes survive the JS->Python hop untouched.
+function buildHarness(userCode, tests) {
+  // btoa needs latin1; encodeURIComponent->unescape makes UTF-8 safe.
+  const b64 = btoa(unescape(encodeURIComponent(
+    JSON.stringify({ user: userCode, tests: tests }))));
+  return [
+    "import json, base64, traceback",
+    "__payload__ = json.loads(base64.b64decode('" + b64 + "').decode('utf-8'))",
+    "__results__ = []",
+    "def check(name, got, expected):",
+    "    try:",
+    "        ok = (got == expected)",
+    "    except Exception:",
+    "        ok = False",
+    "    __results__.append({'name': name, 'ok': bool(ok),",
+    "                        'got': repr(got), 'expected': repr(expected)})",
+    "__ns__ = {'check': check, '__results__': __results__}",
+    "__error__ = None",
+    "try:",
+    "    exec(__payload__['user'], __ns__)",
+    "    exec(__payload__['tests'], __ns__)",
+    "except Exception:",
+    "    __error__ = traceback.format_exc()",
+    "json.dumps({'results': __ns__['__results__'], 'error': __error__})",
+  ].join("\n");
+}
+
+async function runCode() {
+  const p = getProblem(state.curId);
+  if (!p) return;
+  const consoleEl = document.getElementById("console");
+  const runBtn = document.getElementById("runBtn");
+  const userCode = document.getElementById("editor").value;
+  // persist code
+  prog(p.id).code = userCode;
+  save();
+
+  consoleEl.innerHTML = '<span class="status">Booting Python (first run downloads Pyodide ~6 MB)…</span>';
+  runBtn.disabled = true;
+  let py;
+  try {
+    py = await bootPyodide();
+  } catch (e) {
+    consoleEl.innerHTML = '<span class="summary fail">Could not load Pyodide.</span>' +
+      '<div class="err-trace">' + esc(String(e)) + '\n\nThis page needs network on first run to fetch the Python runtime.</div>';
+    runBtn.disabled = false;
+    return;
+  }
+  consoleEl.innerHTML = '<span class="status">Running…</span>';
+  let parsed;
+  try {
+    const out = await py.runPythonAsync(buildHarness(userCode, p.tests));
+    parsed = JSON.parse(out);
+  } catch (e) {
+    consoleEl.innerHTML = '<span class="summary fail">Runtime error</span>' +
+      '<div class="err-trace">' + esc(String(e)) + '</div>';
+    runBtn.disabled = false;
+    return;
+  }
+  renderResults(parsed);
+  runBtn.disabled = false;
+}
+
+function renderResults(parsed) {
+  const consoleEl = document.getElementById("console");
+  if (parsed.error) {
+    consoleEl.innerHTML = '<span class="summary fail">✗ Error before tests finished</span>' +
+      '<div class="err-trace">' + esc(parsed.error) + '</div>';
+    return;
+  }
+  const results = parsed.results || [];
+  const passed = results.filter(r => r.ok).length;
+  const total = results.length;
+  const allPass = total > 0 && passed === total;
+  let html = '<div class="summary ' + (allPass ? "pass" : "fail") + '">' +
+    (allPass ? "✓ " : "✗ ") + passed + " / " + total + " tests passed</div>";
+  for (const r of results) {
+    html += '<div class="test-row ' + (r.ok ? "ok" : "no") + '">' +
+      '<span class="mark">' + (r.ok ? "✓" : "✗") + '</span>' +
+      '<span class="tname">' + esc(r.name) + '</span>';
+    if (!r.ok) {
+      html += '<span class="detail">got ' + esc(r.got) + ' · expected ' + esc(r.expected) + '</span>';
+    }
+    html += '</div>';
+  }
+  consoleEl.innerHTML = html;
+  if (allPass) {
+    prog(state.curId).solved = true;
+    save();
+    renderSidebar();
+    renderProgress();
+  }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function visibleProblems() {
+  return PROBLEMS.filter(p =>
+    (state.category === "All" || p.category === state.category) &&
+    (state.difficulty === "All" || p.difficulty === state.difficulty));
+}
+
+function renderProgress() {
+  const solved = PROBLEMS.filter(p => prog(p.id).solved).length;
+  document.getElementById("progressLine").innerHTML =
+    "Solved <b>" + solved + "</b> / " + PROBLEMS.length;
+}
+
+function renderSidebar() {
+  const list = visibleProblems();
+  const plist = document.getElementById("plist");
+  // group by category, preserving first-seen order
+  const order = [];
+  const byCat = {};
+  for (const p of list) {
+    if (!byCat[p.category]) { byCat[p.category] = []; order.push(p.category); }
+    byCat[p.category].push(p);
+  }
+  let html = "";
+  for (const cat of order) {
+    html += '<div class="group-head">' + esc(cat) + '</div>';
+    for (const p of byCat[cat]) {
+      const solved = prog(p.id).solved;
+      html += '<div class="pitem ' + (p.id === state.curId ? "active" : "") +
+        '" data-id="' + p.id + '">' +
+        '<span class="tick">' + (solved ? "✓" : "") + '</span>' +
+        '<span class="ptitle">' + esc(p.title) + '</span>' +
+        '<span class="diff ' + p.difficulty + '">' + p.difficulty + '</span>' +
+        '</div>';
+    }
+  }
+  if (!list.length) html = '<div class="group-head">No problems match the filters.</div>';
+  plist.innerHTML = html;
+  plist.querySelectorAll(".pitem").forEach(el => {
+    el.onclick = () => selectProblem(el.dataset.id);
+  });
+}
+
+function renderDesc() {
+  const p = getProblem(state.curId);
+  const pane = document.getElementById("paneDesc");
+  if (!p) { pane.innerHTML = "Select a problem."; return; }
+  pane.innerHTML =
+    '<div class="ptitle-big">' + esc(p.title) + '</div>' +
+    '<div class="meta-row">' +
+      '<span class="cat-tag">' + esc(p.category) + '</span>' +
+      '<span class="diff ' + p.difficulty + '">' + p.difficulty + '</span>' +
+    '</div>' +
+    '<div class="pattern-note"><b>Pattern:</b> ' + esc(p.pattern) + '</div>' +
+    '<div class="desc-body">' + esc(p.description) + '</div>';
+}
+
+function renderSolution() {
+  const p = getProblem(state.curId);
+  const pane = document.getElementById("paneSolution");
+  if (!p) { pane.innerHTML = ""; return; }
+  pane.innerHTML =
+    '<div class="ptitle-big">' + esc(p.title) + ' — Solution</div>' +
+    '<div class="section-label">Reference solution</div>' +
+    '<pre class="code-block">' + esc(p.solution) + '</pre>' +
+    '<div class="section-label">Approach</div>' +
+    '<div class="explain-body">' + esc(p.explanation) + '</div>';
+}
+
+function renderEditor() {
+  const p = getProblem(state.curId);
+  const ed = document.getElementById("editor");
+  const saved = prog(p.id).code;
+  ed.value = (saved !== null && saved !== undefined) ? saved : p.starter;
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === tab));
+  document.getElementById("paneDesc").classList.toggle("active", tab === "desc");
+  document.getElementById("paneCode").classList.toggle("active", tab === "code");
+  document.getElementById("paneSolution").classList.toggle("active", tab === "solution");
+  if (tab === "code") document.getElementById("editor").focus();
+}
+
+function selectProblem(id) {
+  state.curId = id;
+  renderSidebar();
+  renderDesc();
+  renderSolution();
+  renderEditor();
+  document.getElementById("console").innerHTML =
+    '<span class="status">Write your solution, then press Run (Ctrl/Cmd+Enter).</span>';
+  setTab("desc");
+}
+
+/* ============================================================
+   INIT + EVENTS
+   ============================================================ */
+function initFilters() {
+  const cats = ["All", ...Array.from(new Set(PROBLEMS.map(p => p.category)))];
+  const sel = document.getElementById("catFilter");
+  sel.innerHTML = cats.map(c =>
+    '<option value="' + c + '">' + (c === "All" ? "All categories" : c) + '</option>').join("");
+  sel.onchange = () => { state.category = sel.value; renderSidebar(); };
+  document.getElementById("diffFilter").onchange = (e) => {
+    state.difficulty = e.target.value; renderSidebar();
+  };
+}
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => setTab(t.dataset.tab);
+});
+document.getElementById("runBtn").onclick = runCode;
+document.getElementById("resetCodeBtn").onclick = () => {
+  const p = getProblem(state.curId);
+  prog(p.id).code = null; save();
+  renderEditor();
+  setTab("code");
+};
+// Tab key inserts spaces in the editor; Cmd/Ctrl+Enter runs.
+document.getElementById("editor").addEventListener("keydown", (e) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const ta = e.target;
+    const s = ta.selectionStart, en = ta.selectionEnd;
+    ta.value = ta.value.slice(0, s) + "    " + ta.value.slice(en);
+    ta.selectionStart = ta.selectionEnd = s + 4;
+  } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    runCode();
+  }
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+load();
+initFilters();
+renderProgress();
+renderSidebar();
+selectProblem(state.curId);
+</script>
+</body>
+</html>
